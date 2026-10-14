@@ -4,7 +4,6 @@
 Переменные окружения:
   TG_BOT_TOKEN, TG_CHAT_ID   - обязательны для отправки
   DRY_RUN=1                  - не отправлять, а напечатать в консоль
-  SHOW_TALKING_POINTS=0      - убрать блок "Что это значит для клиентов"
   NEWS_LIMIT=8               - сколько новостей показывать
 Запуск:  python digest.py            (боевой)
          python digest.py --demo     (демо-данные, без интернета, печатает в консоль)
@@ -42,6 +41,32 @@ NEWS_KEYWORDS = re.compile(
     r"фрс|доллар|евро|юан|санкц|мосбирж|ормуз|opec|опек",
     re.IGNORECASE,
 )
+
+# Индексы облигаций Мосбиржи: (тикер, короткая подпись). Редактируй список под себя.
+# Тикеры проверены на iss.moex.com. Если тикер не ответит или его данные устарели
+# (>10 дней), строка просто пропускается, а в логе будет [warn].
+# TR = индекс полной доходности (с учётом купонов); 1г/3г/5+ = сегменты по сроку (дюрации).
+BOND_INDICES = [
+    ("RGBI", "RGBI (цены)"),
+    ("RGBITR", "RGBI TR"),
+    ("RUGBITR1Y", "ОФЗ TR 1г"),
+    ("RUGBITR3Y", "ОФЗ TR 3г"),
+    ("RUGBITR5+", "ОФЗ TR 5+"),
+    ("RUCBTRNS", "Корп. TR"),
+    ("RUCBTR3YNS", "Корп. TR 3г"),
+    ("RUCBTR5YNS", "Корп. TR 5г"),
+    ("RUMBTRNS", "Муниц. TR"),
+]
+# Индексы акций: (тикер, короткая подпись)
+EQUITY_INDICES = [
+    ("IMOEX", "IMOEX"),
+    ("MCFTR", "MCFTR (с див.)"),
+    ("RTSI", "RTSI ($)"),
+    # ("MOEXOG", "Нефть и газ"), ("MOEXFN", "Финансы"), ("MOEXMM", "Металлы"),
+]
+# Точки кривой бескупонной доходности ОФЗ (G-curve), годы (на MOEX есть 0.25 ... 20)
+ZCYC_POINTS = (1, 2, 3, 5, 7, 10)
+MAX_INDEX_AGE_DAYS = 10
 
 WEEKDAYS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа",
@@ -201,18 +226,47 @@ def cbr_ruonia(today):
     return rows[-1][1], rows[-1][0]
 
 
-def moex_index(secid, boards=("SNDX", "RTSI")):
-    for board in boards:
-        url = (f"https://iss.moex.com/iss/engines/stock/markets/index/boards/{board}"
-               f"/securities/{secid}.json?iss.meta=off&iss.only=marketdata")
-        j = json.loads(http_get(url))
-        cols, rows = j["marketdata"]["columns"], j["marketdata"]["data"]
-        if rows:
-            r = dict(zip(cols, rows[0]))
-            val = r.get("CURRENTVALUE") or r.get("LASTVALUE")
-            if val:
-                return float(val), r.get("LASTCHANGEPRC")
+def moex_zcyc():
+    """Кривая бескупонной доходности ОФЗ (последние данные): {срок_в_годах: доходность_%}."""
+    url = "https://iss.moex.com/iss/engines/stock/zcyc.json?iss.meta=off&iss.only=yearyields"
+    blk = json.loads(http_get(url))["yearyields"]
+    rows = [dict(zip(blk["columns"], r)) for r in blk["data"]]
+    if not rows:
+        raise ValueError("G-curve: нет данных")
+    last = max((r["tradedate"], r.get("tradetime") or "") for r in rows)
+    out = {}
+    for r in rows:
+        if (r["tradedate"], r.get("tradetime") or "") == last:
+            out[float(r["period"])] = float(r["value"])
+    return {"date": last[0], "points": out}
+
+
+def moex_index(secid):
+    """Последнее значение индекса: (значение, изменение_%, дата_торгов 'YYYY-MM-DD')."""
+    url = ("https://iss.moex.com/iss/engines/stock/markets/index/securities/"
+           f"{urllib.parse.quote(secid, safe='')}.json?iss.meta=off&iss.only=marketdata")
+    md = json.loads(http_get(url))["marketdata"]
+    for row in md["data"]:
+        r = dict(zip(md["columns"], row))
+        val = r.get("CURRENTVALUE") or r.get("LASTVALUE")
+        if val:
+            return float(val), r.get("LASTCHANGEPRC"), r.get("TRADEDATE")
     raise ValueError(f"MOEX {secid}: нет данных")
+
+
+def moex_rusfar():
+    """RUSFAR по срокам (площадка MMIX): {'ON': %, '1W': %, '2W': %, '1M': %, '3M': %, 'date': ...}."""
+    ids = urllib.parse.quote("RUSFAR,RUSFAR1W,RUSFAR2W,RUSFAR1M,RUSFAR3M", safe="")
+    url = ("https://iss.moex.com/iss/engines/stock/markets/index/boards/MMIX/securities.json"
+           f"?iss.meta=off&iss.only=marketdata&securities={ids}&marketdata.columns=SECID,CURRENTVALUE,TRADEDATE")
+    md = json.loads(http_get(url))["marketdata"]
+    by = {r[0]: (r[1], r[2]) for r in md["data"] if r[1] is not None}
+    names = {"RUSFAR": "ON", "RUSFAR1W": "1W", "RUSFAR2W": "2W", "RUSFAR1M": "1M", "RUSFAR3M": "3M"}
+    out = {names[k]: float(v[0]) for k, v in by.items() if k in names}
+    if "ON" not in out:
+        raise ValueError("RUSFAR: нет данных")
+    out["date"] = by["RUSFAR"][1]
+    return out
 
 
 def yahoo(symbol):
@@ -271,14 +325,35 @@ def news(limit):
 
 # ---------------------------------------------------------------- сбор
 
+def fetch_indices(spec):
+    """[(тикер, подпись)] -> [(тикер, подпись, значение, изменение_%)] только по свежим и ответившим."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        results = list(ex.map(lambda sp: safe(f"moex_index {sp[0]}", moex_index, sp[0]), spec))
+    today, out = datetime.now(MSK).date(), []
+    for (sid, label), r in zip(spec, results):
+        if not r:
+            continue
+        val, chg, td = r
+        try:
+            if td and (today - date.fromisoformat(td)).days > MAX_INDEX_AGE_DAYS:
+                log(f"[warn] {sid}: данные устарели (последняя дата {td}), пропускаю")
+                continue
+        except ValueError:
+            pass
+        out.append((sid, label, val, chg))
+    return out
+
+
 def collect(today):
     d = {}
     d["cur"] = safe("cbr_currencies", cbr_currencies, today)
     d["key_rate"] = safe("cbr_key_rate", cbr_key_rate, today)
     d["ruonia"] = safe("cbr_ruonia", cbr_ruonia, today)
-    d["rusfar"] = safe("moex_rusfar", moex_index, "RUSFAR")
-    d["rgbi"] = safe("moex_rgbi", moex_index, "RGBI")
-    d["imoex"] = safe("moex_imoex", moex_index, "IMOEX")
+    d["rusfar"] = safe("moex_rusfar", moex_rusfar)
+    d["zcyc"] = safe("moex_zcyc", moex_zcyc)
+    d["bonds"], d["equity"] = fetch_indices(BOND_INDICES), fetch_indices(EQUITY_INDICES)
+    d["imoex"] = next((v for sid, _l, v, _c in d["equity"] if sid == "IMOEX"), None)
     d["brent"] = safe("yahoo_brent", yahoo, "BZ=F")
     d["gold"] = safe("yahoo_gold", yahoo, "GC=F")
     d["crypto"] = safe("coingecko", coingecko)
@@ -287,14 +362,26 @@ def collect(today):
 
 
 def demo_data():
+    """Демо-данные для проверки вёрстки (значения реальные на 14.10.2026, но фиксированные)."""
     return {
         "cur": {"date": "14.10.2026", "rates": {
             "USD": (83.8675, 83.9175), "EUR": (93.7723, 94.0364), "CNY": (11.74, 11.71)}},
         "key_rate": 14.0,
         "ruonia": (13.73, "2026-10-13"),
-        "rusfar": (13.79, None),
-        "rgbi": (111.29, 0.04),
-        "imoex": (2438.84, 0.51),
+        "rusfar": {"ON": 13.83, "1W": 13.87, "2W": 13.91, "1M": 13.96, "3M": 14.05, "date": "2026-10-14"},
+        "zcyc": {"date": "2026-10-14", "points": {1.0: 14.9, 2.0: 15.4, 3.0: 15.8, 5.0: 16.2, 7.0: 16.4, 10.0: 16.5}},
+        "bonds": [
+            ("RGBI", "RGBI (цены)", 111.35, 0.19), ("RGBITR", "RGBI TR", 767.35, 0.22),
+            ("RUGBITR1Y", "ОФЗ TR 1г", 330.29, -0.05), ("RUGBITR3Y", "ОФЗ TR 3г", 850.68, 0.0),
+            ("RUGBITR5+", "ОФЗ TR 5+", 643.77, 0.32), ("RUCBTRNS", "Корп. TR", 211.35, 0.01),
+            ("RUCBTR3YNS", "Корп. TR 3г", 203.78, 0.02), ("RUCBTR5YNS", "Корп. TR 5г", 188.81, 0.03),
+            ("RUMBTRNS", "Муниц. TR", 203.35, 0.0),
+        ],
+        "equity": [
+            ("IMOEX", "IMOEX", 2419.17, 0.01), ("MCFTR", "MCFTR (с див.)", 6971.78, 1.4),
+            ("RTSI", "RTSI ($)", 907.8, -0.08),
+        ],
+        "imoex": 2419.17,
         "brent": (106.60, 105.65),
         "gold": (4086.0, 4156.0),
         "crypto": {"BTC": (83400.0, 0.35), "ETH": (2506.0, 0.3)},
@@ -315,6 +402,38 @@ def next_meeting(today):
     return None
 
 
+def chg_txt(ch, d=2):
+    """'▲ +0,22%' / '▼ −0,28%' / '▬ 0,00%' / '' если нет данных."""
+    if ch is None:
+        return ""
+    p = fpct(ch, d)
+    if p[0] not in "+−":   # ноль: выравниваем по колонке знака
+        p = " " + p
+    return f"{arrow(ch, d)} {p}"
+
+
+def table(rows):
+    """rows: [(подпись, значение, изменение|None)] -> выровненный моноширинный блок <pre>."""
+    w1 = max(len(r[0]) for r in rows)
+    w2 = max(len(r[1]) for r in rows)
+    w3 = max((len(r[2]) for r in rows if r[2]), default=0)
+    out = []
+    for label, val, chg in rows:
+        line = f"{label:<{w1}}  {val:>{w2}}"
+        if w3:
+            line += f"  {(chg or ''):>{w3}}"
+        out.append(line.rstrip())
+    return "<pre>" + e("\n".join(out)) + "</pre>"
+
+
+def header(emoji, title, note=None):
+    return f"{emoji} <b>{title}</b>" + (f"  <i>{e(note)}</i>" if note else "")
+
+
+def pcts(x):
+    return "н/д" if x is None else f"{fnum(x)}%"
+
+
 def build_key(d, today):
     lines = []
     cur = d.get("cur")
@@ -323,154 +442,126 @@ def build_key(d, today):
         eur, eur_p = cur["rates"]["EUR"]
         ch = pct(usd, usd_p)
         if ch is not None and round(ch, 2) < 0:
-            title = "Рубль укрепляется"
+            icon, title = "🟢", "Рубль укрепляется"
         elif ch is not None and round(ch, 2) > 0:
-            title = "Рубль слабеет"
+            icon, title = "🔴", "Рубль слабеет"
         else:
-            title = "Рубль без заметных изменений"
-        txt = f"Официальный курс доллара ЦБ: {fnum(usd, 4)} ₽ ({fpct(ch)})"
+            icon, title = "⚪", "Рубль без изменений"
+        txt = f"USD {fnum(usd, 2)} ₽ ({fpct(ch)})"
         if eur:
-            txt += f", евро: {fnum(eur, 4)} ₽ ({fpct(pct(eur, eur_p))})."
-        lines.append(f"• <b>{e(title)}.</b> {e(txt)}")
+            txt += f", EUR {fnum(eur, 2)} ₽ ({fpct(pct(eur, eur_p))})"
+        lines.append(f"{icon} <b>{e(title)}.</b> {e(txt)}")
     if d.get("brent"):
         p, prev = d["brent"]
         ch = pct(p, prev)
-        word = "дорожает" if ch and ch > 0.3 else "дешевеет" if ch and ch < -0.3 else "стабильна"
-        lines.append(f"• <b>Нефть {word}.</b> Brent ${fnum(p)} ({fpct(ch, 1)} за день).")
+        if ch is not None and ch > 0.3:
+            icon, word = "🟢", "дорожает"
+        elif ch is not None and ch < -0.3:
+            icon, word = "🔴", "дешевеет"
+        else:
+            icon, word = "⚪", "стабильна"
+        lines.append(f"{icon} <b>Нефть {word}.</b> Brent ${fnum(p)} ({fpct(ch, 1)})")
     if d.get("key_rate") is not None:
         nm = next_meeting(today)
-        txt = f"Ключевая ставка ЦБ — {fnum(d['key_rate'])}%."
+        txt = f"Ключевая {fnum(d['key_rate'])}%"
         if nm:
-            txt += f" Ближайшее заседание: {nm.day} {MONTHS[nm.month - 1]}."
-        lines.append(f"• <b>Ставка.</b> {e(txt)}")
-    return "🔑 <b>01 · КЛЮЧЕВОЕ</b>\n" + ("\n".join(lines) if lines else "нет данных")
+            txt += f" · заседание ЦБ {nm.day} {MONTHS[nm.month - 1]}"
+        lines.append(f"🏦 <b>Ставка.</b> {e(txt)}")
+    return header("🔑", "КЛЮЧЕВОЕ") + "\n" + ("\n".join(lines) if lines else "нет данных")
 
 
 def build_fx(d):
     cur = d.get("cur")
     if not cur:
-        return "💱 <b>02 · ВАЛЮТЫ</b>\nнет данных"
-    lines = [f"💱 <b>02 · ВАЛЮТЫ</b> · курс ЦБ на {e(cur['date'][:5])}"]
+        return header("💱", "ВАЛЮТЫ") + "\nнет данных"
+    rows = []
     for code, label in (("USD", "USD/RUB"), ("EUR", "EUR/RUB"), ("CNY", "CNY/RUB")):
         v, p = cur["rates"][code]
-        if v is None:
-            lines.append(f"{label}: нет данных")
-        else:
-            ch = pct(v, p)
-            lines.append(f"{label}  <b>{fnum(v, 4)} ₽</b>  {arrow(ch)} {fpct(ch)}")
-    lines.append("<i>Официальные курсы, а не котировки для сделки. Изменение — к предыдущему курсу ЦБ.</i>")
-    return "\n".join(lines)
+        rows.append((label, "н/д" if v is None else f"{fnum(v, 4)} ₽", chg_txt(pct(v, p)) if v else ""))
+    return header("💱", "ВАЛЮТЫ", f"курс ЦБ на {cur['date'][:5]}") + "\n" + table(rows)
 
 
 def build_rates(d):
-    lines = ["🏦 <b>03 · СТАВКИ И ОБЛИГАЦИИ</b>"]
-    kr = d.get("key_rate")
-    lines.append(f"Ключевая ставка ЦБ  <b>{fnum(kr)}%</b>" if kr is not None else "Ключевая ставка: нет данных")
-    if d.get("rusfar"):
-        lines.append(f"RUSFAR O/N  <b>{fnum(d['rusfar'][0])}%</b>")
+    rf = d.get("rusfar") or {}
+    rows = [("Ключевая ЦБ", pcts(d.get("key_rate")), None)]
+    if rf:
+        for tenor, label in (("ON", "RUSFAR O/N"), ("1W", "RUSFAR 1W"), ("1M", "RUSFAR 1M"), ("3M", "RUSFAR 3M")):
+            if tenor in rf:
+                rows.append((label, pcts(rf[tenor]), None))
     else:
-        lines.append("RUSFAR O/N: нет данных")
+        rows.append(("RUSFAR", "н/д", None))
     if d.get("ruonia"):
         v, dt = d["ruonia"]
-        lines.append(f"RUONIA  <b>{fnum(v)}%</b> · на {dt[8:10]}.{dt[5:7]}")
+        rows.append((f"RUONIA ({dt[8:10]}.{dt[5:7]})", pcts(v), None))
     else:
-        lines.append("RUONIA: нет данных")
-    if d.get("rgbi"):
-        v, ch = d["rgbi"]
-        lines.append(f"Индекс ОФЗ RGBI  <b>{fnum(v)}</b>  {arrow(ch)} {fpct(ch)}")
-    else:
-        lines.append("RGBI: нет данных")
-    lines.append("<i>RUSFAR и RUONIA публикуются с задержкой.</i>")
-    return "\n".join(lines)
+        rows.append(("RUONIA", "н/д", None))
+    out = header("🏦", "СТАВКИ", "денежный рынок") + "\n" + table(rows)
+    z = d.get("zcyc")
+    if z:
+        pts = z["points"]
+        sel = [(p, pts[float(p)]) for p in ZCYC_POINTS if float(p) in pts]
+        if sel:
+            half = (len(sel) + 1) // 2
+            left, right = sel[:half], sel[half:]
+            lines = []
+            for i, (p, v) in enumerate(left):
+                line = f"{p:>2}г {fnum(v):>6}%"
+                if i < len(right):
+                    rp, rv = right[i]
+                    line += f"    {rp:>2}г {fnum(rv):>6}%"
+                lines.append(line)
+            dt = z["date"]
+            out += "\n" + header("📉", "Кривая ОФЗ", f"G-curve, доходность, на {dt[8:10]}.{dt[5:7]}") \
+                + "\n<pre>" + e("\n".join(lines)) + "</pre>"
+    return out
+
+
+def build_bonds(d):
+    items = d.get("bonds") or []
+    if not items:
+        return header("💠", "ИНДЕКСЫ ОБЛИГАЦИЙ", "Мосбиржа") + "\nнет данных"
+    rows = [(label, fnum(v), chg_txt(ch)) for _sid, label, v, ch in items]
+    return header("💠", "ИНДЕКСЫ ОБЛИГАЦИЙ", "Мосбиржа") + "\n" + table(rows)
 
 
 def build_markets(d):
-    lines = ["📈 <b>04 · АКЦИИ И СЫРЬЁ</b>"]
-    if d.get("imoex"):
-        v, ch = d["imoex"]
-        lines.append(f"IMOEX  <b>{fnum(v)}</b>  {arrow(ch)} {fpct(ch)}")
-    else:
-        lines.append("IMOEX: нет данных")
-    for key, label, unit in (("brent", "Brent", "за баррель"), ("gold", "Золото", "за унцию")):
+    rows = [(label, fnum(v), chg_txt(ch)) for _sid, label, v, ch in (d.get("equity") or [])]
+    for key, label in (("brent", "Brent $/барр."), ("gold", "Золото $/унц.")):
         if d.get(key):
             p, prev = d[key]
-            ch = pct(p, prev)
-            lines.append(f"{label}  <b>${fnum(p, 0 if p > 1000 else 2)}</b> {unit}  {arrow(ch)} {fpct(ch, 1)}")
+            rows.append((label, fnum(p, 0 if p > 1000 else 2), chg_txt(pct(p, prev), 1)))
         else:
-            lines.append(f"{label}: нет данных")
-    lines.append("<i>IMOEX — последнее доступное значение (утром это итог прошлой сессии). "
-                 "Нефть и золото — фьючерсы, значения на момент запуска.</i>")
-    return "\n".join(lines)
+            rows.append((label, "н/д", ""))
+    return header("📈", "АКЦИИ И СЫРЬЁ") + "\n" + table(rows)
 
 
 def build_crypto(d):
-    lines = ["₿ <b>05 · КРИПТОВАЛЮТЫ</b>"]
     c = d.get("crypto")
     if not c:
-        lines.append("нет данных")
-    else:
-        for code, name in (("BTC", "Bitcoin"), ("ETH", "Ethereum")):
-            p, ch = c[code]
-            lines.append(f"{name} ({code})  <b>${fnum(p, 0)}</b>  {arrow(ch, 1)} {fpct(ch, 1)} за 24ч")
-    return "\n".join(lines)
+        return header("₿", "КРИПТО") + "\nнет данных"
+    rows = [(code, f"${fnum(c[code][0], 0)}", chg_txt(c[code][1], 1)) for code in ("BTC", "ETH")]
+    return header("₿", "КРИПТО", "изменение за 24ч") + "\n" + table(rows)
 
 
 def build_news(d):
     items = d.get("news") or []
-    lines = ["📰 <b>06 · НОВОСТИ И СОБЫТИЯ</b>"]
+    lines = [header("📰", "НОВОСТИ")]
     if not items:
         lines.append("нет свежих новостей по ключевым темам")
     for src, title, link in items:
-        lines.append(f'• <a href="{html.escape(link, quote=True)}">{e(title)}</a> <i>({e(src)})</i>')
+        lines.append(f'▪️ <a href="{html.escape(link, quote=True)}">{e(title)}</a> <i>· {e(src)}</i>')
     return "\n".join(lines)
-
-
-def build_points(d, today):
-    pts = []
-    kr, ruonia = d.get("key_rate"), d.get("ruonia")
-    bits = []
-    if ruonia:
-        bits.append(f"RUONIA {fnum(ruonia[0])}%")
-    if kr is not None:
-        bits.append(f"ключевая ставка {fnum(kr)}%")
-    if bits:
-        pts.append("<b>Свободная ликвидность.</b> " + e(", ".join(bits)) +
-                   ". Сравнивать инструменты стоит по чистой доходности, сроку размещения и доступности средств.")
-    if d.get("rgbi"):
-        ch = d["rgbi"][1]
-        nm = next_meeting(today)
-        tail = f" Важны дюрация и сценарий ключевой ставки (заседание {nm.day} {MONTHS[nm.month - 1]})." if nm \
-            else " Важны дюрация и сценарий ключевой ставки."
-        if ch is not None and ch >= 0.3:
-            base = f"RGBI заметно вырос ({fpct(ch)})."
-        elif ch is not None and ch <= -0.3:
-            base = f"RGBI снижается ({fpct(ch)}): доходности растут."
-        else:
-            base = f"Движение RGBI небольшое ({fpct(ch)}), устойчивого тренда по этим данным нет."
-        pts.append("<b>ОФЗ и фиксация доходности.</b> " + e(base + tail))
-    if d.get("cur"):
-        usd, usd_p = d["cur"]["rates"]["USD"]
-        ch = pct(usd, usd_p)
-        direction = "снижается" if ch is not None and ch < 0 else "растёт" if ch is not None and ch > 0 else "почти не меняется"
-        pts.append(f"<b>Валютный риск и диверсификация.</b> Официальный курс доллара {direction} ({fpct(ch)}). "
-                   "Для клиента важнее будущие валютные расходы и структура активов, чем движение курса за один день.")
-    if not pts:
-        return None
-    return "💼 <b>07 · ЧТО ЭТО ЗНАЧИТ ДЛЯ КЛИЕНТОВ АТОН</b>\n" + "\n".join(f"{i}. {p}" for i, p in enumerate(pts, 1))
 
 
 def build_blocks(d, now):
     today = now.date()
-    head = (f"📊 <b>РЫНОЧНЫЙ ДАЙДЖЕСТ</b>\n{WEEKDAYS[now.weekday()]} · {now.day} {MONTHS[now.month - 1]} {now.year}\n"
-            "<i>Российский и глобальный рынки</i>")
-    blocks = [head, build_key(d, today), build_fx(d), build_rates(d), build_markets(d),
-              build_crypto(d), build_news(d)]
-    if os.environ.get("SHOW_TALKING_POINTS", "1") != "0":
-        pts = build_points(d, today)
-        if pts:
-            blocks.append(pts)
-    blocks.append(f"<i>Собрано автоматически в {now:%H:%M} МСК. Источники: ЦБ РФ, MOEX, Yahoo Finance, CoinGecko, RSS. "
-                  "Справочная информация, не инвестиционная рекомендация.</i>")
+    head = (f"📊 <b>РЫНОЧНЫЙ ДАЙДЖЕСТ</b>\n"
+            f"<i>{WEEKDAYS[now.weekday()]}, {now.day} {MONTHS[now.month - 1]} {now.year} · данные на {now:%H:%M} МСК</i>")
+    blocks = [head, build_key(d, today), build_fx(d), build_rates(d), build_bonds(d),
+              build_markets(d), build_crypto(d), build_news(d)]
+    blocks.append("<i>ℹ️ Курсы ЦБ — официальные, не котировки для сделки. Индексы и RUSFAR — последние значения "
+                  "(утром это итог прошлой сессии). TR — индексы полной доходности (с купонами); 1г/3г/5+ — сегменты "
+                  "по сроку. Brent и золото — фьючерсы. Справочная информация, не инвестиционная рекомендация.</i>")
     return blocks
 
 
