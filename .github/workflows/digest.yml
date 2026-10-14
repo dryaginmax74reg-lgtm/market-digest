@@ -1,1 +1,21 @@
+name: Market digest
 
+on:
+  schedule:
+    - cron: "30 5 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Send digest
+        run: python digest.py
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
