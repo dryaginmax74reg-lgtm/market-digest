@@ -15,6 +15,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -63,6 +64,12 @@ def http_get(url, data=None, headers=None, retries=3, timeout=25):
             req = urllib.request.Request(url, data=data, headers=h)
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read()
+        except urllib.error.HTTPError as e:
+            # 4xx (кроме 429) повторять бессмысленно
+            if 400 <= e.code < 500 and e.code != 429:
+                raise
+            last = e
+            time.sleep(1.5 * (i + 1))
         except Exception as e:  # noqa: BLE001
             last = e
             time.sleep(1.5 * (i + 1))
@@ -483,11 +490,28 @@ def pack(blocks, limit=3900):
 
 # ---------------------------------------------------------------- отправка
 
-def tg_send(token, chat_id, text):
-    data = urllib.parse.urlencode({
-        "chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": "true",
-    }).encode()
-    resp = json.loads(http_get(f"https://api.telegram.org/bot{token}/sendMessage", data=data))
+def tg_send(token, chat_id, text, html_mode=True):
+    params = {"chat_id": chat_id, "text": text, "disable_web_page_preview": "true"}
+    if html_mode:
+        params["parse_mode"] = "HTML"
+    base = os.environ.get("TG_API_BASE", "https://api.telegram.org")
+    try:
+        resp = json.loads(http_get(f"{base}/bot{token}/sendMessage",
+                                   data=urllib.parse.urlencode(params).encode()))
+    except urllib.error.HTTPError as ex:
+        try:
+            desc = json.loads(ex.read().decode("utf-8", "replace")).get("description", "")
+        except Exception:  # noqa: BLE001
+            desc = ""
+        if html_mode and "parse entities" in desc.lower():
+            log(f"[warn] Telegram не принял HTML ({desc}); отправляю простым текстом")
+            plain = html.unescape(re.sub(r"<[^>]+>", "", text))
+            return tg_send(token, chat_id, plain, html_mode=False)
+        hint = ""
+        if "chat not found" in desc.lower() or "chat_id" in desc.lower():
+            hint = (" Проверь секрет TG_CHAT_ID (только число, без пробелов и кавычек) "
+                    "и что в боте нажат Start.")
+        raise RuntimeError(f"Telegram ответил {ex.code}: {desc}.{hint}") from None
     if not resp.get("ok"):
         raise RuntimeError(f"Telegram: {resp}")
 
@@ -508,13 +532,21 @@ def main():
             print(m, "\n" + "-" * 40)
         return
 
-    token, chat = os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID")
-    if not token or not chat:
-        log("Не заданы TG_BOT_TOKEN / TG_CHAT_ID.")
+    token = (os.environ.get("TG_BOT_TOKEN") or "").strip()
+    chat = (os.environ.get("TG_CHAT_ID") or "").strip()
+    if not token:
+        log("Секрет TG_BOT_TOKEN пустой или не задан.")
         sys.exit(1)
-    for m in msgs:
-        tg_send(token, chat, m)
-        time.sleep(1)
+    if not chat:
+        log("Секрет TG_CHAT_ID пустой или не задан.")
+        sys.exit(1)
+    try:
+        for m in msgs:
+            tg_send(token, chat, m)
+            time.sleep(1)
+    except RuntimeError as ex:
+        log(f"ОШИБКА ОТПРАВКИ: {ex}")
+        sys.exit(1)
     log(f"Отправлено сообщений: {len(msgs)}")
 
 
