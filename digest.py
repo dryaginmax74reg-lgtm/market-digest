@@ -310,17 +310,26 @@ def build_blocks(d, now):
 
 
 def keyboard():
-    rows = []
+    """Кнопки под дайджестом. Если задан DASHBOARD_URL - каждая открывает свой график на дашборде,
+    иначе - страницы ЦБ/Мосбиржи/Yahoo."""
     dash = pages_url()
-    first = [("📊 Дашборд", dash)] if dash else []
-    rows.append(first + [("📈 IMOEX", "https://www.moex.com/ru/index/IMOEX"),
-                         ("📉 Кривая ОФЗ", "https://www.moex.com/s2532")])
-    rows.append([("🏦 Ключевая", "https://www.cbr.ru/hd_base/KeyRate/"),
-                 ("💰 Депозиты", "https://www.cbr.ru/statistics/avgprocstav/"),
-                 ("🇨🇳 Юань", "https://www.cbr.ru/currency_base/dynamics/?UniDbQuery.VAL_NM_RQ=R01375")])
-    rows.append([("🛢 Brent", "https://finance.yahoo.com/quote/BZ%3DF/"),
-                 ("🥇 Золото", "https://finance.yahoo.com/quote/GC%3DF/"),
-                 ("🗓 Дивиденды", "https://smart-lab.ru/dividends/")])
+    if dash:
+        base = dash if dash.endswith("/") else dash + "/"
+        rows = [
+            [("📈 IMOEX", base + "#IMOEX"), ("💠 ОФЗ", base + "#RGBITR"), ("🏢 Корп.", base + "#RUCBTRNS")],
+            [("📉 Кривая ОФЗ", base + "#CURVE"), ("🏦 Ставки", base + "#RATES"), ("💰 Депозит vs обл.", base + "#PERF")],
+            [("💵 Доллар", base + "#USD"), ("🇨🇳 Юань", base + "#CNY"), ("🛢 Brent", base + "#BRENT")],
+            [("🥇 Золото", base + "#GOLD"), ("🗓 Дивиденды", "https://smart-lab.ru/dividends/"), ("📊 Весь дашборд", base)],
+        ]
+    else:
+        rows = [
+            [("📈 IMOEX", "https://www.moex.com/ru/index/IMOEX"), ("📉 Кривая ОФЗ", "https://www.moex.com/s2532"),
+             ("🏦 Ключевая", "https://www.cbr.ru/hd_base/KeyRate/")],
+            [("💰 Депозиты", "https://www.cbr.ru/statistics/avgprocstav/"),
+             ("🇨🇳 Юань", "https://www.cbr.ru/currency_base/dynamics/?UniDbQuery.VAL_NM_RQ=R01375"),
+             ("🛢 Brent", "https://finance.yahoo.com/quote/BZ%3DF/")],
+            [("🥇 Золото", "https://finance.yahoo.com/quote/GC%3DF/"), ("🗓 Дивиденды", "https://smart-lab.ru/dividends/")],
+        ]
     return {"inline_keyboard": [[{"text": t, "url": u} for t, u in r] for r in rows]}
 
 
