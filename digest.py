@@ -12,7 +12,7 @@ import sys
 from datetime import date, datetime, timedelta
 
 from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
-                    cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, chg_txt, coingecko_btc,
+                    cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, coingecko_btc,
                     ddmm, deliver, dividends_calendar, e, fnum, fpct, fpp, header, last_on_or_before, log,
                     moex_imoex_constituents, moex_index, moex_index_hist, moex_mmix, moex_zcyc, moex_zcyc_back,
                     news, news_lines, next_meeting, pack, pages_url, parallel, pct, pcts, table, yahoo_quote)
@@ -136,6 +136,24 @@ def strong_moves(d, today):
 HEAD = ("", "", "1д", "YTD")
 
 
+def dot(ch, d=2):
+    """Цветной маркер направления за день."""
+    if ch is None or round(ch, d) == 0:
+        return "⚪"
+    return "🟢" if ch > 0 else "🔴"
+
+
+def pc(ch, d=2):
+    return "" if ch is None else fpct(ch, d)
+
+
+def fold(title_html, lines):
+    """Заголовок + сворачиваемый блок (в Telegram раскрывается по нажатию)."""
+    if not lines:
+        return ""
+    return title_html + "\n<blockquote expandable>" + "\n".join(lines) + "</blockquote>"
+
+
 def build_moves(d, today):
     items = strong_moves(d, today)
     if not items:
@@ -152,18 +170,19 @@ def build_fx(d):
     for code in ("USD", "EUR", "CNY"):
         v, p = cur["rates"][code]
         if v is None:
-            rows.append((f"{code}/RUB", "н/д"))
+            rows.append((f"⚪ {code}/RUB", "н/д"))
             continue
-        y = pct(v, base.get(code))
-        rows.append((f"{code}/RUB", fnum(v, 2), chg_txt(pct(v, p)), "" if y is None else fpct(y, 1)))
+        y, ch = pct(v, base.get(code)), pct(v, p)
+        rows.append((f"{dot(ch)} {code}/RUB", fnum(v, 2), pc(ch), "" if y is None else fpct(y, 1)))
     (u, up), (c, cp) = cur["rates"]["USD"], cur["rates"]["CNY"]
     if u and c:
         cross = u / c
         cross_p = up / cp if up and cp else None
         cross0 = base.get("USD") / base.get("CNY") if base.get("USD") and base.get("CNY") else None
         y = pct(cross, cross0)
-        rows.append(("USD/CNY", fnum(cross, 4), chg_txt(pct(cross, cross_p)), "" if y is None else fpct(y, 1)))
-    return header("💱", "ВАЛЮТЫ", f"курс ЦБ на {cur['date'][:5]}") + "\n" + table(rows, HEAD)
+        ch = pct(cross, cross_p)
+        rows.append((f"{dot(ch)} USD/CNY", fnum(cross, 3), pc(ch), "" if y is None else fpct(y, 1)))
+    return header("💱", "ВАЛЮТЫ", f"ЦБ на {cur['date'][:5]} · день · с начала года") + "\n" + table(rows)
 
 
 def build_rates(d, today):
@@ -201,7 +220,7 @@ def build_rates(d, today):
         else:
             view = "рынок ждёт ставку около текущей"
         lines.append(f"🔮 ОФЗ 1г {fnum(ofz1)}% vs ключевая {fnum(key)}% ({fpp(s)} п.п.): {view}")
-    if lines:
+    if lines and not card_ok(d):
         out += "\n" + "\n".join(e(x) for x in lines)
     return out
 
@@ -216,7 +235,11 @@ def build_yields(d, today):
         rows.append((label, pcts(v), fpp(v - dep) if spread and v is not None and dep is not None else "",
                      fpp(v - v0) if v is not None and v0 is not None else ""))
 
-    row("Депозит топ-10", dep, dep0, spread=False)
+    dec = ""
+    if dep_ser:
+        dd = dep_ser[-1][0]
+        dec = " " + {"01": "I", "11": "II", "21": "III"}.get(dd[8:10], "") + "." + dd[5:7]
+    row("Депозит" + dec, dep, dep0, spread=False)
     z, z0 = d.get("zcyc") or {}, d.get("zcyc0") or {}
     for p in ZCYC_POINTS:
         v = (z.get("points") or {}).get(float(p))
@@ -229,37 +252,34 @@ def build_yields(d, today):
     ust = d.get("ust")
     if ust and ust[0]:
         rows.append(("UST 10Y $", pcts(ust[0]), "", fpp(ust[0] - ust[2]) if ust[2] else ""))
-    note = "доходность, % годовых"
-    if dep_ser:
-        dd = dep_ser[-1][0]
-        dec = {"01": "I", "11": "II", "21": "III"}.get(dd[8:10], "")
-        note += f"; депозит - макс. ставка ЦБ, {dec}.{dd[5:7]}"
+    note = "% годовых · разница с депозитом · YTD п.п."
     return header("💰", "ДЕПОЗИТ vs ОБЛИГАЦИИ", note) + "\n" + table(rows, ("", "", "к деп.", "YTD"))
 
 
 def build_markets(d):
     rows = []
-    for sid, label in (("RGBITR", "ОФЗ RGBI TR"), ("RUCBTRNS", "Корп. TR"), ("IMOEX", "IMOEX")):
+    for sid, label in (("RGBITR", "ОФЗ TR"), ("RUCBTRNS", "Корп. TR"), ("IMOEX", "IMOEX")):
         r = d.get(sid)
         if r:
-            rows.append((label, fnum(r["val"]), chg_txt(r["chg"]), "" if r["ytd"] is None else fpct(r["ytd"], 1)))
+            rows.append((f"{dot(r['chg'])} {label}", fnum(r["val"], 0 if r["val"] > 1000 else 2), pc(r["chg"]),
+                         "" if r["ytd"] is None else fpct(r["ytd"], 1)))
         else:
-            rows.append((label, "н/д"))
+            rows.append((f"⚪ {label}", "н/д"))
     for key, label in (("brent", "Brent $"), ("gold", "Золото $")):
         q = d.get(key)
         if q and q[0]:
             p, prev, y0 = q
-            y = pct(p, y0)
-            rows.append((label, fnum(p, 0 if p > 1000 else 2), chg_txt(pct(p, prev)), "" if y is None else fpct(y, 1)))
+            ch, y = pct(p, prev), pct(p, y0)
+            rows.append((f"{dot(ch)} {label}", fnum(p, 0 if p > 1000 else 2), pc(ch), "" if y is None else fpct(y, 1)))
         else:
-            rows.append((label, "н/д"))
+            rows.append((f"⚪ {label}", "н/д"))
     b, by = d.get("btc"), d.get("btc_y")
     if b or by:
         price = b[0] if b else by[0]
         ch = b[1] if b else pct(by[0], by[1])
         y = pct(price, by[2]) if by else None
-        rows.append(("BTC $", fnum(price, 0), chg_txt(ch), "" if y is None else fpct(y, 1)))
-    return header("📈", "РЫНКИ", "индексы Мосбиржи — итог прошлой сессии") + "\n" + table(rows, HEAD)
+        rows.append((f"{dot(ch)} BTC $", fnum(price, 0), pc(ch), "" if y is None else fpct(y, 1)))
+    return header("📈", "РЫНКИ", "день · с начала года; биржа — итог вчера") + "\n" + table(rows)
 
 
 def build_events(d, today):
@@ -275,7 +295,7 @@ def build_events(d, today):
                  key=lambda x: x["registry"])[:8]
     pay = sorted((x for x in divs if x["pay_by"] and t0 <= x["pay_by"] <= t_pay and in_index(x["ticker"])),
                  key=lambda x: x["pay_by"])[:8]
-    parts = [header("🗓", "ДЕНЕЖНЫЕ СОБЫТИЯ")]
+    parts = []
     if divs:
         if reg:
             parts.append(f"<b>Дивидендные отсечки, {days} дн.</b> <i>(реестр · купить до)</i>")
@@ -292,21 +312,42 @@ def build_events(d, today):
     if mn:
         parts.append("<b>Сделки, размещения, выкупы</b>")
         parts += news_lines(mn)
-    return "\n".join(parts)
+    n = len(reg) + len(pay) + len(mn)
+    return fold(header("🗓", "ДЕНЕЖНЫЕ СОБЫТИЯ", f"{n} шт. · нажмите, чтобы раскрыть" if n else None), parts)
 
 
 def build_news(d):
     items = d.get("news") or []
-    return "\n".join([header("📰", "НОВОСТИ")] + (news_lines(items) or ["нет свежих новостей по ключевым темам"]))
+    if not items:
+        return header("📰", "НОВОСТИ") + "\nнет свежих новостей по ключевым темам"
+    return fold(header("📰", "НОВОСТИ", f"{len(items)} шт. · нажмите, чтобы раскрыть"), news_lines(items))
 
 
 def build_blocks(d, now):
     today = now.date()
-    head = (f"📊 <b>РЫНОЧНЫЙ ДАЙДЖЕСТ</b>\n"
-            f"<i>{WEEKDAYS[now.weekday()]}, {now.day} {MONTHS[now.month - 1]} {now.year} · {now:%H:%M} МСК · "
-            f"YTD — с начала года</i>")
-    return [head, build_moves(d, today), build_fx(d), build_rates(d, today), build_yields(d, today),
-            build_markets(d), build_events(d, today), build_news(d)]
+    head = (f"📊 <b>Подробно · {WEEKDAYS[now.weekday()].lower()}, {now.day} {MONTHS[now.month - 1]}</b>\n"
+            f"<i>🟢 рост · 🔴 снижение за день · YTD — с начала года</i>")
+    blocks = [head]
+    if not card_ok(d):
+        blocks.append(build_moves(d, today))
+    return blocks + [build_fx(d), build_rates(d, today), build_yields(d, today),
+                     build_markets(d), build_events(d, today), build_news(d)]
+
+
+def card_ok(d):
+    return bool(d.get("_card"))
+
+
+def caption(d, now):
+    """Подпись к карточке дня: дата + сильные движения (если есть)."""
+    lines = [f"<b>Рынки · {now.day} {MONTHS[now.month - 1]}</b>"]
+    moves = strong_moves(d, now.date())
+    if moves:
+        lines += [f"{i} {e(t)}" for i, t in moves[:4]]
+    else:
+        lines.append("Спокойное утро: сильных движений нет.")
+    lines.append("<i>Подробности и кнопки с графиками — ниже 👇</i>")
+    return "\n".join(lines)
 
 
 def keyboard():
@@ -333,6 +374,25 @@ def keyboard():
     return {"inline_keyboard": [[{"text": t, "url": u} for t, u in r] for r in rows]}
 
 
+def make_visuals(d, now, demo=False):
+    """История рядов -> данные дашборда (docs/data.json) и карточка дня. Ошибки не ломают дайджест."""
+    try:
+        import card
+        import charts
+        if demo:
+            series, curves = charts.demo_history(now.date())
+        else:
+            series, curves = charts.fetch_history(now.date())
+            if series:
+                charts.write_dashboard_data(series, curves, now)
+        path = card.render_card(d, series or {}, now, strong_moves(d, now.date()))
+        d["_card"] = path
+        if os.environ.get("SEND_CHARTS") == "1" and series:
+            d["_charts"] = charts.render_collage(series, curves, now.date())
+    except Exception as ex:  # noqa: BLE001
+        log(f"[warn] карточка/графики: {type(ex).__name__}: {ex}")
+
+
 def main():
     demo = "--demo" in sys.argv
     now = datetime.now(MSK)
@@ -341,7 +401,24 @@ def main():
     if not demo and not any(core):
         log("Ни один основной источник не ответил - дайджест не отправлен.")
         sys.exit(1)
-    deliver(pack(build_blocks(data, now)), keyboard=keyboard())
+    make_visuals(data, now, demo)
+    msgs = pack(build_blocks(data, now))
+    photos_after = [(data["_charts"], "📊 Графики за год")] if data.get("_charts") else []
+    if data.get("_card"):
+        deliver_card(data["_card"], caption(data, now))
+    deliver(msgs, keyboard=keyboard(), photos=photos_after)
+
+
+def deliver_card(path, cap):
+    if os.environ.get("DRY_RUN") == "1" or "--demo" in sys.argv:
+        print(f"[карточка] {path}\n{cap}\n" + "-" * 40)
+        return
+    from common import tg_creds, tg_photo
+    token, chat = tg_creds()
+    try:
+        tg_photo(token, chat, path, cap)
+    except Exception as ex:  # noqa: BLE001
+        log(f"[warn] карточка не отправилась: {ex}")
 
 
 if __name__ == "__main__":

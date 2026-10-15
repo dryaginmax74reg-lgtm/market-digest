@@ -558,6 +558,10 @@ def tg_send(token, chat_id, text, html_mode=True, reply_markup=None):
                                    data=urllib.parse.urlencode(params).encode()))
     except urllib.error.HTTPError as ex:
         desc = _tg_error(ex)
+        if html_mode and "parse entities" in desc.lower() and "<blockquote expandable>" in text:
+            log(f"[warn] Telegram не принял сворачиваемые блоки ({desc}); отправляю с обычными цитатами")
+            return tg_send(token, chat_id, text.replace("<blockquote expandable>", "<blockquote>"),
+                           html_mode=True, reply_markup=reply_markup)
         if html_mode and "parse entities" in desc.lower():
             log(f"[warn] Telegram не принял HTML ({desc}); отправляю простым текстом")
             plain = html.unescape(re.sub(r"<[^>]+>", "", text))
