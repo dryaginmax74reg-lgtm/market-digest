@@ -2,13 +2,25 @@ name: Market digest
 
 on:
   schedule:
-    - cron: "30 5 * * 1-5"
+    # 04:40 UTC = 07:40 МСК, по будням (GitHub может запустить на 5–30 мин позже)
+    - cron: "40 4 * * 1-5"
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repo-writer
+  cancel-in-progress: false
 
 jobs:
   send:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+      TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+      DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -16,6 +28,20 @@ jobs:
           python-version: "3.12"
       - name: Send digest
         run: python digest.py
-        env:
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+      - name: Install matplotlib
+        if: always()
+        run: pip install --quiet matplotlib
+      - name: Charts picture + dashboard data
+        if: always()
+        continue-on-error: true
+        run: python charts.py
+      - name: Save dashboard data
+        if: always()
+        run: |
+          git config user.name "market-digest-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/data.json 2>/dev/null || true
+          git diff --cached --quiet && exit 0
+          git commit -m "Данные дашборда $(date -u +%F)"
+          git pull --rebase --autostash
+          git push
