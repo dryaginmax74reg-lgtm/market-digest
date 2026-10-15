@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Рынки сегодня</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#eef1f6; --card:#ffffff; --line:#e6eaf1; --soft:#f4f6fa;
+  --ink:#101828; --ink2:#667085; --ink3:#98a2b3;
+  --acc:#5b5bf7; --acc2:#8b5cf6; --up:#12b76a; --down:#f04438;
+  --s1:#5b5bf7; --s2:#f79009; --s3:#12b76a; --s4:#ee46bc;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+  --nav:#101828; --navink:#ffffff;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --bg:#0c111d; --card:#161b26; --line:#232a38; --soft:#1d2433;
+    --ink:#f5f7fa; --ink2:#a0aabb; --ink3:#6b7587;
+    --acc:#7a7aff; --acc2:#a07bff; --up:#32d583; --down:#f97066;
+    --s1:#7a7aff; --s2:#fdb022; --s3:#32d583; --s4:#f670c7;
+    --shadow:0 1px 2px rgba(0,0,0,.3); --nav:#1d2433; --navink:#f5f7fa;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0c111d; --card:#161b26; --line:#232a38; --soft:#1d2433;
+  --ink:#f5f7fa; --ink2:#a0aabb; --ink3:#6b7587;
+  --acc:#7a7aff; --acc2:#a07bff; --up:#32d583; --down:#f97066;
+  --s1:#7a7aff; --s2:#fdb022; --s3:#32d583; --s4:#f670c7;
+  --shadow:0 1px 2px rgba(0,0,0,.3); --nav:#1d2433; --navink:#f5f7fa;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;overflow-x:hidden}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 20px 110px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.hello{color:var(--ink2);font-size:14px;font-weight:500}
+h1{font-size:28px;font-weight:800;margin:2px 0 0;letter-spacing:-.01em}
+.upd{color:var(--ink2);font-size:13px;font-weight:500}
+.icon-btn{border:0;background:var(--card);color:var(--ink);width:38px;height:38px;border-radius:12px;box-shadow:var(--shadow);cursor:pointer;font-size:16px}
+.top-right{display:flex;align-items:center;gap:10px}
+.tabs{display:flex;gap:8px;margin:4px 0 18px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:0;border-radius:999px;padding:9px 16px;font:inherit;font-weight:700;font-size:14px;background:var(--card);color:var(--ink2);cursor:pointer;white-space:nowrap;box-shadow:var(--shadow)}
+.tab.on{background:var(--ink);color:var(--card)}
+.card{background:var(--card);border-radius:22px;box-shadow:var(--shadow);padding:18px 20px;min-width:0}
+.card.focus{outline:2px solid var(--acc);outline-offset:-2px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+.tile{cursor:pointer;transition:transform .12s ease}
+.tile:hover{transform:translateY(-2px)}
+.tile.sel{outline:2px solid var(--acc);outline-offset:-2px}
+.tile .l{font-size:13px;color:var(--ink2);font-weight:600}
+.tile .v{font-size:28px;font-weight:800;margin-top:6px;letter-spacing:-.01em;line-height:1.1}
+.tile .c{font-size:13px;margin-top:4px;color:var(--ink2);font-weight:600}
+.tile .sp{height:46px;margin-top:10px;position:relative}
+.tile.hero{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}
+.tile.hero.sel{outline-color:#fff}
+.tile.hero .l,.tile.hero .c,.tile.hero .c span{color:rgba(255,255,255,.9)!important}
+.up{color:var(--up)}.down{color:var(--down)}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
+.grid2b{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start}
+.big .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.big .l{font-size:14px;color:var(--ink2);font-weight:600}
+.big .v{font-size:32px;font-weight:800;letter-spacing:-.01em;margin-top:4px}
+.big .c{font-size:13px;color:var(--ink2);font-weight:600;margin-top:2px}
+.big .cv{height:320px;margin-top:12px;position:relative}
+.rng{display:flex;gap:2px;background:var(--soft);padding:3px;border-radius:12px}
+.rng button{border:0;background:none;font:inherit;font-weight:700;font-size:12.5px;color:var(--ink2);padding:6px 10px;border-radius:9px;cursor:pointer}
+.rng button.on{background:var(--ink);color:var(--card)}
+h2{font-size:17px;font-weight:800;margin:0}
+.sub{font-size:12.5px;color:var(--ink2);font-weight:500;margin:2px 0 12px}
+.bars .row{padding:10px 0;border-bottom:1px solid var(--line)}
+.bars .row:last-child{border:0}
+.bars .top{display:flex;justify-content:space-between;font-weight:600;font-size:14px}
+.bars .row.hl .top span:first-child{font-weight:800}
+.bars .track{height:8px;border-radius:4px;background:var(--soft);margin-top:7px;overflow:hidden;position:relative}
+.bars .track i{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--acc)}
+.bars .track i.neg{background:var(--down)}
+.bars .row.hl .track i{background:var(--s2)}
+.cv2{height:250px;position:relative}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-weight:600;color:var(--ink2);font-size:12px;text-align:right;padding:8px 8px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none}
+th:first-child,td:first-child{text-align:left}
+th.sorted::after{content:" ↓"}th.sorted.asc::after{content:" ↑"}
+td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-weight:600}
+td:first-child{font-weight:700;white-space:normal}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--soft)}
+tr:last-child td{border:0}
+.ts{width:96px;height:28px;position:relative;display:inline-block;vertical-align:middle}
+.grp td{background:none!important;color:var(--ink3);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding-top:16px;cursor:default}
+.note{font-size:12px;color:var(--ink3);margin-top:22px;text-align:center}
+.bnav{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));background:var(--nav);color:var(--navink);border-radius:20px;display:none;justify-content:space-around;padding:9px 4px;z-index:10;box-shadow:0 8px 30px rgba(16,24,40,.25)}
+.bnav button{border:0;background:none;color:inherit;font:inherit;font-size:11px;font-weight:700;opacity:.55;text-align:center;cursor:pointer;padding:2px 6px}
+.bnav button.on{opacity:1}.bnav i{display:block;font-style:normal;font-size:18px;line-height:1.3}
+.empty{padding:40px;text-align:center;color:var(--ink2)}
+.gap{height:14px}
+@media (max-width:860px){
+  .tiles{grid-template-columns:1fr 1fr}
+  .grid2,.grid2b{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .wrap{padding:16px 14px 110px}
+  h1{font-size:24px}
+  .tabs{display:none}.bnav{display:flex}
+  .tile .v{font-size:23px}
+  .card{padding:16px;border-radius:20px}
+  .big .cv{height:240px}.big .v{font-size:27px}
+  .hide-m{display:none}
+  .ts{width:64px}
+  .top-right .upd{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><div class="hello" id="hello">Доброе утро</div><h1>Рынки сегодня</h1></div>
+    <div class="top-right"><div class="upd num" id="upd">загрузка…</div><button class="icon-btn" id="themeBtn" title="Светлая / тёмная тема">◐</button></div>
+  </header>
+  <nav class="tabs" id="tabs"></nav>
+  <div id="app"><div class="card empty">Загружаю данные…</div></div>
+  <div class="note" id="note">Источники: Банк России, Московская биржа, Yahoo Finance · обновляется каждое утро · справочная информация, не инвестиционная рекомендация</div>
+</div>
+<nav class="bnav" id="bnav"></nav>
+<script>
+(function(){
+  const USER_NAME = 'Максим';           // имя в приветствии; можно оставить пустым ''
+  const TABS = [
+    {id:'overview', name:'Обзор', icon:'◎'},
+    {id:'rates', name:'Ставки', icon:'%'},
+    {id:'bonds', name:'Облигации', icon:'◫'},
+    {id:'fx', name:'Валюты', icon:'₽'},
+    {id:'markets', name:'Рынки', icon:'↗'},
+  ];
+  const TAB_SERIES = {
+    rates:['KEY','DEP','RUONIA','RUSFAR','RUSFARCNY'],
+    bonds:['RGBITR','RUCBTRNS','RGBI_Y','CORP_Y'],
+    fx:['USD','CNY','EUR'],
+    markets:['IMOEX','BRENT','GOLD','BTC','UST10'],
+  };
+  const SHORT = {KEY:'Ключевая ставка',DEP:'Вклады, топ-10',RUONIA:'RUONIA',RUSFAR:'RUSFAR O/N',RUSFARCNY:'RUSFAR CNY',
+    RGBITR:'ОФЗ с купонами',RUCBTRNS:'Корп. облигации',RGBI_Y:'Доходность ОФЗ',CORP_Y:'Доходность корп.',
+    USD:'Доллар, ₽',EUR:'Евро, ₽',CNY:'Юань, ₽',IMOEX:'Индекс Мосбиржи',BRENT:'Нефть Brent, $',GOLD:'Золото, $',BTC:'Bitcoin, $',UST10:'UST 10Y'};
+  const STEP = new Set(['KEY','DEP']);
+  const FONT = 'Manrope, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  Chart.defaults.font.family = FONT;
+  const RANGES = [['1m','1М'],['3m','3М'],['ytd','YTD'],['1y','1Г'],['3y','3Г']];
+
+  const $ = id => document.getElementById(id);
+  const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const nf = (v,d=2) => v==null||isNaN(v) ? '—' : v.toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
+  const sg = (v,d=1,s='%') => v==null||isNaN(v) ? '—' : (v>0?'+':v<0?'−':'')+nf(Math.abs(v),d)+s;
+  const cls = v => v>0?'up':v<0?'down':'';
+  const clsK = (k,v) => isRate(k) ? '' : cls(v);   // ставки: без «хорошо/плохо», нейтральный цвет
+  const D = s => new Date(s+'T00:00:00').getTime();
+  const fmtD = t => new Date(t).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  const store = {get(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+  let DATA=null, TAB=store.get('tab','overview'), RANGE=store.get('range','ytd'), SEL=store.get('sel','IMOEX');
+  let charts=[], sortKey='group', sortAsc=false, FOCUS=null;
+  const t0 = store.get('theme',''); if(t0) document.documentElement.dataset.theme=t0;
+
+  const hr=new Date().getHours();
+  $('hello').textContent=(hr<5?'Доброй ночи':hr<12?'Доброе утро':hr<18?'Добрый день':'Добрый вечер')+(USER_NAME?', '+USER_NAME:'');
+
+  // ---------- данные
+  const has = k => !!(DATA.series[k] && DATA.series[k].data.length);
+  const isRate = k => (DATA.series[k]||{}).unit==='%';
+  const lastDate = () => D(DATA.updated.slice(0,10));
+  const pts = k => DATA.series[k].data.map(([d,v])=>[D(d),v]);
+  function startOf(r){ const d=new Date(lastDate());
+    if(r==='ytd') return new Date(d.getFullYear()-1,11,31).getTime();
+    const m={'1m':1,'3m':3,'1y':12,'3y':36}[r]; d.setMonth(d.getMonth()-m); return d.getTime(); }
+  function slice(k,r=RANGE){ const p=pts(k); const from=startOf(r);
+    const i=p.findIndex(x=>x[0]>from); if(i<0) return p.slice(-1); return p.slice(Math.max(0,i-1)); }
+  const last = k => { const p=DATA.series[k].data; return p[p.length-1][1]; };
+  function valueAt(k,t){ let v=null; for(const [d,x] of pts(k)){ if(d<=t) v=x; else break; } return v; }
+  function chg(k,from){ const b=valueAt(k,from), l=last(k); if(b==null) return null; return isRate(k)? l-b : (l/b-1)*100; }
+  const chgR = (k,r=RANGE) => chg(k,startOf(r));
+  const chgDays = (k,days) => chg(k,lastDate()-days*864e5);
+  function chg1d(k){ const p=DATA.series[k].data; if(p.length<2) return null; const a=p[p.length-2][1], b=p[p.length-1][1]; return isRate(k)? b-a : (b/a-1)*100; }
+  function depAccrual(r=RANGE){ if(!has('DEP')) return null; const p=pts('DEP'), from=startOf(r), to=lastDate(); let acc=1;
+    for(let i=0;i<p.length;i++){ const a=Math.max(p[i][0],from), b=Math.min(i+1<p.length?p[i+1][0]:to,to); if(b>a) acc*=1+p[i][1]/100*(b-a)/(365*864e5); }
+    return (acc-1)*100; }
+  const fmtVal = k => { const v=last(k); return isRate(k)? nf(v,2)+'%' : nf(v, v>1000?0:2); };
+  const fmtChg = (k,c) => sg(c, isRate(k)?2:1, isRate(k)?' п.п.':'%');
+  const rangeName = () => ({'1m':'за месяц','3m':'за 3 месяца','ytd':'с начала года','1y':'за год','3y':'за 3 года'})[RANGE];
+
+  // ---------- графики
+  function kill(){ charts.forEach(c=>c.destroy()); charts=[]; }
+  function hex(c){ c=c.trim(); return c.length===4 ? '#'+[...c.slice(1)].map(x=>x+x).join('') : c; }
+  function grad(ctx,color,h){ const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,hex(color)+'38'); g.addColorStop(1,hex(color)+'00'); return g; }
+  function spark(canvas,k,color){
+    if(!canvas) return;
+    const p=slice(k); const up=p[p.length-1][1]>=p[0][1];
+    const col=hex(color || (isRate(k)?tok('--acc'):(up?tok('--up'):tok('--down'))));
+    charts.push(new Chart(canvas,{type:'line',data:{datasets:[{data:p.map(([x,y])=>({x,y})),borderColor:col,borderWidth:1.8,pointRadius:0,
+      fill:true,backgroundColor:grad(canvas.getContext('2d'),col,60),tension:STEP.has(k)?0:.3,stepped:STEP.has(k)?'before':false}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,events:[],
+        plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{type:'linear',display:false,min:p[0][0],max:p[p.length-1][0]},y:{display:false}}}}));
+  }
+  function axisOpts(unit,time=true){
+    const ink2=tok('--ink2'), grid=tok('--line'), font={family:FONT,weight:'600',size:11};
+    return {responsive:true,maintainAspectRatio:false,animation:false,parsing:false,normalized:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:tok('--card'),titleColor:tok('--ink'),bodyColor:tok('--ink'),borderColor:grid,borderWidth:1,
+        padding:10,cornerRadius:12,titleFont:{family:FONT,weight:'700'},bodyFont:{family:FONT,weight:'600'},boxPadding:4,
+        callbacks:{title:it=>it.length?(time?fmtD(it[0].parsed.x):('срок '+it[0].parsed.x+' л')):'',
+                   label:c=>' '+(c.dataset.label?c.dataset.label+': ':'')+nf(c.parsed.y,2)+(unit==='%'?'%':unit&&unit!=='пт'?' '+unit:'')}}},
+      scales:{x:{type:'linear',min:time?startOf(RANGE):undefined,max:time?lastDate():undefined,grid:{display:false},border:{display:false},
+                 ticks:{color:ink2,maxTicksLimit:6,font,callback:v=>time?fmtD(v).slice(0,5):v+' л'}},
+              y:{position:'right',grid:{color:grid},border:{display:false},ticks:{color:ink2,maxTicksLimit:5,font,callback:v=>nf(v,Math.abs(v)<50?1:0)}}}};
+  }
+  function bigChart(canvas,k){
+    const p=slice(k), up=p[p.length-1][1]>=p[0][1], col=hex(isRate(k)?tok('--acc'):(up?tok('--up'):tok('--down')));
+    charts.push(new Chart(canvas,{type:'line',data:{datasets:[{label:SHORT[k]||k,data:p.map(([x,y])=>({x,y})),borderColor:col,borderWidth:2.2,pointRadius:0,
+      pointHoverRadius:5,pointHoverBorderWidth:2,pointHoverBorderColor:tok('--card'),pointHoverBackgroundColor:col,
+      fill:true,backgroundColor:grad(canvas.getContext('2d'),col,320),tension:STEP.has(k)?0:.25,stepped:STEP.has(k)?'before':false}]},
+      options:axisOpts(DATA.series[k].unit)}));
+  }
+  function multiChart(canvas,list,time=true,unit='%'){
+    const cols=[tok('--s1'),tok('--s2'),tok('--s3'),tok('--s4')];
+    const o=axisOpts(unit,time);
+    o.plugins.legend={display:true,position:'bottom',labels:{color:tok('--ink2'),usePointStyle:true,pointStyle:'circle',boxWidth:7,boxHeight:7,font:{family:FONT,weight:'600',size:12}}};
+    if(!time) o.interaction={mode:'nearest',intersect:false};
+    charts.push(new Chart(canvas,{type:'line',data:{datasets:list.map((s,i)=>({label:s.label,data:s.data,borderColor:cols[i],backgroundColor:cols[i],borderWidth:2.2,
+      pointRadius:time?0:3,tension:time?0:.3,stepped:s.step?'before':false}))},options:o}));
+  }
+
+  // ---------- блоки
+  function tile(k,hero){
+    const c=chgR(k);
+    return `<div class="card tile${hero?' hero':''}${k===SEL?' sel':''}" data-k="${k}"><div class="l">${SHORT[k]||k}</div>`+
+      `<div class="v num">${fmtVal(k)}</div><div class="c num"><span class="${clsK(k,c)}">${fmtChg(k,c)}</span> ${rangeName()}</div>`+
+      `<div class="sp"><canvas id="sp_${k}"></canvas></div></div>`;
+  }
+  const tilesRow = (keys,heroFirst) => `<div class="tiles">${keys.filter(has).map((k,i)=>tile(k,heroFirst&&i===0)).join('')}</div>`;
+  function bigCard(){
+    if(!has(SEL)) SEL=['IMOEX','USD','KEY'].find(has);
+    const c=chgR(SEL), unit=DATA.series[SEL].unit;
+    return `<div class="card big${FOCUS===SEL?' focus':''}" id="bigCard"><div class="head"><div><div class="l">${DATA.series[SEL].label}</div>`+
+      `<div class="v num">${fmtVal(SEL)}${unit&&unit!=='%'&&unit!=='пт'?' '+unit:''}</div><div class="c num"><span class="${clsK(SEL,c)}">${fmtChg(SEL,c)}</span> ${rangeName()}</div></div>`+
+      `<div class="rng">${RANGES.map(([r,n])=>`<button data-r="${r}" class="${r===RANGE?'on':''}">${n}</button>`).join('')}</div></div>`+
+      `<div class="cv"><canvas id="big"></canvas></div></div>`;
+  }
+  function perfCard(){
+    const rows=[['DEP*','Вклад (топ-10 банков)'],['RGBITR','ОФЗ с купонами'],['RUCBTRNS','Корп. облигации'],['IMOEX','Акции (IMOEX)'],['GOLD','Золото, $'],['USD','Доллар к рублю']];
+    const vals=rows.map(([k,l])=>[k,l,k==='DEP*'?depAccrual():(has(k)?chgR(k):null)]).filter(r=>r[2]!=null);
+    const mx=Math.max(...vals.map(v=>Math.abs(v[2])),1);
+    return `<div class="card bars${FOCUS==='PERF'?' focus':''}" id="card_PERF"><h2>Депозит vs облигации</h2><div class="sub">доходность ${rangeName()}</div>`+
+      vals.map(([k,l,v])=>`<div class="row${k==='DEP*'?' hl':''}"><div class="top"><span>${l}</span><span class="num ${cls(v)}">${sg(v)}</span></div>`+
+        `<div class="track"><i class="${v<0?'neg':''}" style="left:0;width:${Math.abs(v)/mx*100}%"></i></div></div>`).join('')+`</div>`;
+  }
+  const ratesCard = () => `<div class="card${FOCUS==='RATES'?' focus':''}" id="card_RATES"><h2>Ставки и доходности</h2><div class="sub">% годовых, ${rangeName()}</div><div class="cv2"><canvas id="ratesCmp"></canvas></div></div>`;
+  const curveCard = () => `<div class="card${FOCUS==='CURVE'?' focus':''}" id="card_CURVE"><h2>Кривая ОФЗ</h2><div class="sub">доходность по срокам: сейчас, на начало года и год назад</div><div class="cv2"><canvas id="curve"></canvas></div></div>`;
+  function tableCard(keys,title){
+    const groups=[['Ставки и доходности',['KEY','DEP','RUONIA','RUSFAR','RUSFARCNY','RGBI_Y','CORP_Y','UST10']],['Облигации и акции',['RGBITR','RUCBTRNS','IMOEX']],['Валюты',['USD','CNY','EUR']],['Сырьё и крипто',['BRENT','GOLD','BTC']]];
+    const all=keys||[].concat(...groups.map(g=>g[1]));
+    const rows=all.filter(has).map(k=>({k,d1:chg1d(k),m1:chgDays(k,30),ytd:chg(k,startOf('ytd'))}));
+    const cell=(r,f,extra='')=>`<td class="num ${extra} ${clsK(r.k,r[f])}">${r[f]==null?'—':sg(r[f],isRate(r.k)?2:1,isRate(r.k)?'':'%')}</td>`;
+    const body=list=>list.map(r=>`<tr data-k="${r.k}"><td>${SHORT[r.k]||r.k}</td><td class="num">${fmtVal(r.k)}</td>`+
+      cell(r,'d1')+cell(r,'m1','hide-m')+cell(r,'ytd')+`<td class="hide-m"><span class="ts"><canvas id="ts_${r.k}"></canvas></span></td></tr>`).join('');
+    let html;
+    if(sortKey==='group'){
+      html = keys ? body(rows) : groups.map(([g,ks])=>{const l=rows.filter(r=>ks.includes(r.k)); return l.length?`<tr class="grp"><td colspan="6">${g}</td></tr>`+body(l):''}).join('');
+    } else {
+      rows.sort((a,b)=>{const x=a[sortKey],y=b[sortKey]; if(x==null) return 1; if(y==null) return -1; return sortAsc?x-y:y-x;});
+      html=body(rows);
+    }
+    const th=(f,n,c='')=>`<th data-s="${f}" class="${c} ${sortKey===f?'sorted'+(sortAsc?' asc':''):''}">${n}</th>`;
+    return `<div class="card" style="margin-bottom:14px"><h2>${title||'Сводка'}</h2><div class="sub">строка — открыть график · заголовок колонки — сортировка · для ставок изменения в п.п.</div>`+
+      `<table><thead><tr><th data-s="group">Инструмент</th><th>Сейчас</th>${th('d1','1д')}${th('m1','1м','hide-m')}${th('ytd','YTD')}<th class="hide-m">${RANGES.find(r=>r[0]===RANGE)[1]}</th></tr></thead><tbody>${html}</tbody></table></div>`;
+  }
+
+  // ---------- вкладки
+  function render(){
+    kill();
+    document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
+    let html='';
+    if(TAB==='overview'){
+      html = tilesRow(['KEY','DEP','USD','IMOEX'],true)
+        + `<div class="grid2">${bigCard()}${perfCard()}</div>`
+        + tableCard(null)
+        + `<div class="grid2b">${ratesCard()}${curveCard()}</div>`;
+    } else {
+      const ks=TAB_SERIES[TAB].filter(has);
+      if(!ks.includes(SEL)) SEL=ks[0];
+      html = tilesRow(ks.slice(0,4),TAB==='rates') + bigCard() + `<div class="gap"></div>`;
+      if(ks.length>4) html += tilesRow(ks.slice(4),false);
+      if(TAB==='rates') html += `<div class="grid2b">${ratesCard()}${perfCard()}</div>`;
+      if(TAB==='bonds') html += `<div class="grid2b">${curveCard()}${perfCard()}</div>`;
+      html += tableCard(ks,'Таблица');
+    }
+    $('app').innerHTML=html;
+    document.querySelectorAll('.tile').forEach(t=>spark($('sp_'+t.dataset.k),t.dataset.k,t.classList.contains('hero')?'#ffffff':null));
+    if($('big')) bigChart($('big'),SEL);
+    document.querySelectorAll('tbody tr[data-k]').forEach(tr=>spark($('ts_'+tr.dataset.k),tr.dataset.k));
+    if($('ratesCmp')) multiChart($('ratesCmp'),[['KEY','Ключевая',1],['DEP','Вклады топ-10',1],['RGBI_Y','ОФЗ',0],['CORP_Y','Корп.',0]]
+      .filter(([k])=>has(k)).map(([k,l,st])=>({label:l,step:st,data:slice(k).map(([x,y])=>({x,y}))})));
+    if($('curve')) multiChart($('curve'),Object.entries(DATA.curves||{}).map(([lab,c])=>({label:`${lab} (${fmtD(D(c.date))})`,data:c.points.map(([x,y])=>({x,y}))})),false);
+  }
+
+  // ---------- события
+  document.addEventListener('click',e=>{
+    const tabBtn=e.target.closest('[data-tab]'); if(tabBtn){ TAB=tabBtn.dataset.tab; FOCUS=null; store.set('tab',TAB); render(); window.scrollTo({top:0}); return; }
+    const r=e.target.closest('.rng button'); if(r){ RANGE=r.dataset.r; store.set('range',RANGE); render(); return; }
+    const th=e.target.closest('th[data-s]'); if(th){ const s=th.dataset.s; if(sortKey===s && s!=='group') sortAsc=!sortAsc; else {sortKey=s; sortAsc=false;} render(); return; }
+    const sel=e.target.closest('.tile[data-k], tbody tr[data-k]');
+    if(sel){ SEL=sel.dataset.k; FOCUS=null; store.set('sel',SEL); render(); const b=$('bigCard'); if(b) b.scrollIntoView({behavior:'smooth',block:'center'}); }
+  });
+  $('themeBtn').addEventListener('click',()=>{
+    const dark=tok('--bg')==='#0c111d'; const t=dark?'light':'dark';
+    document.documentElement.dataset.theme=t; store.set('theme',t); if(DATA) render();
+  });
+  $('tabs').innerHTML=TABS.map(t=>`<button class="tab" data-tab="${t.id}">${t.name}</button>`).join('');
+  $('bnav').innerHTML=TABS.map(t=>`<button data-tab="${t.id}"><i>${t.icon}</i>${t.name}</button>`).join('');
+
+  // ---------- переход по кнопке из Telegram: #IMOEX, #USD, #CURVE, #RATES, #PERF ...
+  function applyHash(){
+    const h=(location.hash||'').replace('#','').toUpperCase(); if(!h||!DATA) return false;
+    const special={CURVE:['bonds','card_CURVE'],RATES:['rates','card_RATES'],PERF:['overview','card_PERF']};
+    let target;
+    if(special[h]){ TAB=special[h][0]; FOCUS=h; target=special[h][1]; }
+    else if(has(h)){ SEL=h; FOCUS=h; TAB=Object.keys(TAB_SERIES).find(t=>TAB_SERIES[t].includes(h))||'overview'; target='bigCard'; }
+    else return false;
+    render(); setTimeout(()=>{const el=$(target); if(el) el.scrollIntoView({block:'center'});},80);
+    return true;
+  }
+  window.addEventListener('hashchange',applyHash);
+
+  fetch('data.json?'+Date.now()).then(r=>r.json()).then(j=>{
+    DATA=j;
+    const [d,t]=j.updated.split(' ');
+    $('upd').textContent='Обновлено '+new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'})+', '+t+' МСК';
+    $('note').textContent='Обновлено '+new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'})+', '+t+' МСК · '+$('note').textContent;
+    if(!applyHash()) render();
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>{ if(!FOCUS) render(); else applyHash(); });
+  }).catch(()=>{ $('app').innerHTML='<div class="card empty">Данные ещё не готовы: они появятся после первого запуска дайджеста.</div>'; $('upd').textContent=''; });
+})();
+</script>
+</body>
+</html>
