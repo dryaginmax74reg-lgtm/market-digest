@@ -23,8 +23,9 @@ RATES = {"KEY", "DEP", "RGBI_Y", "CORP_Y", "RUONIA", "RUSFAR", "RUSFARCNY", "UST
 
 def last_weekday_of_month(d):
     nxt = date(d.year + (d.month == 12), d.month % 12 + 1, 1)
+    import events
     x = nxt - timedelta(days=1)
-    while x.weekday() >= 5:
+    while not events.is_workday(x):
         x -= timedelta(days=1)
     return x
 
@@ -157,7 +158,9 @@ def build_text(series, curves, extra, today, period):
 
     up, down = leaders(extra)
     if up:
-        lines = [header("🏆", f"ЛИДЕРЫ И АУТСАЙДЕРЫ {pname}", "акции из индекса Мосбиржи")]
+        dnow, dbase = (extra.get("now") or ("",))[0], (extra.get("base") or ("",))[0]
+        span = f"закрытия {ddmm(dbase)} → {ddmm(dnow)}" if len(dnow) == 10 and len(dbase) == 10 else ""
+        lines = [header("🏆", f"ЛИДЕРЫ И АУТСАЙДЕРЫ {pname}", ("акции из индекса Мосбиржи; " + span).strip("; "))]
         lines += [f"🟢 {e(n)} {fpct(c, 1)}" for n, c in up]
         lines += [f"🔴 {e(n)} {fpct(c, 1)}" for n, c in down]
         blocks.append("\n".join(lines))
@@ -220,7 +223,7 @@ def client_card(series, today, period, path=CARD):
         fig.add_artist(plt.Line2D([0.06, 0.94], [y - 0.014, y - 0.014], color=GRID, lw=0.6))
 
     # Диаграмма: что принёс год
-    vals = [("Вклад (топ-10 банков)", deposit_accrual(series, y_iso, today.isoformat()))]
+    vals = [("Вклад по макс. ставке топ-10*", deposit_accrual(series, y_iso, today.isoformat()))]
     for key, label in (("RGBITR", "ОФЗ (с купонами)"), ("RUCBTRNS", "Корп. облигации (с купонами)"),
                        ("IMOEX", "Акции (индекс Мосбиржи)"), ("GOLD", "Золото, $")):
         _l, _c, ytd = change(series, key, b_iso, y_iso)
@@ -247,8 +250,8 @@ def client_card(series, today, period, path=CARD):
     sig = os.environ.get("CLIENT_SIGNATURE", "").strip()
     if sig:
         fig.text(0.06, 0.07, sig, fontsize=12, color=INK, fontweight="bold")
-    fig.text(0.06, 0.018, "Источники: Банк России, Московская биржа, Yahoo Finance.\n"
-                          "Справочная информация, не является индивидуальной инвестиционной рекомендацией.", fontsize=8.5, color=INK2)
+    fig.text(0.06, 0.018, "* Оценка сверху: доход при размещении под максимальную ставку топ-10 банков; реальный вклад обычно даёт меньше.\n"
+                          "Источники: Банк России, Московская биржа, Yahoo Finance. Не является индивидуальной инвестиционной рекомендацией.", fontsize=8.5, color=INK2)
     fig.savefig(path, facecolor=BG)
     plt.close(fig)
     return path

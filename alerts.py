@@ -99,8 +99,9 @@ def moves(d):
 def main():
     is_demo = "--demo" in sys.argv
     now = datetime.now(MSK)
-    if not is_demo and now.weekday() >= 5:
-        log("Выходной - алерты не проверяю.")
+    import events
+    if not is_demo and not events.is_workday(now.date()):
+        log("Нерабочий день - алерты не проверяю.")
         return
     state = load_state(now.date().isoformat())
     d = demo() if is_demo else collect()

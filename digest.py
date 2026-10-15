@@ -11,9 +11,12 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 
+import events
+import monitor
+
 from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
                     cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, coingecko_btc,
-                    ddmm, deliver, dividends_calendar, e, fnum, fpct, fpp, header, last_on_or_before, log,
+                    ddmm, deliver, market_view, dividends_calendar, e, fnum, fpct, fpp, header, last_on_or_before, log,
                     moex_imoex_constituents, moex_index, moex_index_hist, moex_mmix, moex_zcyc, moex_zcyc_back,
                     news, news_lines, next_meeting, pack, pages_url, parallel, pct, pcts, table, yahoo_quote)
 
@@ -31,7 +34,6 @@ def collect(today):
         "ruonia": (cbr_ruonia_series, y0 - timedelta(days=20), today),
         "dep": (cbr_deposit_series,),
         "mmix": (moex_mmix,),
-        "rusfar0": (moex_index_hist, "RUSFAR", y0 - timedelta(days=14), y0),
         "rusfarcny0": (moex_index_hist, "RUSFARCNY", y0 - timedelta(days=14), y0),
         "zcyc": (moex_zcyc,),
         "zcyc0": (moex_zcyc_back, y0),
@@ -46,13 +48,43 @@ def collect(today):
         "btc": (coingecko_btc,),
         "divs": (dividends_calendar,),
         "imoex_list": (moex_imoex_constituents,),
+        "bondmon": (monitor.collect,),
     }
     d = parallel(jobs)
     macro = news(int(os.environ.get("NEWS_LIMIT", "5")), MACRO_RE) or []
     money = news(int(os.environ.get("MONEY_NEWS_LIMIT", "5")), MONEY_RE, cbr_all=False,
                  exclude=[t for _s, t, _l in macro]) or []
     d["news"], d["money_news"] = macro, money
+    d["watch"] = events.load_watchlist()
+    d["watch_news"] = events.watch_news(d["watch"], exclude=[t for _s, t, _l in macro + money])
+    apply_sanity(d)
     return d
+
+
+def apply_sanity(d):
+    """Выкинуть значения вне разумных диапазонов (ошибка источника не должна попасть в дайджест)."""
+    from common import sane
+    cur = d.get("cur")
+    if cur:
+        for c in ("USD", "EUR", "CNY"):
+            v, p = cur["rates"].get(c, (None, None))
+            cur["rates"][c] = (sane(c, v), sane(c, p))
+    for k in ("IMOEX", "RGBITR", "RUCBTRNS"):
+        if d.get(k) and sane(k, d[k]["val"]) is None:
+            d[k] = None
+    for k, n in (("brent", "BRENT"), ("gold", "GOLD"), ("btc_y", "BTC")):
+        if d.get(k) and sane(n, d[k][0]) is None:
+            d[k] = None
+    if d.get("btc") and sane("BTC", d["btc"][0]) is None:
+        d["btc"] = None
+    if d.get("ust") and sane("UST10", d["ust"][0]) is None:
+        d["ust"] = None
+    if d.get("key") and sane("KEY", d["key"][-1][1]) is None:
+        d["key"] = None
+    if d.get("dep") and sane("DEP", d["dep"][-1][1]) is None:
+        d["dep"] = None
+    if d.get("zcyc"):
+        d["zcyc"]["points"] = {p: v for p, v in d["zcyc"]["points"].items() if sane("OFZ", v) is not None}
 
 
 def demo_data():
@@ -64,7 +96,6 @@ def demo_data():
         "ruonia": [("2025-12-30", 15.79), ("2026-10-13", 13.73)],
         "dep": [("2025-12-21", 14.9), ("2026-09-21", 13.055), ("2026-10-01", 13.055)],
         "mmix": {"RUSFAR": 13.83, "RUSFARCNY": 0.43, "date": "2026-10-14"},
-        "rusfar0": [("2025-12-29", 15.77, None, None)],
         "rusfarcny0": [("2025-12-29", 3.1, None, None)],
         "zcyc": {"date": "2026-10-14", "points": {1.0: 13.1, 2.0: 13.9, 5.0: 14.6, 10.0: 14.4}},
         "zcyc0": {"date": "2025-12-30", "points": {1.0: 13.14, 2.0: 13.92, 5.0: 14.58, 10.0: 14.44}},
@@ -192,7 +223,7 @@ def build_rates(d, today):
     key0 = last_on_or_before(d.get("key"), y0)
     rows.append(("Ключевая ЦБ", pcts(key), fpp(key - key0) if key is not None and key0 is not None else ""))
     mm = d.get("mmix") or {}
-    for sid, label in (("RUSFAR", "RUSFAR O/N"), ("RUSFARCNY", "RUSFAR CNY")):
+    for sid, label in (("RUSFARCNY", "RUSFAR CNY"),):
         v = mm.get(sid)
         h = d.get(sid.lower() + "0") or []
         b = h[-1][1] if h else None
@@ -210,16 +241,11 @@ def build_rates(d, today):
         when = "сегодня" if days == 0 else f"через {days} дн."
         lines.append(f"🗓 Заседание ЦБ {nm.day} {MONTHS[nm.month - 1]} ({when})")
     z = d.get("zcyc")
-    if z and key is not None and 1.0 in z["points"]:
-        ofz1 = z["points"][1.0]
-        s = ofz1 - key
-        if s <= -0.5:
-            view = "рынок закладывает снижение ставки"
-        elif s >= 0.5:
-            view = "рынок закладывает повышение ставки"
-        else:
-            view = "рынок ждёт ставку около текущей"
-        lines.append(f"🔮 ОФЗ 1г {fnum(ofz1)}% vs ключевая {fnum(key)}% ({fpp(s)} п.п.): {view}")
+    mv = market_view(key, (z or {}).get("points", {}).get(1.0)) if z else None
+    if mv:
+        sp, ke, view = mv
+        lines.append(f"🔮 Рынок закладывает {view}: ОФЗ 1г {fnum(z['points'][1.0])}% vs ключевая ≈{fnum(ke)}% "
+                     f"в годовом начислении ({fpp(sp)} п.п.)")
     if lines and not card_ok(d):
         out += "\n" + "\n".join(e(x) for x in lines)
     return out
@@ -279,31 +305,69 @@ def build_markets(d):
         ch = b[1] if b else pct(by[0], by[1])
         y = pct(price, by[2]) if by else None
         rows.append((f"{dot(ch)} BTC $", fnum(price, 0), pc(ch), "" if y is None else fpct(y, 1)))
-    return header("📈", "РЫНКИ", "день · с начала года; биржа — итог вчера") + "\n" + table(rows)
+    im = d.get("IMOEX") or {}
+    note = "день · с начала года"
+    if im.get("date"):
+        if im["date"] == datetime.now(MSK).date().isoformat() and im.get("time"):
+            note += f"; биржа на {im['time'][:5]} МСК"
+        else:
+            note += f"; биржа — закрытие {ddmm(im['date'])}"
+    return header("📈", "РЫНКИ", note) + "\n" + table(rows)
+
+
+def build_watch(d, today):
+    """⭐ Ваш список: новости и дивиденды по компаниям из секрета WATCHLIST. Не сворачивается."""
+    watch = d.get("watch")
+    if not watch:
+        return ""
+    lines = []
+    t0, t_end = today.isoformat(), (today + timedelta(days=45)).isoformat()
+    for x in sorted(d.get("divs") or [], key=lambda v: v.get("registry") or ""):
+        if events.is_watched(x, watch) and x.get("registry") and t0 <= x["registry"] <= t_end:
+            lines.append(f"✂️ {e(x['name'])}: дивиденд {e(x['div'])} ₽ ({e(x['yld'])}), реестр {ddmm(x['registry'])}"
+                         + (f", выплата до {ddmm(x['pay_by'])}" if x.get("pay_by") else "")
+                         + ("" if x.get("approved", True) else " · <i>рекомендация СД</i>"))
+        elif events.is_watched(x, watch) and x.get("pay_by") and t0 <= x["pay_by"] <= (today + timedelta(days=7)).isoformat():
+            lines.append(f"💸 {e(x['name'])}: выплата дивидендов до {ddmm(x['pay_by'])} ({e(x['div'])} ₽ на акцию)")
+    seen = set()
+    for src, title, link in (d.get("money_news") or []) + (d.get("news") or []) + (d.get("watch_news") or []):
+        if title in seen or not events.is_watched(title, watch):
+            continue
+        seen.add(title)
+        lines += news_lines([(src, title, link)])
+    if not lines:
+        return ""
+    return header("⭐", "ВАШ СПИСОК", "компании из списка наблюдения") + "\n" + "\n".join(lines[:10])
 
 
 def build_events(d, today):
-    days = int(os.environ.get("DIV_DAYS", "14"))
+    days = events.div_window(today)
     divs = d.get("divs") or []
     allow = set((d.get("imoex_list") or {}).keys())
+    watch = d.get("watch")
 
     def in_index(t):
         return not allow or t in allow or t.rstrip("P") in allow
 
     t0, t_reg, t_pay = today.isoformat(), (today + timedelta(days=days)).isoformat(), (today + timedelta(days=7)).isoformat()
-    reg = sorted((x for x in divs if x["registry"] and t0 <= x["registry"] <= t_reg and in_index(x["ticker"])),
-                 key=lambda x: x["registry"])[:8]
-    pay = sorted((x for x in divs if x["pay_by"] and t0 <= x["pay_by"] <= t_pay and in_index(x["ticker"])),
-                 key=lambda x: x["pay_by"])[:8]
+    lim = 12 if days > 14 else 8
+    reg = sorted((x for x in divs if x["registry"] and t0 <= x["registry"] <= t_reg
+                  and (in_index(x["ticker"]) or events.is_watched(x, watch))), key=lambda x: x["registry"])[:lim]
+    pay = sorted((x for x in divs if x["pay_by"] and t0 <= x["pay_by"] <= t_pay
+                  and (in_index(x["ticker"]) or events.is_watched(x, watch))), key=lambda x: x["pay_by"])[:lim]
+
+    def star(x):
+        return "⭐ " if events.is_watched(x, watch) else ""
     parts = []
     if divs:
         if reg:
             parts.append(f"<b>Дивидендные отсечки, {days} дн.</b> <i>(реестр · купить до)</i>")
-            parts += [f"▪️ {ddmm(x['registry'])} · {e(x['name'])} · {e(x['div'])} ₽ ({e(x['yld'])})"
-                      + (f" · до {ddmm(x['buy_by'])}" if x["buy_by"] else "") for x in reg]
+            parts += [f"▪️ {star(x)}{ddmm(x['registry'])} · {e(x['name'])} · {e(x['div'])} ₽ ({e(x['yld'])})"
+                      + (f" · до {ddmm(x['buy_by'])}" if x["buy_by"] else "")
+                      + ("" if x.get("approved", True) else " · <i>только рекомендация СД</i>") for x in reg]
         if pay:
-            parts.append("<b>Выплаты дивидендов, 7 дн.</b> <i>(акционеры получают деньги)</i>")
-            parts += [f"▪️ до {ddmm(x['pay_by'])} · {e(x['name'])} · {e(x['div'])} ₽" for x in pay]
+            parts.append("<b>Выплаты дивидендов, 7 дн.</b> <i>(крайний срок выплаты акционерам)</i>")
+            parts += [f"▪️ {star(x)}до {ddmm(x['pay_by'])} · {e(x['name'])} · {e(x['div'])} ₽" for x in pay]
         if not reg and not pay:
             parts.append("<i>отсечек и выплат по бумагам индекса в ближайшие дни нет</i>")
     else:
@@ -330,6 +394,9 @@ def build_blocks(d, now):
     blocks = [head]
     if not card_ok(d):
         blocks.append(build_moves(d, today))
+    blocks += events.daily_blocks(today, d, d.get("watch"))
+    blocks.append(build_watch(d, today))
+    blocks.append(monitor.block(d.get("bondmon"), today))
     return blocks + [build_fx(d), build_rates(d, today), build_yields(d, today),
                      build_markets(d), build_events(d, today), build_news(d)]
 
@@ -346,7 +413,14 @@ def caption(d, now):
         lines += [f"{i} {e(t)}" for i, t in moves[:4]]
     else:
         lines.append("Спокойное утро: сильных движений нет.")
-    lines.append("<i>Подробности и кнопки с графиками — ниже 👇</i>")
+    hooks = d.get("_hooks") or []
+    if hooks:
+        lines.append("💡 <b>Повод для звонка</b>")
+        lines += [f"• {e(h)}" for h in hooks[:2]]
+    nm = next_meeting(now.date())
+    if nm and nm == now.date():
+        lines.append("🏦 Сегодня заседание ЦБ — флеш с решением около 13:35.")
+    lines.append("<i>Подробности и кнопки — ниже 👇</i>")
     return "\n".join(lines)
 
 
@@ -357,11 +431,15 @@ def keyboard():
     if dash:
         base = dash if dash.endswith("/") else dash + "/"
         rows = [
-            [("📈 IMOEX", base + "#IMOEX"), ("💠 ОФЗ", base + "#RGBITR"), ("🏢 Корп.", base + "#RUCBTRNS")],
-            [("📉 Кривая ОФЗ", base + "#CURVE"), ("🏦 Ставки", base + "#RATES"), ("💰 Депозит vs обл.", base + "#PERF")],
+            [("📊 Дашборд", base), ("🧮 Калькулятор", base + "#CALC"), ("🏦 Ставки", base + "#RATES")],
+            [("📈 IMOEX", base + "#IMOEX"), ("📉 Кривая ОФЗ", base + "#CURVE"), ("💰 Депозит vs обл.", base + "#PERF")],
             [("💵 Доллар", base + "#USD"), ("🇨🇳 Юань", base + "#CNY"), ("🛢 Brent", base + "#BRENT")],
-            [("🥇 Золото", base + "#GOLD"), ("🗓 Дивиденды", "https://smart-lab.ru/dividends/"), ("📊 Весь дашборд", base)],
+            [("🥇 Золото", base + "#GOLD"), ("₿ Bitcoin", base + "#BTC"), ("🗓 Дивиденды", "https://smart-lab.ru/dividends/")],
+            [("🧾 Подбор облигаций", base + "bonds.html"), ("💼 Портфель", base + "bonds.html#PORT")],
         ]
+        # ссылки на дашборд открываются прямо внутри Telegram (Mini App)
+        return {"inline_keyboard": [[({"text": t, "web_app": {"url": u}} if u.startswith(base) else {"text": t, "url": u})
+                                     for t, u in r] for r in rows]}
     else:
         rows = [
             [("📈 IMOEX", "https://www.moex.com/ru/index/IMOEX"), ("📉 Кривая ОФЗ", "https://www.moex.com/s2532"),
@@ -385,6 +463,7 @@ def make_visuals(d, now, demo=False):
             series, curves = charts.fetch_history(now.date())
             if series:
                 charts.write_dashboard_data(series, curves, now)
+        d["_hooks"] = events.call_hooks(series or {}, now.date())
         path = card.render_card(d, series or {}, now, strong_moves(d, now.date()))
         d["_card"] = path
         if os.environ.get("SEND_CHARTS") == "1" and series:
@@ -393,10 +472,27 @@ def make_visuals(d, now, demo=False):
         log(f"[warn] карточка/графики: {type(ex).__name__}: {ex}")
 
 
+def now_msk():
+    """Текущее время МСК; FAKE_NOW="2026-10-19 07:40" - для проверки поведения в другие дни."""
+    fake = os.environ.get("FAKE_NOW")
+    if fake:
+        return datetime.fromisoformat(fake).replace(tzinfo=MSK)
+    return datetime.now(MSK)
+
+
 def main():
     demo = "--demo" in sys.argv
-    now = datetime.now(MSK)
+    now = now_msk()
+    manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch" or os.environ.get("FORCE") == "1"
+    if not demo and not manual and not events.is_workday(now.date()):
+        log(f"{now:%d.%m} - нерабочий день, дайджест не отправляю (ручной запуск отправит).")
+        return
     data = demo_data() if demo else collect(now.date())
+    if demo:
+        data["bondmon"] = monitor.demo(now.date())
+    if demo:
+        data["watch"] = events.load_watchlist()
+        data.setdefault("watch_news", [])
     core = [data.get("cur"), data.get("key"), data.get("IMOEX"), data.get("brent"), data.get("zcyc")]
     if not demo and not any(core):
         log("Ни один основной источник не ответил - дайджест не отправлен.")

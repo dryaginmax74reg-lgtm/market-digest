@@ -30,7 +30,6 @@ META = {
     "DEP": ("Депозит: макс. ставка топ-10 банков", "%", "Доходности"),
     "KEY": ("Ключевая ставка", "%", "Ставки"),
     "RUONIA": ("RUONIA", "%", "Ставки"),
-    "RUSFAR": ("RUSFAR O/N", "%", "Ставки"),
     "RUSFARCNY": ("RUSFAR CNY O/N", "%", "Ставки"),
     "USD": ("USD/RUB (ЦБ)", "₽", "Валюты"),
     "EUR": ("EUR/RUB (ЦБ)", "₽", "Валюты"),
@@ -52,7 +51,6 @@ def fetch_history(today, years=YEARS):
         "RGBITR": (moex_index_hist, "RGBITR", d1, today),
         "RUCBTRNS": (moex_index_hist, "RUCBTRNS", d1, today),
         "RGBI": (moex_index_hist, "RGBI", d1, today),
-        "RUSFAR": (moex_index_hist, "RUSFAR", d1, today),
         "RUSFARCNY": (moex_index_hist, "RUSFARCNY", d1, today),
         "USD": (cbr_fx_series, "USD", d1, today),
         "EUR": (cbr_fx_series, "EUR", d1, today),
@@ -70,7 +68,7 @@ def fetch_history(today, years=YEARS):
     }
     r = parallel(jobs, workers=6)
     s = {}
-    for k in ("IMOEX", "RGBITR", "RUCBTRNS", "RUSFAR", "RUSFARCNY"):
+    for k in ("IMOEX", "RGBITR", "RUCBTRNS", "RUSFARCNY"):
         if r.get(k):
             s[k] = [(x[0], x[1]) for x in r[k]]
     if r.get("RUCBTRNS"):
@@ -119,7 +117,6 @@ def demo_history(today):
         "DEP": steps([15, 17, 18.5, 21, 22, 21, 19.5, 17, 16, 15, 14, 13.05]),
     }
     s["RUONIA"] = [(d, v - 0.3 + rnd.gauss(0, 0.1)) for d, v in s["KEY"]]
-    s["RUSFAR"] = [(d, v - 0.2 + rnd.gauss(0, 0.15)) for d, v in s["KEY"]]
     s["RUSFARCNY"] = [(d, max(0.1, 3 + rnd.gauss(0, 1.2))) for d, _ in s["KEY"]]
     s["CORP_Y"] = [(d, v + 2.5 + rnd.gauss(0, 0.2)) for d, v in s["KEY"]]
     s["RGBI_Y"] = [(d, v + 0.6 + rnd.gauss(0, 0.2)) for d, v in s["KEY"]]

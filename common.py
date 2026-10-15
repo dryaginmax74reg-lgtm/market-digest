@@ -24,7 +24,8 @@ ISS = "https://iss.moex.com/iss/"
 # ================================================================ НАСТРОЙКИ
 
 # Даты заседаний ЦБ по ключевой ставке. Обновляй по календарю на cbr.ru.
-CBR_MEETINGS = [date(2026, 10, 23), date(2026, 12, 18)]
+CBR_MEETINGS = [date(2026, 2, 13), date(2026, 3, 20), date(2026, 4, 24), date(2026, 6, 19), date(2026, 7, 24),
+                date(2026, 9, 11), date(2026, 10, 23), date(2026, 12, 18)]
 
 # Код валюты ЦБ для страниц динамики курса
 CBR_VAL_ID = {"USD": "R01235", "EUR": "R01239", "CNY": "R01375"}
@@ -42,15 +43,23 @@ FEEDS = [
     ("Интерфакс", "https://www.interfax.ru/rss.asp"),
     ("Коммерсантъ", "https://www.kommersant.ru/RSS/news.xml"),
 ]
-# Макро: ставка, рубль, нефть, инфляция
+# Макро: ставка, рубль, нефть, инфляция. Слова подобраны так, чтобы не ловить «не в курсе», «1,5 млн рублей» и т.п.
 MACRO_RE = re.compile(
-    r"ключев|ставк|ЦБ\b|Банк[а-я]* России|рубл|курс|нефт|brent|баррел|офз|облигац|инфляц|"
-    r"фрс|доллар|евро|юан|санкц|мосбирж|ормуз|opec|опек", re.IGNORECASE)
-# Денежные события: у кого-то появляются или двигаются крупные деньги
+    r"ключев\w* ставк|\bЦБ\b|Банк\w* России|Минфин|курс\w* (рубл|доллар|евро|юан|валют)|"
+    r"\bрубл(ь|я|ю|ем)\b|доллар|евро\b|юан|валют|нефт|brent|баррел|\bОФЗ\b|облигац|инфляц|ВВП|бюджет|"
+    r"\bФРС\b|ставк\w* ФРС|санкци\w* (против|в отношении) (банк|компан|нефт|экспорт|Росси)|Мосбирж|"
+    r"индекс\w* (Мосбиржи|IMOEX|РТС)|Ормуз|ОПЕК|OPEC|золот|\bкредит|ипотек|депозит|вклад", re.IGNORECASE)
+# Денежные события: сделки с капиталом, размещения, дивиденды
 MONEY_RE = re.compile(
-    r"дивиденд|\bIPO\b|\bSPO\b|размещ|книг[аиу] заявок|сбор заявок|выкуп|сделк|приобр[её]л|приобрет|"
-    r"покупк[аеу] (дол|компан|актив|бизнес)|продаж[аеу] (дол|бизнес|компан|актив)|продаст|купит|"
-    r"слияни|поглощ|M&A|аукцион|погашени|оферт", re.IGNORECASE)
+    r"дивиденд|\bIPO\b|\bSPO\b|размещени\w* (облигац|акци|выпуск|бонд)|разместит (облигац|акци|выпуск)|"
+    r"книг\w* заявок|сбор\w* заявок|байбэк|обратн\w* выкуп|выкуп\w* (акци|долю|доли|пакет)|"
+    r"(приобр\w*|купи\w*|покупк\w*|продаж\w*|продал\w*|продаст) (\d+% |контрольн\w* |блокирующ\w* )?(дол|пакет|акци|компани|бизнес|актив|сеть|завод|банк)|"
+    r"слияни|поглощени|\bM&A\b|аукцион\w* (ОФЗ|Минфин)|Минфин\w* (разместил|провед)|погашени\w* облигац|оферт\w* по облигац|"
+    r"допэмисси|делистинг|оценил\w* (компани|бизнес) в", re.IGNORECASE)
+# Отсекаем явно нерыночное, даже если сработали слова выше
+NEWS_EXCLUDE_RE = re.compile(
+    r"спортсмен|футбол|хоккей|матч|ЧМ-|чемпионат|олимпи|\bДТП\b|водител|сбил|убийств|убит|разведдан|"
+    r"актер|актрис|певиц|певец|сериал|фильм|Netflix|концерт|дата-центр\w* в бывших", re.IGNORECASE)
 
 WEEKDAYS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа",
@@ -111,6 +120,8 @@ def pct(new, old):
 
 
 def fnum(x, d=2):
+    # +1e-9: чтобы 13,055 округлялось до 13,06 (как в публикациях), а не 13,05 из-за двоичной записи
+    x = x + (1e-9 if x >= 0 else -1e-9)
     return f"{x:,.{d}f}".replace(",", " ").replace(".", ",")
 
 
@@ -152,6 +163,29 @@ def e(s):
 
 def ddmm(iso):
     return f"{iso[8:10]}.{iso[5:7]}"
+
+
+def key_effective(key):
+    """Ключевая ставка в годовом начислении (как доходности ОФЗ на кривой Мосбиржи): (1 + k/365)^365 - 1."""
+    return ((1 + key / 100 / 365) ** 365 - 1) * 100
+
+
+def market_view(key, ofz1):
+    """Что закладывает рынок: сравниваем ОФЗ 1 год с ключевой, приведённой к годовому начислению.
+    Возвращает (разница п.п., ключевая_эфф, вывод) или None. Пороги ±0,5 п.п. - ориентир, не прогноз."""
+    if key is None or ofz1 is None:
+        return None
+    ke = key_effective(key)
+    s = ofz1 - ke
+    if s <= -1.5:
+        view = "заметное снижение ставки"
+    elif s <= -0.5:
+        view = "снижение ставки"
+    elif s >= 0.5:
+        view = "повышение ставки"
+    else:
+        view = "ставку около текущей"
+    return s, ke, view
 
 
 def next_meeting(today):
@@ -283,6 +317,22 @@ def cbr_deposit_series():
     return sorted(out)
 
 
+# Допустимые диапазоны: значение вне диапазона считаем ошибкой источника и не показываем
+SANE = {"USD": (30, 300), "EUR": (30, 300), "CNY": (3, 40), "KEY": (1, 40), "DEP": (1, 40), "RUONIA": (1, 40),
+        "RUSFARCNY": (0, 30), "OFZ": (1, 40), "CORP_Y": (1, 60), "IMOEX": (500, 10000), "RGBITR": (100, 5000),
+        "RUCBTRNS": (50, 2000), "BRENT": (10, 300), "GOLD": (500, 20000), "BTC": (1000, 1000000), "UST10": (0, 15)}
+
+
+def sane(name, v):
+    lo, hi = SANE.get(name, (None, None))
+    if v is None or lo is None:
+        return v
+    if not (lo <= v <= hi):
+        log(f"[warn] {name}={v} вне допустимого диапазона {lo}–{hi}: значение скрыто")
+        return None
+    return v
+
+
 def last_on_or_before(series, iso):
     best = None
     for d, v in series or []:
@@ -301,13 +351,16 @@ def moex_index(secid):
     """Текущие данные индекса: dict(val, chg (% за день), ytd (% с начала года), date)."""
     q = urllib.parse.quote(secid, safe="")
     md = iss_json(f"engines/stock/markets/index/securities/{q}.json?iss.meta=off&iss.only=marketdata"
-                  "&marketdata.columns=CURRENTVALUE,LASTVALUE,LASTCHANGEPRC,YEARCHANGEPRC,TRADEDATE")["marketdata"]
+                  "&marketdata.columns=CURRENTVALUE,LASTVALUE,LASTCHANGEPRC,YEARCHANGEPRC,TRADEDATE,UPDATETIME")["marketdata"]
     for row in md["data"]:
         r = dict(zip(md["columns"], row))
         val = r.get("CURRENTVALUE") or r.get("LASTVALUE")
         if val:
+            td = r.get("TRADEDATE")
+            if td and (datetime.now(MSK).date() - date.fromisoformat(td)).days > 7:
+                raise ValueError(f"MOEX {secid}: данные устарели ({td})")
             return {"val": float(val), "chg": r.get("LASTCHANGEPRC"), "ytd": r.get("YEARCHANGEPRC"),
-                    "date": r.get("TRADEDATE")}
+                    "date": td, "time": r.get("UPDATETIME")}
     raise ValueError(f"MOEX {secid}: нет данных")
 
 
@@ -435,10 +488,11 @@ def yahoo_series(symbol, rng="1y"):
 
 def yahoo_quote(symbol):
     """(цена, прошлое закрытие, закрытие на 31.12 прошлого года)."""
-    ser, meta = yahoo_series(symbol, "2y")
-    price = meta.get("regularMarketPrice") or (ser[-1][1] if ser else None)
-    # последний бар Yahoo - текущий/последний торговый день, значит прошлое закрытие - предпоследний
-    prev = ser[-2][1] if len(ser) >= 2 else meta.get("previousClose")
+    ser, _meta = yahoo_series(symbol, "2y")
+    # текущая цена и официальное прошлое закрытие - из короткого запроса (надёжнее, чем считать по свечам)
+    _s1, m1 = yahoo_series(symbol, "1d")
+    price = m1.get("regularMarketPrice") or (ser[-1][1] if ser else None)
+    prev = m1.get("chartPreviousClose") or m1.get("previousClose") or (ser[-2][1] if len(ser) >= 2 else None)
     y0 = last_on_or_before(ser, f"{datetime.now(MSK).year - 1}-12-31")
     return price, prev, y0
 
@@ -464,7 +518,7 @@ def dividends_calendar():
     """Ближайшие дивиденды с smart-lab.ru/dividends: [dict(name, ticker, period, div, yld, buy_by, registry, pay_by)]."""
     raw = http_get("https://smart-lab.ru/dividends/", retries=2).decode("utf-8", "replace")
     out, seen = [], set()
-    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", raw, re.S):
+    for attrs, tr in re.findall(r"<tr([^>]*)>(.*?)</tr>", raw, re.S):
         tds = [_strip(x) for x in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)]
         if len(tds) < 9 or not _dmy(tds[7] or ""):
             continue
@@ -473,7 +527,9 @@ def dividends_calendar():
             continue
         seen.add(key)
         out.append({"name": tds[0], "ticker": tds[1], "period": tds[2], "div": tds[3], "yld": tds[4],
-                    "buy_by": _dmy(tds[6]), "registry": _dmy(tds[7]), "pay_by": _dmy(tds[8])})
+                    "buy_by": _dmy(tds[6]), "registry": _dmy(tds[7]), "pay_by": _dmy(tds[8]),
+                    # утверждён собранием акционеров (иначе - только рекомендация совета директоров)
+                    "approved": "dividend_approved" in attrs})
     if not out:
         raise ValueError("дивиденды: таблица не найдена")
     return out
@@ -481,15 +537,27 @@ def dividends_calendar():
 
 # ================================================================ Новости
 
-def news(limit, pattern, hours=26, per_source=3, cbr_all=True, exclude=()):
+_FEEDS_CACHE = {}
+
+
+def _feed(name, url):
+    """RSS-лента (скачивается один раз за запуск)."""
+    if url not in _FEEDS_CACHE:
+        try:
+            _FEEDS_CACHE[url] = ET.fromstring(http_get(url, retries=2, timeout=15))
+        except Exception as ex:  # noqa: BLE001
+            log(f"[warn] rss {name}: {ex}")
+            _FEEDS_CACHE[url] = None
+    return _FEEDS_CACHE[url]
+
+
+def news(limit, pattern, hours=26, per_source=3, cbr_all=True, exclude=(), skip_exclude=False):
     """[(источник, заголовок, ссылка)] из RSS за последние hours часов, отфильтрованные по pattern."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     cnt, seen, out = {}, set(exclude), []
     for name, url in FEEDS:
-        try:
-            root = ET.fromstring(http_get(url, retries=2, timeout=15))
-        except Exception as ex:  # noqa: BLE001
-            log(f"[warn] rss {name}: {ex}")
+        root = _feed(name, url)
+        if root is None:
             continue
         for it in root.iter("item"):
             title = (it.findtext("title") or "").strip()
@@ -507,6 +575,8 @@ def news(limit, pattern, hours=26, per_source=3, cbr_all=True, exclude=()):
                 except Exception:  # noqa: BLE001
                     pass
             if not (cbr_all and name == "Банк России") and not pattern.search(title):
+                continue
+            if not skip_exclude and NEWS_EXCLUDE_RE.search(title):
                 continue
             if cnt.get(name, 0) >= per_source:
                 continue
@@ -558,6 +628,11 @@ def tg_send(token, chat_id, text, html_mode=True, reply_markup=None):
                                    data=urllib.parse.urlencode(params).encode()))
     except urllib.error.HTTPError as ex:
         desc = _tg_error(ex)
+        if reply_markup and ("button" in desc.lower() or "web_app" in desc.lower() or "web app" in desc.lower()):
+            log(f"[warn] Telegram не принял кнопки ({desc}); отправляю обычные ссылки")
+            plain_kb = {"inline_keyboard": [[{"text": b["text"], "url": (b.get("web_app") or {}).get("url") or b.get("url")}
+                                             for b in row] for row in reply_markup["inline_keyboard"]]}
+            return tg_send(token, chat_id, text, html_mode=html_mode, reply_markup=plain_kb)
         if html_mode and "parse entities" in desc.lower() and "<blockquote expandable>" in text:
             log(f"[warn] Telegram не принял сворачиваемые блоки ({desc}); отправляю с обычными цитатами")
             return tg_send(token, chat_id, text.replace("<blockquote expandable>", "<blockquote>"),
