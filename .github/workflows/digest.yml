@@ -21,20 +21,16 @@ jobs:
       TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
       TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
       DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+      SEND_CHARTS: ${{ vars.SEND_CHARTS }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Send digest
-        run: python digest.py
       - name: Install matplotlib
-        if: always()
         run: pip install --quiet matplotlib
-      - name: Charts picture + dashboard data
-        if: always()
-        continue-on-error: true
-        run: python charts.py
+      - name: Send digest (card + text + dashboard data)
+        run: python digest.py
       - name: Save dashboard data
         if: always()
         run: |
