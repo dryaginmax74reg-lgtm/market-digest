@@ -1,0 +1,38 @@
+name: Weekly and monthly review
+
+on:
+  schedule:
+    # пятница 16:30 UTC = 19:30 МСК - итоги недели
+    - cron: "30 16 * * 5"
+    # 25-31 числа 16:45 UTC - итоги месяца (скрипт сам проверит, что это последний рабочий день)
+    - cron: "45 16 25-31 * *"
+  workflow_dispatch:
+    inputs:
+      period:
+        description: "week или month"
+        default: "week"
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+      TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+      CLIENT_SIGNATURE: ${{ vars.CLIENT_SIGNATURE }}
+      DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet matplotlib
+      - name: Weekly review
+        if: github.event.schedule == '30 16 * * 5' || (github.event_name == 'workflow_dispatch' && inputs.period != 'month')
+        run: python review.py --period week
+      - name: Monthly review
+        if: github.event.schedule == '45 16 25-31 * *'
+        run: python review.py --period month --auto
+      - name: Monthly review (manual)
+        if: github.event_name == 'workflow_dispatch' && inputs.period == 'month'
+        run: python review.py --period month
