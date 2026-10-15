@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Рыночный дашборд</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f3ef; --surface:#fcfcfb; --border:#e4e3df; --grid:#ecebe7;
+  --ink:#0b0b0b; --ink2:#52514e; --ink3:#8a8984;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#6250d6;
+  --up:#1a7f4b; --down:#c43b3a; --accent:#2a78d6;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --bg:#121211; --surface:#1a1a19; --border:#2c2c2a; --grid:#262624;
+    --ink:#f0efec; --ink2:#c3c2b7; --ink3:#8d8c85;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#9085e9;
+    --up:#4cc38a; --down:#e66767; --accent:#3987e5;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#121211; --surface:#1a1a19; --border:#2c2c2a; --grid:#262624;
+  --ink:#f0efec; --ink2:#c3c2b7; --ink3:#8d8c85;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#9085e9;
+  --up:#4cc38a; --down:#e66767; --accent:#3987e5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+.sub{color:var(--ink2);font-size:13px}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:3px}
+.seg button{border:0;background:none;color:var(--ink2);font:inherit;font-size:13px;padding:6px 11px;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--surface)}
+.theme{margin-left:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:6px 0 22px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.kpi .l{font-size:12px;color:var(--ink2)}
+.kpi .v{font-size:22px;font-weight:650;letter-spacing:-.01em;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .c{font-size:12px;margin-top:2px;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.up{color:var(--up)} .down{color:var(--down)}
+h2{font-size:16px;margin:26px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 14px 8px;min-width:0}
+.card.wide{grid-column:1/-1}
+.card h3{font-size:14px;margin:0;font-weight:600}
+.card .meta{font-size:12px;color:var(--ink2);margin:2px 0 8px;font-variant-numeric:tabular-nums}
+.cv{position:relative;height:220px}
+.card.wide .cv{height:280px}
+.note{font-size:12px;color:var(--ink3);margin-top:28px}
+@media (max-width:420px){.grid{grid-template-columns:1fr}.cv{height:200px}.kpi .v{font-size:19px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Рыночный дашборд</h1>
+      <div class="sub" id="upd">загрузка…</div>
+    </div>
+  </header>
+  <div class="bar">
+    <div class="seg" id="ranges">
+      <button data-r="1m">1М</button><button data-r="3m">3М</button><button data-r="6m">6М</button>
+      <button data-r="ytd" class="on">YTD</button><button data-r="1y">1Г</button><button data-r="3y">3Г</button>
+    </div>
+    <div class="seg theme"><button id="themeBtn" title="Светлая/тёмная тема">◐ Тема</button></div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Что принёс период</h2>
+  <div class="grid">
+    <div class="card wide"><h3>Доходность за выбранный период</h3>
+      <div class="meta">индексы с купонами (TR), депозит — начисление по макс. ставке топ-10 банков, валюта — изменение курса</div>
+      <div class="cv"><canvas id="perf"></canvas></div></div>
+    <div class="card"><h3>Ставки и доходности</h3><div class="meta">% годовых</div>
+      <div class="cv"><canvas id="ratesCmp"></canvas></div></div>
+    <div class="card"><h3>Кривая ОФЗ (G-curve)</h3><div class="meta">доходность, % · срок, лет</div>
+      <div class="cv"><canvas id="curve"></canvas></div></div>
+  </div>
+  <div id="groups"></div>
+  <div class="note">Источники: Банк России, Московская биржа (ISS), Yahoo Finance. Данные обновляются каждое утро. Справочная информация, не инвестиционная рекомендация.</div>
+</div>
+<script>
+(function(){
+  const cs = () => getComputedStyle(document.documentElement);
+  const tok = n => cs().getPropertyValue(n).trim();
+  const nf = (v,d=2) => v==null||isNaN(v) ? '—' : v.toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
+  const sg = (v,d=1,s='%') => v==null||isNaN(v) ? '—' : (v>0?'+':v<0?'−':'')+nf(Math.abs(v),d)+s;
+  const cls = v => v>0?'up':v<0?'down':'';
+  const D = s => new Date(s+'T00:00:00').getTime();
+  const fmtDate = t => new Date(t).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  let DATA=null, RANGE='ytd', charts=[];
+  try{ RANGE = localStorage.getItem('range') || 'ytd'; }catch(e){}
+  try{ const t=localStorage.getItem('theme'); if(t) document.documentElement.dataset.theme=t; }catch(e){}
+
+  function startOf(range, last){
+    const d=new Date(last);
+    if(range==='ytd') return new Date(d.getFullYear()-1,11,31).getTime();
+    const m={'1m':1,'3m':3,'6m':6,'1y':12,'3y':36}[range];
+    d.setMonth(d.getMonth()-m); return d.getTime();
+  }
+  function slice(key){
+    const s=DATA.series[key]; if(!s) return [];
+    const pts=s.data.map(([d,v])=>[D(d),v]);
+    if(!pts.length) return [];
+    const from=startOf(RANGE, D(DATA.updated.slice(0,10)));
+    // точка на начало периода (последняя до from) + всё после
+    let i=pts.findIndex(p=>p[0]>from); if(i<0) return pts.slice(-1);
+    return pts.slice(Math.max(0,i-1));
+  }
+  const isRate = k => ['%'].includes((DATA.series[k]||{}).unit);
+  function change(key){
+    const p=slice(key); if(p.length<2) return null;
+    const a=p[0][1], b=p[p.length-1][1];
+    return isRate(key) ? b-a : (b/a-1)*100;
+  }
+  function depositAccrual(){
+    const p=slice('DEP'); if(!p.length) return null;
+    const from=startOf(RANGE, D(DATA.updated.slice(0,10))), to=D(DATA.updated.slice(0,10));
+    let acc=1;
+    for(let i=0;i<p.length;i++){
+      const t0=Math.max(p[i][0],from), t1=i+1<p.length?p[i+1][0]:to;
+      if(t1>t0) acc*=1+p[i][1]/100*(t1-t0)/(365*864e5);
+    }
+    return (acc-1)*100;
+  }
+  function baseOpts(unit, timeAxis=true){
+    const ink2=tok('--ink2'), grid=tok('--grid');
+    const to=D(DATA.updated.slice(0,10)), from=startOf(RANGE,to);
+    return {responsive:true,maintainAspectRatio:false,animation:false,parsing:false,normalized:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:tok('--surface'),titleColor:tok('--ink'),bodyColor:tok('--ink'),
+        borderColor:tok('--border'),borderWidth:1,padding:10,displayColors:true,boxPadding:4,
+        callbacks:{title:it=>it.length?fmtDate(it[0].parsed.x):'',label:c=>' '+(c.dataset.label||'')+' '+nf(c.parsed.y,2)+(unit?' '+unit:'')}}},
+      scales:{x:{type:'linear',min:timeAxis?from:undefined,max:timeAxis?to:undefined,grid:{display:false},border:{color:grid},ticks:{color:ink2,maxTicksLimit:5,callback:v=>fmtDate(v)}},
+              y:{grid:{color:grid},border:{display:false},ticks:{color:ink2,maxTicksLimit:5,callback:v=>nf(v,v<50?1:0)}}}};
+  }
+  function lineDs(label,pts,color,step){
+    return {label,data:pts.map(([x,y])=>({x,y})),borderColor:color,backgroundColor:color,borderWidth:2,pointRadius:0,
+      pointHoverRadius:4,pointHoverBorderWidth:2,pointHoverBorderColor:tok('--surface'),stepped:step?'before':false,tension:0};
+  }
+  function kill(){ charts.forEach(c=>c.destroy()); charts=[]; }
+
+  function renderKpis(){
+    const last=k=>{const s=DATA.series[k];return s&&s.data.length?s.data[s.data.length-1][1]:null};
+    const items=[['KEY','Ключевая','%'],['DEP','Депозит топ-10','%'],['RGBI_Y','Доходн. ОФЗ','%'],['CORP_Y','Доходн. корп.','%'],
+      ['USD','USD/RUB','₽'],['CNY','CNY/RUB','₽'],['IMOEX','IMOEX',''],['RGBITR','ОФЗ TR',''],['BRENT','Brent','$']];
+    document.getElementById('kpis').innerHTML=items.filter(([k])=>DATA.series[k]).map(([k,l,u])=>{
+      const v=last(k), c=change(k), rate=u==='%';
+      return `<div class="kpi"><div class="l">${l}</div><div class="v">${nf(v,rate?2:(v>1000?0:2))}${u?(' '+u):''}</div>`+
+        `<div class="c"><span class="${cls(c)}">${sg(c,rate?2:1,rate?' п.п.':'%')}</span> за период</div></div>`;
+    }).join('');
+  }
+  function renderPerf(){
+    const rows=[['RGBITR','ОФЗ (RGBI TR)'],['RUCBTRNS','Корп. облигации (TR)'],['DEP*','Депозит топ-10'],['IMOEX','IMOEX (цены)'],
+      ['USD','Доллар к рублю'],['CNY','Юань к рублю'],['GOLD','Золото, $']];
+    const vals=rows.map(([k,l])=>[l,k==='DEP*'?depositAccrual():change(k)]).filter(r=>r[1]!=null);
+    const up=tok('--s1'), dn=tok('--s2');
+    charts.push(new Chart(document.getElementById('perf'),{type:'bar',
+      data:{labels:vals.map(r=>r[0]),datasets:[{data:vals.map(r=>r[1]),backgroundColor:vals.map(r=>r[1]>=0?up:dn),
+        borderRadius:4,borderSkipped:'start',barThickness:16}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+sg(c.parsed.x,2)}}},
+        scales:{x:{grid:{color:tok('--grid')},border:{display:false},ticks:{color:tok('--ink2'),callback:v=>sg(v,0)}},
+                y:{grid:{display:false},border:{color:tok('--grid')},ticks:{color:tok('--ink')}}}},
+      plugins:[{id:'vals',afterDatasetsDraw(ch){const {ctx}=ch;ctx.save();ctx.font='12px system-ui';ctx.fillStyle=tok('--ink');
+        ch.getDatasetMeta(0).data.forEach((b,i)=>{const v=vals[i][1];ctx.textAlign=v>=0?'left':'right';ctx.textBaseline='middle';
+        ctx.fillText(sg(v,1),b.x+(v>=0?6:-6),b.y);});ctx.restore();}}]}));
+  }
+  function renderRatesCmp(){
+    const sets=[['KEY','Ключевая',tok('--s1'),1],['DEP','Депозит топ-10',tok('--s2'),1],['RGBI_Y','ОФЗ (RGBI)',tok('--s3'),0],['CORP_Y','Корп.',tok('--s4'),0]]
+      .filter(([k])=>DATA.series[k]).map(([k,l,c,st])=>lineDs(l,slice(k),c,st));
+    const o=baseOpts('%'); o.plugins.legend={display:true,position:'bottom',labels:{color:tok('--ink2'),boxWidth:10,boxHeight:2,font:{size:11}}};
+    charts.push(new Chart(document.getElementById('ratesCmp'),{type:'line',data:{datasets:sets},options:o}));
+  }
+  function renderCurve(){
+    const cols=[tok('--s1'),tok('--s2'),tok('--s3')];
+    const ds=Object.entries(DATA.curves||{}).map(([lab,c],i)=>({label:`${lab} (${fmtDate(D(c.date))})`,
+      data:c.points.map(([x,y])=>({x,y})),borderColor:cols[i],backgroundColor:cols[i],borderWidth:2,pointRadius:3,tension:.25}));
+    const o=baseOpts('%',false); o.interaction={mode:'nearest',intersect:false};
+    o.scales.x.ticks={color:tok('--ink2'),callback:v=>v+' л'};
+    o.plugins.tooltip.callbacks.title=it=>it.length?('срок '+it[0].parsed.x+' л'):'';
+    o.plugins.legend={display:true,position:'bottom',labels:{color:tok('--ink2'),boxWidth:10,boxHeight:2,font:{size:11}}};
+    charts.push(new Chart(document.getElementById('curve'),{type:'line',data:{datasets:ds},options:o}));
+  }
+  function renderGroups(){
+    const groups={};
+    Object.entries(DATA.series).forEach(([k,s])=>{(groups[s.group]=groups[s.group]||[]).push(k)});
+    const order=['Ставки','Доходности','Облигации','Валюты','Акции','Сырьё и мир'];
+    const host=document.getElementById('groups'); host.innerHTML='';
+    order.filter(g=>groups[g]).forEach(g=>{
+      const sec=document.createElement('section');
+      sec.innerHTML=`<h2>${g}</h2><div class="grid">`+groups[g].map(k=>{
+        const s=DATA.series[k], p=slice(k), last=p.length?p[p.length-1][1]:null, c=change(k), rate=s.unit==='%';
+        return `<div class="card"><h3>${s.label}</h3><div class="meta">${nf(last,rate?2:(last>1000?0:2))} ${s.unit} · `+
+          `<span class="${cls(c)}">${sg(c,rate?2:1,rate?' п.п.':'%')}</span> за период</div><div class="cv"><canvas id="c_${k}"></canvas></div></div>`;
+      }).join('')+'</div>';
+      host.appendChild(sec);
+      groups[g].forEach(k=>{
+        const s=DATA.series[k];
+        charts.push(new Chart(document.getElementById('c_'+k),{type:'line',
+          data:{datasets:[lineDs(s.label,slice(k),tok('--s1'),['KEY','DEP'].includes(k))]},options:baseOpts(s.unit)}));
+      });
+    });
+  }
+  function render(){
+    kill();
+    document.querySelectorAll('#ranges button').forEach(b=>b.classList.toggle('on',b.dataset.r===RANGE));
+    renderKpis(); renderPerf(); renderRatesCmp(); renderCurve(); renderGroups();
+  }
+  document.getElementById('ranges').addEventListener('click',e=>{
+    const r=e.target.dataset&&e.target.dataset.r; if(!r) return; RANGE=r;
+    try{localStorage.setItem('range',r)}catch(_){}
+    render();
+  });
+  document.getElementById('themeBtn').addEventListener('click',()=>{
+    const dark=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()==='#121211';
+    const t=dark?'light':'dark'; document.documentElement.dataset.theme=t;
+    try{localStorage.setItem('theme',t)}catch(_){}
+    render();
+  });
+  fetch('data.json?'+Date.now()).then(r=>r.json()).then(j=>{
+    DATA=j; document.getElementById('upd').textContent='Обновлено '+j.updated+' МСК';
+    render();
+  }).catch(()=>{document.getElementById('upd').textContent='Не удалось загрузить данные (docs/data.json)';});
+})();
+</script>
+</body>
+</html>

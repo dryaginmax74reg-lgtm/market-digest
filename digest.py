@@ -1,644 +1,338 @@
 #!/usr/bin/env python3
-"""Рыночный дайджест -> Telegram. Только стандартная библиотека, без ИИ и платных API.
+"""Ежедневный рыночный дайджест -> Telegram. Без ИИ и платных API.
 
-Переменные окружения:
-  TG_BOT_TOKEN, TG_CHAT_ID   - обязательны для отправки
-  DRY_RUN=1                  - не отправлять, а напечатать в консоль
-  NEWS_LIMIT=8               - сколько новостей показывать
-Запуск:  python digest.py            (боевой)
-         python digest.py --demo     (демо-данные, без интернета, печатает в консоль)
+Запуск:  python digest.py            боевой (нужны TG_BOT_TOKEN, TG_CHAT_ID)
+         python digest.py --demo     демо-данные, печать в консоль
+         DRY_RUN=1 python digest.py  живые данные, печать в консоль
+Настройки: NEWS_LIMIT (по умолчанию 5), MONEY_NEWS_LIMIT (5), DIV_DAYS (14).
+Даты заседаний ЦБ и пороги «сильных движений» - в common.py.
 """
-import html
-import json
 import os
-import re
 import sys
-import time
-import urllib.error
-import urllib.parse
-import urllib.request
-import xml.etree.ElementTree as ET
-from datetime import date, datetime, timedelta, timezone
-from email.utils import parsedate_to_datetime
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, timedelta
 
-MSK = ZoneInfo("Europe/Moscow")
-UA = {"User-Agent": "Mozilla/5.0 (compatible; MarketDigestBot/1.0)"}
+from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
+                    cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, chg_txt, coingecko_btc,
+                    ddmm, deliver, dividends_calendar, e, fnum, fpct, fpp, header, last_on_or_before, log,
+                    moex_imoex_constituents, moex_index, moex_index_hist, moex_mmix, moex_zcyc, moex_zcyc_back,
+                    news, news_lines, next_meeting, pack, pages_url, parallel, pct, pcts, table, yahoo_quote)
 
-# Даты заседаний ЦБ по ключевой ставке. Обновляй по календарю на cbr.ru.
-# Берётся ближайшая будущая дата; если список исчерпан, строка про заседание не выводится.
-CBR_MEETINGS = [date(2026, 10, 23)]
-
-# Новостные ленты (RSS). Ломается лента - просто пропускается.
-FEEDS = [
-    ("Банк России", "https://www.cbr.ru/rss/RssPress"),
-    ("РБК", "https://rssexport.rbc.ru/rbcnews/news/30/full.rss"),
-    ("Интерфакс", "https://www.interfax.ru/rss.asp"),
-    ("Коммерсантъ", "https://www.kommersant.ru/RSS/news.xml"),
-]
-NEWS_KEYWORDS = re.compile(
-    r"ключев|ставк|ЦБ\b|Банк[а-я]* России|рубл|курс|нефт|brent|баррел|офз|облигац|инфляц|"
-    r"фрс|доллар|евро|юан|санкц|мосбирж|ормуз|opec|опек",
-    re.IGNORECASE,
-)
-
-# Индексы облигаций Мосбиржи: (тикер, короткая подпись). Редактируй список под себя.
-# Тикеры проверены на iss.moex.com. Если тикер не ответит или его данные устарели
-# (>10 дней), строка просто пропускается, а в логе будет [warn].
-# TR = индекс полной доходности (с учётом купонов); 1г/3г/5+ = сегменты по сроку (дюрации).
-BOND_INDICES = [
-    ("RGBI", "RGBI (цены)"),
-    ("RGBITR", "RGBI TR"),
-    ("RUGBITR1Y", "ОФЗ TR 1г"),
-    ("RUGBITR3Y", "ОФЗ TR 3г"),
-    ("RUGBITR5+", "ОФЗ TR 5+"),
-    ("RUCBTRNS", "Корп. TR"),
-    ("RUCBTR3YNS", "Корп. TR 3г"),
-    ("RUCBTR5YNS", "Корп. TR 5г"),
-    ("RUMBTRNS", "Муниц. TR"),
-]
-# Индексы акций: (тикер, короткая подпись)
-EQUITY_INDICES = [
-    ("IMOEX", "IMOEX"),
-    ("MCFTR", "MCFTR (с див.)"),
-    ("RTSI", "RTSI ($)"),
-    # ("MOEXOG", "Нефть и газ"), ("MOEXFN", "Финансы"), ("MOEXMM", "Металлы"),
-]
-# Точки кривой бескупонной доходности ОФЗ (G-curve), годы (на MOEX есть 0.25 ... 20)
-ZCYC_POINTS = (1, 2, 3, 5, 7, 10)
-MAX_INDEX_AGE_DAYS = 10
-
-WEEKDAYS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа",
-          "сентября", "октября", "ноября", "декабря"]
-
-
-# ---------------------------------------------------------------- утилиты
-
-def log(msg):
-    print(msg, file=sys.stderr)
-
-
-def http_get(url, data=None, headers=None, retries=3, timeout=25):
-    h = dict(UA)
-    if headers:
-        h.update(headers)
-    last = None
-    for i in range(retries):
-        try:
-            req = urllib.request.Request(url, data=data, headers=h)
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return r.read()
-        except urllib.error.HTTPError as e:
-            # 4xx (кроме 429) повторять бессмысленно
-            if 400 <= e.code < 500 and e.code != 429:
-                raise
-            last = e
-            time.sleep(1.5 * (i + 1))
-        except Exception as e:  # noqa: BLE001
-            last = e
-            time.sleep(1.5 * (i + 1))
-    raise last
-
-
-def safe(name, fn, *args):
-    try:
-        return fn(*args)
-    except Exception as e:  # noqa: BLE001
-        log(f"[warn] {name}: {type(e).__name__}: {e}")
-        return None
-
-
-def ln(el):
-    return el.tag.split("}")[-1]
-
-
-def pct(new, old):
-    if new is None or not old:
-        return None
-    return (new / old - 1) * 100
-
-
-def fnum(x, d=2):
-    return f"{x:,.{d}f}".replace(",", " ").replace(".", ",")
-
-
-def fpct(x, d=2):
-    if x is None:
-        return "н/д"
-    if round(x, d) == 0:
-        return f"{0:.{d}f}%".replace(".", ",")
-    s = f"{abs(x):.{d}f}".replace(".", ",")
-    return f"{'+' if x > 0 else '−'}{s}%"
-
-
-def arrow(x, d=2):
-    if x is None or round(x, d) == 0:
-        return "▬"
-    return "▲" if x > 0 else "▼"
-
-
-def e(s):
-    return html.escape(str(s), quote=False)
-
-
-# ---------------------------------------------------------------- источники
-
-def cbr_rates(d):
-    url = "https://www.cbr.ru/scripts/XML_daily.asp?date_req=" + d.strftime("%d/%m/%Y")
-    root = ET.fromstring(http_get(url))
-    out = {}
-    for v in root.findall("Valute"):
-        code = v.findtext("CharCode")
-        nominal = float(v.findtext("Nominal").replace(",", "."))
-        value = float(v.findtext("Value").replace(",", ".")) / nominal
-        out[code] = value
-    return root.attrib.get("Date"), out
-
-
-def cbr_currencies(today):
-    """Курсы ЦБ на сегодня и предыдущий опубликованный курс (для изменения за день)."""
-    cur_date, cur = cbr_rates(today)
-    prev = {}
-    for back in range(1, 7):
-        pd_, p = cbr_rates(today - timedelta(days=back))
-        if pd_ != cur_date:
-            prev = p
-            break
-    return {
-        "date": cur_date,
-        "rates": {c: (cur.get(c), prev.get(c)) for c in ("USD", "EUR", "CNY")},
-    }
-
-
-def cbr_soap(method, from_d, to_d):
-    body = (
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        'xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body>'
-        f'<{method} xmlns="http://web.cbr.ru/">'
-        f"<fromDate>{from_d:%Y-%m-%d}</fromDate><ToDate>{to_d:%Y-%m-%d}</ToDate>"
-        f"</{method}></soap12:Body></soap12:Envelope>"
-    ).encode("utf-8")
-    raw = http_get(
-        "https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx",
-        data=body,
-        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-    )
-    return ET.fromstring(raw)
-
-
-def cbr_key_rate(today):
-    root = cbr_soap("KeyRateXML", today - timedelta(days=60), today)
-    rows = []
-    for el in root.iter():
-        if ln(el) == "KR":
-            dt = rate = None
-            for ch in el:
-                if ln(ch) == "DT":
-                    dt = ch.text[:10]
-                elif ln(ch) == "Rate":
-                    rate = float(ch.text.replace(",", "."))
-            if dt and rate is not None:
-                rows.append((dt, rate))
-    if not rows:
-        raise ValueError("ключевая ставка: пустой ответ")
-    rows.sort()
-    return rows[-1][1]
-
-
-def cbr_ruonia(today):
-    root = cbr_soap("RuoniaXML", today - timedelta(days=14), today)
-    rows = []
-    for parent in root.iter():
-        d0 = ruo = None
-        for ch in parent:
-            if ln(ch) == "D0":
-                d0 = ch.text[:10]
-            elif ln(ch) == "ruo":
-                ruo = float(ch.text.replace(",", "."))
-        if d0 and ruo is not None:
-            rows.append((d0, ruo))
-    if not rows:
-        raise ValueError("RUONIA: пустой ответ")
-    rows.sort()
-    return rows[-1][1], rows[-1][0]
-
-
-def moex_zcyc():
-    """Кривая бескупонной доходности ОФЗ (последние данные): {срок_в_годах: доходность_%}."""
-    url = "https://iss.moex.com/iss/engines/stock/zcyc.json?iss.meta=off&iss.only=yearyields"
-    blk = json.loads(http_get(url))["yearyields"]
-    rows = [dict(zip(blk["columns"], r)) for r in blk["data"]]
-    if not rows:
-        raise ValueError("G-curve: нет данных")
-    last = max((r["tradedate"], r.get("tradetime") or "") for r in rows)
-    out = {}
-    for r in rows:
-        if (r["tradedate"], r.get("tradetime") or "") == last:
-            out[float(r["period"])] = float(r["value"])
-    return {"date": last[0], "points": out}
-
-
-def moex_index(secid):
-    """Последнее значение индекса: (значение, изменение_%, дата_торгов 'YYYY-MM-DD')."""
-    url = ("https://iss.moex.com/iss/engines/stock/markets/index/securities/"
-           f"{urllib.parse.quote(secid, safe='')}.json?iss.meta=off&iss.only=marketdata")
-    md = json.loads(http_get(url))["marketdata"]
-    for row in md["data"]:
-        r = dict(zip(md["columns"], row))
-        val = r.get("CURRENTVALUE") or r.get("LASTVALUE")
-        if val:
-            return float(val), r.get("LASTCHANGEPRC"), r.get("TRADEDATE")
-    raise ValueError(f"MOEX {secid}: нет данных")
-
-
-def moex_rusfar():
-    """RUSFAR по срокам (площадка MMIX): {'ON': %, '1W': %, '2W': %, '1M': %, '3M': %, 'date': ...}."""
-    ids = urllib.parse.quote("RUSFAR,RUSFAR1W,RUSFAR2W,RUSFAR1M,RUSFAR3M", safe="")
-    url = ("https://iss.moex.com/iss/engines/stock/markets/index/boards/MMIX/securities.json"
-           f"?iss.meta=off&iss.only=marketdata&securities={ids}&marketdata.columns=SECID,CURRENTVALUE,TRADEDATE")
-    md = json.loads(http_get(url))["marketdata"]
-    by = {r[0]: (r[1], r[2]) for r in md["data"] if r[1] is not None}
-    names = {"RUSFAR": "ON", "RUSFAR1W": "1W", "RUSFAR2W": "2W", "RUSFAR1M": "1M", "RUSFAR3M": "3M"}
-    out = {names[k]: float(v[0]) for k, v in by.items() if k in names}
-    if "ON" not in out:
-        raise ValueError("RUSFAR: нет данных")
-    out["date"] = by["RUSFAR"][1]
-    return out
-
-
-def yahoo(symbol):
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=5d"
-    res = json.loads(http_get(url))["chart"]["result"][0]
-    price = res["meta"]["regularMarketPrice"]
-    closes = [c for c in res["indicators"]["quote"][0]["close"] if c is not None]
-    prev = closes[-2] if len(closes) >= 2 else res["meta"].get("previousClose")
-    return price, prev
-
-
-def coingecko():
-    url = ("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum"
-           "&vs_currencies=usd&include_24hr_change=true")
-    j = json.loads(http_get(url))
-    return {
-        "BTC": (j["bitcoin"]["usd"], j["bitcoin"].get("usd_24h_change")),
-        "ETH": (j["ethereum"]["usd"], j["ethereum"].get("usd_24h_change")),
-    }
-
-
-def news(limit):
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=26)
-    per_source, seen, out = {}, set(), []
-    for name, url in FEEDS:
-        try:
-            root = ET.fromstring(http_get(url, retries=2, timeout=15))
-        except Exception as ex:  # noqa: BLE001
-            log(f"[warn] rss {name}: {ex}")
-            continue
-        for it in root.iter("item"):
-            title = (it.findtext("title") or "").strip()
-            link = (it.findtext("link") or "").strip()
-            if not title or not link or title in seen:
-                continue
-            pub = it.findtext("pubDate")
-            if pub:
-                try:
-                    dt = parsedate_to_datetime(pub)
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    if dt < cutoff:
-                        continue
-                except Exception:  # noqa: BLE001
-                    pass
-            # у ленты ЦБ фильтр по словам не нужен - там и так профильное
-            if name != "Банк России" and not NEWS_KEYWORDS.search(title):
-                continue
-            if per_source.get(name, 0) >= 3:
-                continue
-            per_source[name] = per_source.get(name, 0) + 1
-            seen.add(title)
-            out.append((name, title, link))
-    return out[:limit]
+ZCYC_POINTS = (1, 2, 5, 10)
 
 
 # ---------------------------------------------------------------- сбор
 
-def fetch_indices(spec):
-    """[(тикер, подпись)] -> [(тикер, подпись, значение, изменение_%)] только по свежим и ответившим."""
-    from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=6) as ex:
-        results = list(ex.map(lambda sp: safe(f"moex_index {sp[0]}", moex_index, sp[0]), spec))
-    today, out = datetime.now(MSK).date(), []
-    for (sid, label), r in zip(spec, results):
-        if not r:
-            continue
-        val, chg, td = r
-        try:
-            if td and (today - date.fromisoformat(td)).days > MAX_INDEX_AGE_DAYS:
-                log(f"[warn] {sid}: данные устарели (последняя дата {td}), пропускаю")
-                continue
-        except ValueError:
-            pass
-        out.append((sid, label, val, chg))
-    return out
-
-
 def collect(today):
-    d = {}
-    d["cur"] = safe("cbr_currencies", cbr_currencies, today)
-    d["key_rate"] = safe("cbr_key_rate", cbr_key_rate, today)
-    d["ruonia"] = safe("cbr_ruonia", cbr_ruonia, today)
-    d["rusfar"] = safe("moex_rusfar", moex_rusfar)
-    d["zcyc"] = safe("moex_zcyc", moex_zcyc)
-    d["bonds"], d["equity"] = fetch_indices(BOND_INDICES), fetch_indices(EQUITY_INDICES)
-    d["imoex"] = next((v for sid, _l, v, _c in d["equity"] if sid == "IMOEX"), None)
-    d["brent"] = safe("yahoo_brent", yahoo, "BZ=F")
-    d["gold"] = safe("yahoo_gold", yahoo, "GC=F")
-    d["crypto"] = safe("coingecko", coingecko)
-    d["news"] = safe("news", news, int(os.environ.get("NEWS_LIMIT", "8"))) or []
+    y0 = date(today.year - 1, 12, 31)
+    jobs = {
+        "cur": (cbr_currencies, today),
+        "fx0": (cbr_rates, y0),
+        "key": (cbr_key_series, y0 - timedelta(days=20), today),
+        "ruonia": (cbr_ruonia_series, y0 - timedelta(days=20), today),
+        "dep": (cbr_deposit_series,),
+        "mmix": (moex_mmix,),
+        "rusfar0": (moex_index_hist, "RUSFAR", y0 - timedelta(days=14), y0),
+        "rusfarcny0": (moex_index_hist, "RUSFARCNY", y0 - timedelta(days=14), y0),
+        "zcyc": (moex_zcyc,),
+        "zcyc0": (moex_zcyc_back, y0),
+        "RGBITR": (moex_index, "RGBITR"),
+        "RUCBTRNS": (moex_index, "RUCBTRNS"),
+        "IMOEX": (moex_index, "IMOEX"),
+        "corp_h": (moex_index_hist, "RUCBTRNS", today - timedelta(days=12), today),
+        "brent": (yahoo_quote, "BZ=F"),
+        "gold": (yahoo_quote, "GC=F"),
+        "ust": (yahoo_quote, "^TNX"),
+        "btc_y": (yahoo_quote, "BTC-USD"),
+        "btc": (coingecko_btc,),
+        "divs": (dividends_calendar,),
+        "imoex_list": (moex_imoex_constituents,),
+    }
+    d = parallel(jobs)
+    macro = news(int(os.environ.get("NEWS_LIMIT", "5")), MACRO_RE) or []
+    money = news(int(os.environ.get("MONEY_NEWS_LIMIT", "5")), MONEY_RE, cbr_all=False,
+                 exclude=[t for _s, t, _l in macro]) or []
+    d["news"], d["money_news"] = macro, money
     return d
 
 
 def demo_data():
-    """Демо-данные для проверки вёрстки (значения реальные на 14.10.2026, но фиксированные)."""
+    """Фиксированные данные для проверки вёрстки (порядок величин на 14.10.2026)."""
     return {
-        "cur": {"date": "14.10.2026", "rates": {
-            "USD": (83.8675, 83.9175), "EUR": (93.7723, 94.0364), "CNY": (11.74, 11.71)}},
-        "key_rate": 14.0,
-        "ruonia": (13.73, "2026-10-13"),
-        "rusfar": {"ON": 13.83, "1W": 13.87, "2W": 13.91, "1M": 13.96, "3M": 14.05, "date": "2026-10-14"},
-        "zcyc": {"date": "2026-10-14", "points": {1.0: 14.9, 2.0: 15.4, 3.0: 15.8, 5.0: 16.2, 7.0: 16.4, 10.0: 16.5}},
-        "bonds": [
-            ("RGBI", "RGBI (цены)", 111.35, 0.19), ("RGBITR", "RGBI TR", 767.35, 0.22),
-            ("RUGBITR1Y", "ОФЗ TR 1г", 330.29, -0.05), ("RUGBITR3Y", "ОФЗ TR 3г", 850.68, 0.0),
-            ("RUGBITR5+", "ОФЗ TR 5+", 643.77, 0.32), ("RUCBTRNS", "Корп. TR", 211.35, 0.01),
-            ("RUCBTR3YNS", "Корп. TR 3г", 203.78, 0.02), ("RUCBTR5YNS", "Корп. TR 5г", 188.81, 0.03),
-            ("RUMBTRNS", "Муниц. TR", 203.35, 0.0),
+        "cur": {"date": "15.10.2026", "rates": {"USD": (83.87, 83.92), "EUR": (93.77, 94.04), "CNY": (12.47, 12.40)}},
+        "fx0": ("31.12.2025", {"USD": 78.23, "EUR": 91.70, "CNY": 11.12}),
+        "key": [("2025-12-30", 16.0), ("2026-10-13", 14.0), ("2026-10-14", 14.0)],
+        "ruonia": [("2025-12-30", 15.79), ("2026-10-13", 13.73)],
+        "dep": [("2025-12-21", 14.9), ("2026-09-21", 13.055), ("2026-10-01", 13.055)],
+        "mmix": {"RUSFAR": 13.83, "RUSFARCNY": 0.43, "date": "2026-10-14"},
+        "rusfar0": [("2025-12-29", 15.77, None, None)],
+        "rusfarcny0": [("2025-12-29", 3.1, None, None)],
+        "zcyc": {"date": "2026-10-14", "points": {1.0: 13.1, 2.0: 13.9, 5.0: 14.6, 10.0: 14.4}},
+        "zcyc0": {"date": "2025-12-30", "points": {1.0: 13.14, 2.0: 13.92, 5.0: 14.58, 10.0: 14.44}},
+        "RGBITR": {"val": 768.36, "chg": 0.35, "ytd": 3.45, "date": "2026-10-14"},
+        "RUCBTRNS": {"val": 211.30, "chg": -0.01, "ytd": 10.39, "date": "2026-10-14"},
+        "IMOEX": {"val": 2417.91, "chg": -0.04, "ytd": -12.6, "date": "2026-10-14"},
+        "corp_h": [("2026-10-13", 211.3, 16.74, 674)],
+        "brent": (102.2, 106.6, 61.0),
+        "gold": (4086.0, 4156.0, 4300.0),
+        "ust": (4.12, 4.08, 4.57),
+        "btc_y": (83400.0, 83100.0, 87000.0),
+        "btc": (83400.0, 0.35),
+        "divs": [
+            {"name": "Мать и Дитя", "ticker": "MDMG", "period": "2кв 2026", "div": "38", "yld": "2,8%",
+             "buy_by": "2026-10-16", "registry": "2026-10-19", "pay_by": "2026-10-29"},
+            {"name": "Акрон", "ticker": "AKRN", "period": "2кв 2026", "div": "146", "yld": "0,9%",
+             "buy_by": "2026-10-30", "registry": "2026-11-02", "pay_by": "2026-11-12"},
+            {"name": "БСП ап", "ticker": "BSPBP", "period": "2кв 2026", "div": "0,22", "yld": "0,7%",
+             "buy_by": "2026-10-02", "registry": "2026-10-05", "pay_by": "2026-10-19"},
         ],
-        "equity": [
-            ("IMOEX", "IMOEX", 2419.17, 0.01), ("MCFTR", "MCFTR (с див.)", 6971.78, 1.4),
-            ("RTSI", "RTSI ($)", 907.8, -0.08),
-        ],
-        "imoex": 2419.17,
-        "brent": (106.60, 105.65),
-        "gold": (4086.0, 4156.0),
-        "crypto": {"BTC": (83400.0, 0.35), "ETH": (2506.0, 0.3)},
-        "news": [
-            ("Банк России", "Банк России опубликовал мониторинг предприятий", "https://www.cbr.ru/"),
-            ("РБК", "Нефть Brent подорожала на фоне угроз судоходству в Ормузском проливе", "https://www.rbc.ru/"),
-            ("Интерфакс", "Инфляция в США в сентябре ускорилась до 3,7%", "https://www.interfax.ru/"),
-        ],
+        "imoex_list": {"MDMG": "Мать и Дитя", "AKRN": "Акрон", "BSPB": "БСП"},
+        "news": [("Банк России", "Банк России опубликовал мониторинг предприятий", "https://www.cbr.ru/"),
+                 ("Интерфакс", "Инфляция в США в сентябре ускорилась до 3,7%", "https://www.interfax.ru/")],
+        "money_news": [("РБК", "Компания X проведёт SPO на 10 млрд рублей", "https://www.rbc.ru/"),
+                       ("Коммерсантъ", "Фонд Y приобрёл долю в сети клиник", "https://www.kommersant.ru/")],
     }
+
+
+# ---------------------------------------------------------------- расчёты
+
+def key_now(d):
+    ser = d.get("key") or []
+    return ser[-1][1] if ser else None
+
+
+def strong_moves(d, today):
+    """[(иконка, текст)] - только то, что сдвинулось сильнее порогов."""
+    out = []
+    cur = d.get("cur")
+    if cur:
+        for code in ("USD", "CNY", "EUR"):
+            v, p = cur["rates"][code]
+            ch = pct(v, p)
+            if ch is not None and abs(ch) >= MOVE_THRESHOLDS[code]:
+                word = "рубль слабеет" if ch > 0 else "рубль укрепляется"
+                out.append(("🔴" if ch > 0 else "🟢", f"{code}/RUB {fpct(ch)} за день ({word}) → {fnum(v)} ₽"))
+    for sid, label in (("IMOEX", "IMOEX"), ("RGBITR", "ОФЗ (RGBI TR)"), ("RUCBTRNS", "Корп. облигации")):
+        r = d.get(sid)
+        if r and r.get("chg") is not None and abs(r["chg"]) >= MOVE_THRESHOLDS[sid]:
+            out.append(("🟢" if r["chg"] > 0 else "🔴", f"{label} {fpct(r['chg'])} за день"))
+    for key, label, thr in (("brent", "Brent", "BRENT"), ("gold", "Золото", "GOLD")):
+        q = d.get(key)
+        if q and q[0] and q[1]:
+            ch = pct(q[0], q[1])
+            if abs(ch) >= MOVE_THRESHOLDS[thr]:
+                out.append(("🟢" if ch > 0 else "🔴", f"{label} {fpct(ch, 1)} → ${fnum(q[0])}"))
+    b = d.get("btc")
+    if b and b[1] is not None and abs(b[1]) >= MOVE_THRESHOLDS["BTC"]:
+        out.append(("🟢" if b[1] > 0 else "🔴", f"BTC {fpct(b[1], 1)} за 24ч"))
+    ser = d.get("key") or []
+    if len(ser) >= 2 and ser[-1][1] != ser[-2][1] and ser[-1][0] >= (today - timedelta(days=4)).isoformat():
+        diff = ser[-1][1] - ser[-2][1]
+        out.append(("🏦", f"Ключевая ставка изменена: {fnum(ser[-2][1])}% → {fnum(ser[-1][1])}% ({fpp(diff)} п.п.)"))
+    return out
 
 
 # ---------------------------------------------------------------- вёрстка
 
-def next_meeting(today):
-    for m in sorted(CBR_MEETINGS):
-        if m >= today:
-            return m
-    return None
+HEAD = ("", "", "1д", "YTD")
 
 
-def chg_txt(ch, d=2):
-    """'▲ +0,22%' / '▼ −0,28%' / '▬ 0,00%' / '' если нет данных."""
-    if ch is None:
+def build_moves(d, today):
+    items = strong_moves(d, today)
+    if not items:
         return ""
-    p = fpct(ch, d)
-    if p[0] not in "+−":   # ноль: выравниваем по колонке знака
-        p = " " + p
-    return f"{arrow(ch, d)} {p}"
-
-
-def table(rows):
-    """rows: [(подпись, значение, изменение|None)] -> выровненный моноширинный блок <pre>."""
-    w1 = max(len(r[0]) for r in rows)
-    w2 = max(len(r[1]) for r in rows)
-    w3 = max((len(r[2]) for r in rows if r[2]), default=0)
-    out = []
-    for label, val, chg in rows:
-        line = f"{label:<{w1}}  {val:>{w2}}"
-        if w3:
-            line += f"  {(chg or ''):>{w3}}"
-        out.append(line.rstrip())
-    return "<pre>" + e("\n".join(out)) + "</pre>"
-
-
-def header(emoji, title, note=None):
-    return f"{emoji} <b>{title}</b>" + (f"  <i>{e(note)}</i>" if note else "")
-
-
-def pcts(x):
-    return "н/д" if x is None else f"{fnum(x)}%"
-
-
-def build_key(d, today):
-    lines = []
-    cur = d.get("cur")
-    if cur:
-        usd, usd_p = cur["rates"]["USD"]
-        eur, eur_p = cur["rates"]["EUR"]
-        ch = pct(usd, usd_p)
-        if ch is not None and round(ch, 2) < 0:
-            icon, title = "🟢", "Рубль укрепляется"
-        elif ch is not None and round(ch, 2) > 0:
-            icon, title = "🔴", "Рубль слабеет"
-        else:
-            icon, title = "⚪", "Рубль без изменений"
-        txt = f"USD {fnum(usd, 2)} ₽ ({fpct(ch)})"
-        if eur:
-            txt += f", EUR {fnum(eur, 2)} ₽ ({fpct(pct(eur, eur_p))})"
-        lines.append(f"{icon} <b>{e(title)}.</b> {e(txt)}")
-    if d.get("brent"):
-        p, prev = d["brent"]
-        ch = pct(p, prev)
-        if ch is not None and ch > 0.3:
-            icon, word = "🟢", "дорожает"
-        elif ch is not None and ch < -0.3:
-            icon, word = "🔴", "дешевеет"
-        else:
-            icon, word = "⚪", "стабильна"
-        lines.append(f"{icon} <b>Нефть {word}.</b> Brent ${fnum(p)} ({fpct(ch, 1)})")
-    if d.get("key_rate") is not None:
-        nm = next_meeting(today)
-        txt = f"Ключевая {fnum(d['key_rate'])}%"
-        if nm:
-            txt += f" · заседание ЦБ {nm.day} {MONTHS[nm.month - 1]}"
-        lines.append(f"🏦 <b>Ставка.</b> {e(txt)}")
-    return header("🔑", "КЛЮЧЕВОЕ") + "\n" + ("\n".join(lines) if lines else "нет данных")
+    return header("⚡", "СИЛЬНЫЕ ДВИЖЕНИЯ") + "\n" + "\n".join(f"{i} {e(t)}" for i, t in items)
 
 
 def build_fx(d):
     cur = d.get("cur")
     if not cur:
         return header("💱", "ВАЛЮТЫ") + "\nнет данных"
+    base = (d.get("fx0") or (None, {}))[1]
     rows = []
-    for code, label in (("USD", "USD/RUB"), ("EUR", "EUR/RUB"), ("CNY", "CNY/RUB")):
+    for code in ("USD", "EUR", "CNY"):
         v, p = cur["rates"][code]
-        rows.append((label, "н/д" if v is None else f"{fnum(v, 4)} ₽", chg_txt(pct(v, p)) if v else ""))
-    return header("💱", "ВАЛЮТЫ", f"курс ЦБ на {cur['date'][:5]}") + "\n" + table(rows)
+        if v is None:
+            rows.append((f"{code}/RUB", "н/д"))
+            continue
+        y = pct(v, base.get(code))
+        rows.append((f"{code}/RUB", fnum(v, 2), chg_txt(pct(v, p)), "" if y is None else fpct(y, 1)))
+    (u, up), (c, cp) = cur["rates"]["USD"], cur["rates"]["CNY"]
+    if u and c:
+        cross = u / c
+        cross_p = up / cp if up and cp else None
+        cross0 = base.get("USD") / base.get("CNY") if base.get("USD") and base.get("CNY") else None
+        y = pct(cross, cross0)
+        rows.append(("USD/CNY", fnum(cross, 4), chg_txt(pct(cross, cross_p)), "" if y is None else fpct(y, 1)))
+    return header("💱", "ВАЛЮТЫ", f"курс ЦБ на {cur['date'][:5]}") + "\n" + table(rows, HEAD)
 
 
-def build_rates(d):
-    rf = d.get("rusfar") or {}
-    rows = [("Ключевая ЦБ", pcts(d.get("key_rate")), None)]
-    if rf:
-        for tenor, label in (("ON", "RUSFAR O/N"), ("1W", "RUSFAR 1W"), ("1M", "RUSFAR 1M"), ("3M", "RUSFAR 3M")):
-            if tenor in rf:
-                rows.append((label, pcts(rf[tenor]), None))
-    else:
-        rows.append(("RUSFAR", "н/д", None))
-    if d.get("ruonia"):
-        v, dt = d["ruonia"]
-        rows.append((f"RUONIA ({dt[8:10]}.{dt[5:7]})", pcts(v), None))
-    else:
-        rows.append(("RUONIA", "н/д", None))
-    out = header("🏦", "СТАВКИ", "денежный рынок") + "\n" + table(rows)
+def build_rates(d, today):
+    y0 = f"{today.year - 1}-12-31"
+    rows = []
+    key = key_now(d)
+    key0 = last_on_or_before(d.get("key"), y0)
+    rows.append(("Ключевая ЦБ", pcts(key), fpp(key - key0) if key is not None and key0 is not None else ""))
+    mm = d.get("mmix") or {}
+    for sid, label in (("RUSFAR", "RUSFAR O/N"), ("RUSFARCNY", "RUSFAR CNY")):
+        v = mm.get(sid)
+        h = d.get(sid.lower() + "0") or []
+        b = h[-1][1] if h else None
+        rows.append((label, pcts(v), fpp(v - b) if v is not None and b is not None else ""))
+    ru = d.get("ruonia") or []
+    if ru:
+        v, b = ru[-1][1], last_on_or_before(ru, y0)
+        rows.append((f"RUONIA {ddmm(ru[-1][0])}", pcts(v), fpp(v - b) if b is not None else ""))
+    out = header("🏦", "СТАВКИ") + "\n" + table(rows, ("", "", "YTD п.п."))
+
+    lines = []
+    nm = next_meeting(today)
+    if nm:
+        days = (nm - today).days
+        when = "сегодня" if days == 0 else f"через {days} дн."
+        lines.append(f"🗓 Заседание ЦБ {nm.day} {MONTHS[nm.month - 1]} ({when})")
     z = d.get("zcyc")
-    if z:
-        pts = z["points"]
-        sel = [(p, pts[float(p)]) for p in ZCYC_POINTS if float(p) in pts]
-        if sel:
-            half = (len(sel) + 1) // 2
-            left, right = sel[:half], sel[half:]
-            lines = []
-            for i, (p, v) in enumerate(left):
-                line = f"{p:>2}г {fnum(v):>6}%"
-                if i < len(right):
-                    rp, rv = right[i]
-                    line += f"    {rp:>2}г {fnum(rv):>6}%"
-                lines.append(line)
-            dt = z["date"]
-            out += "\n" + header("📉", "Кривая ОФЗ", f"G-curve, доходность, на {dt[8:10]}.{dt[5:7]}") \
-                + "\n<pre>" + e("\n".join(lines)) + "</pre>"
+    if z and key is not None and 1.0 in z["points"]:
+        ofz1 = z["points"][1.0]
+        s = ofz1 - key
+        if s <= -0.5:
+            view = "рынок закладывает снижение ставки"
+        elif s >= 0.5:
+            view = "рынок закладывает повышение ставки"
+        else:
+            view = "рынок ждёт ставку около текущей"
+        lines.append(f"🔮 ОФЗ 1г {fnum(ofz1)}% vs ключевая {fnum(key)}% ({fpp(s)} п.п.): {view}")
+    if lines:
+        out += "\n" + "\n".join(e(x) for x in lines)
     return out
 
 
-def build_bonds(d):
-    items = d.get("bonds") or []
-    if not items:
-        return header("💠", "ИНДЕКСЫ ОБЛИГАЦИЙ", "Мосбиржа") + "\nнет данных"
-    rows = [(label, fnum(v), chg_txt(ch)) for _sid, label, v, ch in items]
-    return header("💠", "ИНДЕКСЫ ОБЛИГАЦИЙ", "Мосбиржа") + "\n" + table(rows)
+def build_yields(d, today):
+    dep_ser = d.get("dep") or []
+    dep = dep_ser[-1][1] if dep_ser else None
+    dep0 = last_on_or_before(dep_ser, f"{today.year - 1}-12-31")
+    rows = []
+
+    def row(label, v, v0, spread=True):
+        rows.append((label, pcts(v), fpp(v - dep) if spread and v is not None and dep is not None else "",
+                     fpp(v - v0) if v is not None and v0 is not None else ""))
+
+    row("Депозит топ-10", dep, dep0, spread=False)
+    z, z0 = d.get("zcyc") or {}, d.get("zcyc0") or {}
+    for p in ZCYC_POINTS:
+        v = (z.get("points") or {}).get(float(p))
+        if v is not None:
+            row(f"ОФЗ {p}г", v, (z0.get("points") or {}).get(float(p)))
+    ch = d.get("corp_h") or []
+    if ch and ch[-1][2]:
+        dur = f" {fnum(ch[-1][3] / 365, 1)}г" if ch[-1][3] else ""
+        row(f"Корп.{dur}", float(ch[-1][2]), None)
+    ust = d.get("ust")
+    if ust and ust[0]:
+        rows.append(("UST 10Y $", pcts(ust[0]), "", fpp(ust[0] - ust[2]) if ust[2] else ""))
+    note = "доходность, % годовых"
+    if dep_ser:
+        dd = dep_ser[-1][0]
+        dec = {"01": "I", "11": "II", "21": "III"}.get(dd[8:10], "")
+        note += f"; депозит - макс. ставка ЦБ, {dec}.{dd[5:7]}"
+    return header("💰", "ДЕПОЗИТ vs ОБЛИГАЦИИ", note) + "\n" + table(rows, ("", "", "к деп.", "YTD"))
 
 
 def build_markets(d):
-    rows = [(label, fnum(v), chg_txt(ch)) for _sid, label, v, ch in (d.get("equity") or [])]
-    for key, label in (("brent", "Brent $/барр."), ("gold", "Золото $/унц.")):
-        if d.get(key):
-            p, prev = d[key]
-            rows.append((label, fnum(p, 0 if p > 1000 else 2), chg_txt(pct(p, prev), 1)))
+    rows = []
+    for sid, label in (("RGBITR", "ОФЗ RGBI TR"), ("RUCBTRNS", "Корп. TR"), ("IMOEX", "IMOEX")):
+        r = d.get(sid)
+        if r:
+            rows.append((label, fnum(r["val"]), chg_txt(r["chg"]), "" if r["ytd"] is None else fpct(r["ytd"], 1)))
         else:
-            rows.append((label, "н/д", ""))
-    return header("📈", "АКЦИИ И СЫРЬЁ") + "\n" + table(rows)
+            rows.append((label, "н/д"))
+    for key, label in (("brent", "Brent $"), ("gold", "Золото $")):
+        q = d.get(key)
+        if q and q[0]:
+            p, prev, y0 = q
+            y = pct(p, y0)
+            rows.append((label, fnum(p, 0 if p > 1000 else 2), chg_txt(pct(p, prev)), "" if y is None else fpct(y, 1)))
+        else:
+            rows.append((label, "н/д"))
+    b, by = d.get("btc"), d.get("btc_y")
+    if b or by:
+        price = b[0] if b else by[0]
+        ch = b[1] if b else pct(by[0], by[1])
+        y = pct(price, by[2]) if by else None
+        rows.append(("BTC $", fnum(price, 0), chg_txt(ch), "" if y is None else fpct(y, 1)))
+    return header("📈", "РЫНКИ", "индексы Мосбиржи — итог прошлой сессии") + "\n" + table(rows, HEAD)
 
 
-def build_crypto(d):
-    c = d.get("crypto")
-    if not c:
-        return header("₿", "КРИПТО") + "\nнет данных"
-    rows = [(code, f"${fnum(c[code][0], 0)}", chg_txt(c[code][1], 1)) for code in ("BTC", "ETH")]
-    return header("₿", "КРИПТО", "изменение за 24ч") + "\n" + table(rows)
+def build_events(d, today):
+    days = int(os.environ.get("DIV_DAYS", "14"))
+    divs = d.get("divs") or []
+    allow = set((d.get("imoex_list") or {}).keys())
+
+    def in_index(t):
+        return not allow or t in allow or t.rstrip("P") in allow
+
+    t0, t_reg, t_pay = today.isoformat(), (today + timedelta(days=days)).isoformat(), (today + timedelta(days=7)).isoformat()
+    reg = sorted((x for x in divs if x["registry"] and t0 <= x["registry"] <= t_reg and in_index(x["ticker"])),
+                 key=lambda x: x["registry"])[:8]
+    pay = sorted((x for x in divs if x["pay_by"] and t0 <= x["pay_by"] <= t_pay and in_index(x["ticker"])),
+                 key=lambda x: x["pay_by"])[:8]
+    parts = [header("🗓", "ДЕНЕЖНЫЕ СОБЫТИЯ")]
+    if divs:
+        if reg:
+            parts.append(f"<b>Дивидендные отсечки, {days} дн.</b> <i>(реестр · купить до)</i>")
+            parts += [f"▪️ {ddmm(x['registry'])} · {e(x['name'])} · {e(x['div'])} ₽ ({e(x['yld'])})"
+                      + (f" · до {ddmm(x['buy_by'])}" if x["buy_by"] else "") for x in reg]
+        if pay:
+            parts.append("<b>Выплаты дивидендов, 7 дн.</b> <i>(акционеры получают деньги)</i>")
+            parts += [f"▪️ до {ddmm(x['pay_by'])} · {e(x['name'])} · {e(x['div'])} ₽" for x in pay]
+        if not reg and not pay:
+            parts.append("<i>отсечек и выплат по бумагам индекса в ближайшие дни нет</i>")
+    else:
+        parts.append("<i>календарь дивидендов недоступен</i>")
+    mn = d.get("money_news") or []
+    if mn:
+        parts.append("<b>Сделки, размещения, выкупы</b>")
+        parts += news_lines(mn)
+    return "\n".join(parts)
 
 
 def build_news(d):
     items = d.get("news") or []
-    lines = [header("📰", "НОВОСТИ")]
-    if not items:
-        lines.append("нет свежих новостей по ключевым темам")
-    for src, title, link in items:
-        lines.append(f'▪️ <a href="{html.escape(link, quote=True)}">{e(title)}</a> <i>· {e(src)}</i>')
-    return "\n".join(lines)
+    return "\n".join([header("📰", "НОВОСТИ")] + (news_lines(items) or ["нет свежих новостей по ключевым темам"]))
 
 
 def build_blocks(d, now):
     today = now.date()
     head = (f"📊 <b>РЫНОЧНЫЙ ДАЙДЖЕСТ</b>\n"
-            f"<i>{WEEKDAYS[now.weekday()]}, {now.day} {MONTHS[now.month - 1]} {now.year} · данные на {now:%H:%M} МСК</i>")
-    blocks = [head, build_key(d, today), build_fx(d), build_rates(d), build_bonds(d),
-              build_markets(d), build_crypto(d), build_news(d)]
-    blocks.append("<i>ℹ️ Курсы ЦБ — официальные, не котировки для сделки. Индексы и RUSFAR — последние значения "
-                  "(утром это итог прошлой сессии). TR — индексы полной доходности (с купонами); 1г/3г/5+ — сегменты "
-                  "по сроку. Brent и золото — фьючерсы. Справочная информация, не инвестиционная рекомендация.</i>")
-    return blocks
+            f"<i>{WEEKDAYS[now.weekday()]}, {now.day} {MONTHS[now.month - 1]} {now.year} · {now:%H:%M} МСК · "
+            f"YTD — с начала года</i>")
+    return [head, build_moves(d, today), build_fx(d), build_rates(d, today), build_yields(d, today),
+            build_markets(d), build_events(d, today), build_news(d)]
 
 
-def pack(blocks, limit=3900):
-    msgs, cur = [], ""
-    for b in blocks:
-        cand = b if not cur else cur + "\n\n" + b
-        if len(cand) > limit and cur:
-            msgs.append(cur)
-            cur = b
-        else:
-            cur = cand
-    if cur:
-        msgs.append(cur)
-    return msgs
-
-
-# ---------------------------------------------------------------- отправка
-
-def tg_send(token, chat_id, text, html_mode=True):
-    params = {"chat_id": chat_id, "text": text, "disable_web_page_preview": "true"}
-    if html_mode:
-        params["parse_mode"] = "HTML"
-    base = os.environ.get("TG_API_BASE", "https://api.telegram.org")
-    try:
-        resp = json.loads(http_get(f"{base}/bot{token}/sendMessage",
-                                   data=urllib.parse.urlencode(params).encode()))
-    except urllib.error.HTTPError as ex:
-        try:
-            desc = json.loads(ex.read().decode("utf-8", "replace")).get("description", "")
-        except Exception:  # noqa: BLE001
-            desc = ""
-        if html_mode and "parse entities" in desc.lower():
-            log(f"[warn] Telegram не принял HTML ({desc}); отправляю простым текстом")
-            plain = html.unescape(re.sub(r"<[^>]+>", "", text))
-            return tg_send(token, chat_id, plain, html_mode=False)
-        hint = ""
-        if "chat not found" in desc.lower() or "chat_id" in desc.lower():
-            hint = (" Проверь секрет TG_CHAT_ID (только число, без пробелов и кавычек) "
-                    "и что в боте нажат Start.")
-        raise RuntimeError(f"Telegram ответил {ex.code}: {desc}.{hint}") from None
-    if not resp.get("ok"):
-        raise RuntimeError(f"Telegram: {resp}")
+def keyboard():
+    rows = []
+    dash = pages_url()
+    first = [("📊 Дашборд", dash)] if dash else []
+    rows.append(first + [("📈 IMOEX", "https://www.moex.com/ru/index/IMOEX"),
+                         ("📉 Кривая ОФЗ", "https://www.moex.com/s2532")])
+    rows.append([("🏦 Ключевая", "https://www.cbr.ru/hd_base/KeyRate/"),
+                 ("💰 Депозиты", "https://www.cbr.ru/statistics/avgprocstav/"),
+                 ("🇨🇳 Юань", "https://www.cbr.ru/currency_base/dynamics/?UniDbQuery.VAL_NM_RQ=R01375")])
+    rows.append([("🛢 Brent", "https://finance.yahoo.com/quote/BZ%3DF/"),
+                 ("🥇 Золото", "https://finance.yahoo.com/quote/GC%3DF/"),
+                 ("🗓 Дивиденды", "https://smart-lab.ru/dividends/")])
+    return {"inline_keyboard": [[{"text": t, "url": u} for t, u in r] for r in rows]}
 
 
 def main():
     demo = "--demo" in sys.argv
     now = datetime.now(MSK)
     data = demo_data() if demo else collect(now.date())
-
-    core = [data.get("cur"), data.get("key_rate"), data.get("imoex"), data.get("brent"), data.get("crypto")]
+    core = [data.get("cur"), data.get("key"), data.get("IMOEX"), data.get("brent"), data.get("zcyc")]
     if not demo and not any(core):
         log("Ни один основной источник не ответил - дайджест не отправлен.")
         sys.exit(1)
-
-    msgs = pack(build_blocks(data, now))
-    if demo or os.environ.get("DRY_RUN") == "1":
-        for m in msgs:
-            print(m, "\n" + "-" * 40)
-        return
-
-    token = (os.environ.get("TG_BOT_TOKEN") or "").strip()
-    chat = (os.environ.get("TG_CHAT_ID") or "").strip()
-    if not token:
-        log("Секрет TG_BOT_TOKEN пустой или не задан.")
-        sys.exit(1)
-    if not chat:
-        log("Секрет TG_CHAT_ID пустой или не задан.")
-        sys.exit(1)
-    try:
-        for m in msgs:
-            tg_send(token, chat, m)
-            time.sleep(1)
-    except RuntimeError as ex:
-        log(f"ОШИБКА ОТПРАВКИ: {ex}")
-        sys.exit(1)
-    log(f"Отправлено сообщений: {len(msgs)}")
+    deliver(pack(build_blocks(data, now)), keyboard=keyboard())
 
 
 if __name__ == "__main__":
