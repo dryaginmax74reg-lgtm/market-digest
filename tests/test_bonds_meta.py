@@ -21,6 +21,17 @@ def fake_get(url, **kw):
         allsec = [s for pg in CORP for s, _ in pg] + ["SU26238RMFS4"]
         rows = [[s, s if s.startswith("RU") else "RU000A1038V6", 7 if i % 2 else 9, "Эмитент %d" % (i % 2), "TQCB"] for i, s in enumerate(allsec)]
         return json.dumps({"securities": {"columns": ["secid", "isin", "emitent_id", "emitent_title", "primary_boardid"], "data": rows[start:start + 100]}}).encode()
+    if "iss.only=securities,marketdata,marketdata_yields" in url:
+        board = "TQOB" if "TQOB" in url else "TQCB"
+        if board == "TQOB":
+            return json.dumps({k: {"columns": ["SECID"], "data": []} for k in ("securities", "marketdata", "marketdata_yields")}).encode()
+        sc = ["SECID", "SHORTNAME", "SECNAME", "FACEUNIT", "BONDTYPE", "MATDATE", "OFFERDATE", "PREVPRICE", "COUPONPERCENT", "COUPONPERIOD"]
+        secs = [s for s, _ in CORP[0]]
+        S = [[s, "Бумага%d" % i, "Эмитент %d выпуск" % i, "SUR", "Облигация с фиксированным (известным) купоном", "2028-10-01", None, 99.0, 15.0, 30] for i, s in enumerate(secs)]
+        M = [[s, 99.0, 99.0, 99.1] for s in secs]
+        Y = [[s, 99.0, 15.0 + (i % 10) * 0.1 + (3.0 if i == 4 else 0), 600, "2028-10-01", "MATDATE"] for i, s in enumerate(secs)]
+        return json.dumps({"securities": {"columns": sc, "data": S}, "marketdata": {"columns": ["SECID", "LAST", "WAPRICE", "OFFER"], "data": M},
+                           "marketdata_yields": {"columns": ["SECID", "PRICE", "EFFECTIVEYIELD", "DURATION", "YIELDDATE", "YIELDDATETYPE"], "data": Y}}).encode()
     if "history" in url:
         start = int(url.split("start=")[1]); board = "TQOB" if "TQOB" in url else "TQCB"
         secs = ["SU26238RMFS4"] if board == "TQOB" else [s for s, _ in CORP[0]]
@@ -38,6 +49,9 @@ assert len(m["b"]) == 301, len(m["b"])
 assert m["b"]["RU000A101000"][0] == "AAA" and m["b"]["RU000A101003"][0] == "", m["b"]["RU000A101003"]
 assert m["b"]["RU000A101000"][2] == 1000000, m["b"]["RU000A101000"]
 assert m["em"]["7"] == "Эмитент 1"
+assert m["top"]["AA"], m["top"]
+assert len({t["id"] for t in m["top"]["AA"]}) == len(m["top"]["AA"])
+print("top AA:", [(t["name"], t["rating"], round(t["prem"] * 100, 2)) for t in m["top"]["AA"]])
 assert m["b"]["RU000A101000"][4:] == [15.2], m["b"]["RU000A101000"]
 # второй день: рейтинг сменился -> фиксируется изменение
 CORP[0][0] = ("RU000A101000", "AA+")

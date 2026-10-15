@@ -11,8 +11,8 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 
+import bondsweek
 import events
-import monitor
 
 from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
                     cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, coingecko_btc,
@@ -48,7 +48,6 @@ def collect(today):
         "btc": (coingecko_btc,),
         "divs": (dividends_calendar,),
         "imoex_list": (moex_imoex_constituents,),
-        "bondmon": (monitor.collect,),
     }
     d = parallel(jobs)
     macro = news(int(os.environ.get("NEWS_LIMIT", "5")), MACRO_RE) or []
@@ -56,6 +55,9 @@ def collect(today):
                  exclude=[t for _s, t, _l in macro]) or []
     d["news"], d["money_news"] = macro, money
     d["watch"] = events.load_watchlist()
+    # понедельник (или BONDS_WEEK=1): облигации — лучшие бумаги, размещения, рейтинги за неделю
+    if today.weekday() == 0 or os.environ.get("BONDS_WEEK") == "1":
+        d["bondsweek"] = bondsweek.collect()
     d["watch_news"] = events.watch_news(d["watch"], exclude=[t for _s, t, _l in macro + money])
     apply_sanity(d)
     return d
@@ -396,7 +398,8 @@ def build_blocks(d, now):
         blocks.append(build_moves(d, today))
     blocks += events.daily_blocks(today, d, d.get("watch"))
     blocks.append(build_watch(d, today))
-    blocks.append(monitor.block(d.get("bondmon"), today))
+    if d.get("bondsweek"):
+        blocks.append(bondsweek.block(d["bondsweek"], today))
     return blocks + [build_fx(d), build_rates(d, today), build_yields(d, today),
                      build_markets(d), build_events(d, today), build_news(d)]
 
@@ -489,7 +492,7 @@ def main():
         return
     data = demo_data() if demo else collect(now.date())
     if demo:
-        data["bondmon"] = monitor.demo(now.date())
+        data["bondsweek"] = bondsweek.demo(now.date())
     if demo:
         data["watch"] = events.load_watchlist()
         data.setdefault("watch_news", [])

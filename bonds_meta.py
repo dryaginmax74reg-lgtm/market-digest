@@ -17,6 +17,7 @@ import sys
 import time
 from datetime import datetime
 
+from bondscore import compute_fair, rscore
 from common import ISS, MSK, http_get, log
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -133,6 +134,80 @@ def day_history():
     return day, out
 
 
+def _kind(s):
+    t = s.get("BONDTYPE") or ""
+    if re.search(r"Линкер|Структур|Конверт", t, re.I) or "ИОС" in (s.get("SHORTNAME") or ""):
+        return "other"
+    if re.search(r"плавающ", t, re.I) or s["SECID"].startswith("SU29"):
+        return "float"
+    if re.search(r"Дисконт", t, re.I):
+        return "disc"
+    return "amort" if re.search(r"Амортиз", t, re.I) else "fixed"
+
+
+def board_bonds():
+    """Котировки и доходности всех облигаций (TQOB + TQCB) для оценки «лучших бумаг»."""
+    out = []
+    for board in ("TQOB", "TQCB"):
+        j = json.loads(http_get(f"{ISS}engines/stock/markets/bonds/boards/{board}/securities.json?iss.meta=off"
+                                "&iss.only=securities,marketdata,marketdata_yields"
+                                "&securities.columns=SECID,SHORTNAME,SECNAME,FACEUNIT,BONDTYPE,MATDATE,OFFERDATE,PREVPRICE,COUPONPERCENT,COUPONPERIOD"
+                                "&marketdata.columns=SECID,LAST,WAPRICE,OFFER"
+                                "&marketdata_yields.columns=SECID,PRICE,EFFECTIVEYIELD,DURATION,YIELDDATE,YIELDDATETYPE"))
+        tab = lambda k: [dict(zip(j[k]["columns"], r)) for r in j[k]["data"]]  # noqa: E731
+        md = {r["SECID"]: r for r in tab("marketdata")}
+        yd = {r["SECID"]: r for r in tab("marketdata_yields")}
+        for s in tab("securities"):
+            m, y = md.get(s["SECID"], {}), yd.get(s["SECID"], {})
+            out.append({"s": s, "board": board,
+                        "price": m.get("OFFER") or m.get("LAST") or m.get("WAPRICE") or y.get("PRICE") or s.get("PREVPRICE"),
+                        "ytm": y.get("EFFECTIVEYIELD"), "dur": y.get("DURATION"), "end": y.get("YIELDDATE") or s.get("MATDATE"),
+                        "ydt": y.get("YIELDDATETYPE")})
+    return out
+
+
+def best_bonds(quotes, ratings, tvavg, today, em=None):
+    """Топ по премии к «норме» рейтинга и срока: AA–AAA, A (рубли, фикс. купон), юаневые. Логика — как на странице подбора."""
+    rows = []
+    for q in quotes:
+        s = q["s"]
+        kind = _kind(s)
+        ofz = q["board"] == "TQOB"
+        name = (s.get("SECNAME") or "") + " " + (s.get("SHORTNAME") or "")
+        ytm = q["ytm"] / 100 if q["ytm"] is not None else None
+        price, end = q["price"], q["end"]
+        if kind == "disc" and price and end and end > today:
+            yrs = (datetime.fromisoformat(end).date() - datetime.fromisoformat(today).date()).days / 365
+            ytm = (100 / price) ** (1 / yrs) - 1 if yrs > 0 else None
+        rows.append({"id": s["SECID"], "name": s.get("SHORTNAME"), "cur": "RUB" if s.get("FACEUNIT") == "SUR" else s.get("FACEUNIT"),
+                     "kind": kind, "ofz": ofz, "rating": "ГОС" if ofz else ratings.get(s["SECID"], ""),
+                     "mbs": q["ydt"] == "MBS" or bool(re.search(r"СФО|Ипотечн|(^|[\s«\"])ИА\s", name, re.I)),
+                     "sub": "СУБ" in name, "ytm": ytm, "dur": (q["dur"] or 0) / 365, "price": price or 0,
+                     "tv": tvavg.get(s["SECID"], 0), "end": end, "cpn": s.get("COUPONPERCENT"),
+                     "freq": round(365 / s["COUPONPERIOD"]) if s.get("COUPONPERIOD") else None,
+                     "ok": kind in ("fixed", "amort", "disc") and ytm is not None and bool(price) and bool(end) and end > today})
+    compute_fair(rows)
+    good = [r for r in rows if r["score"] is not None and not r["ofz"] and not r["sub"] and not r["mbs"]
+            and r["tv"] >= 5e6 and r["price"] >= 85 and r["dur"] >= 0.25]
+
+    def pick(f, n):
+        best, seen = [], set()
+        for r in sorted((r for r in good if f(r)), key=lambda r: -r["score"]):
+            key = (em or {}).get(r["id"], (r["id"],))[0] or r["id"]     # не больше одной бумаги на эмитента
+            if key in seen:
+                continue
+            seen.add(key)
+            best.append({k: r[k] for k in ("id", "name", "rating", "ytm", "fair", "prem", "dur", "end", "cpn", "freq", "cur")})
+            if len(best) >= n:
+                break
+        return best
+    top = {"AA": pick(lambda r: r["cur"] == "RUB" and 1 <= rscore(r["rating"]) <= 4, 3),
+           "A": pick(lambda r: r["cur"] == "RUB" and 5 <= rscore(r["rating"]) <= 7, 3),
+           "CNY": pick(lambda r: r["cur"] == "CNY" and rscore(r["rating"]) <= 7, 2)}
+    names = {r["id"]: r["name"] for r in rows}
+    return top, names
+
+
 def load_state():
     try:
         with open(STATE, encoding="utf-8") as f:
@@ -189,11 +264,19 @@ def main():
             ratings[sec] = r
     if not rat:
         ratings = old_r
+    top, names = {}, {}
+    try:
+        tvavg = {k: sum(v) / len(v) for k, v in tv.items() if v}
+        top, names = best_bonds(board_bonds(), ratings, tvavg, now.date().isoformat(), em)
+        log("лучшие бумаги: " + ", ".join(f"{k}:{len(v)}" for k, v in top.items()))
+    except Exception as ex:  # noqa: BLE001
+        log(f"[warn] лучшие бумаги: {ex}")
     changes = st.get("rating_changes") or []
     if rat and old_r:
         for sec, r in ratings.items():
             if old_r.get(sec) and old_r[sec] != r:
-                changes.append({"secid": sec, "from": old_r[sec], "to": r, "date": now.date().isoformat()})
+                changes.append({"secid": sec, "name": names.get(sec, sec), "from": old_r[sec], "to": r,
+                                "date": now.date().isoformat()})
                 log(f"рейтинг {sec}: {old_r[sec]} → {r}")
     changes = [c for c in changes if (now.date() - datetime.fromisoformat(c["date"]).date()).days <= 30]
 
@@ -207,7 +290,8 @@ def main():
             b[sec].append(sy)
         if eid is not None:
             emn[str(eid)] = title
-    meta = {"updated": now.strftime("%Y-%m-%d %H:%M"), "tv_days": len(days), "rated": len(ratings), "b": b, "em": emn}
+    meta = {"updated": now.strftime("%Y-%m-%d %H:%M"), "tv_days": len(days), "rated": len(ratings), "b": b, "em": emn,
+            "top": top}
     os.makedirs(os.path.dirname(META), exist_ok=True)
     with open(META, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
