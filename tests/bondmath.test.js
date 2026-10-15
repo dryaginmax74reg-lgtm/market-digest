@@ -171,5 +171,59 @@ function mk({ c = 10, period = 182, n = 6, first = '2027-01-01', amort = null, f
   ok('займ гасится погашением заёмной бумаги', near(r.final, 100000 + 50000 - 45000 * 1.05, 1e-6), r.final);
   ok('проценты по займу = 2250', near(r.gross.loanInterest, 2250, 1e-6), r.gross.loanInterest);
 }
+
+// 12. Вклад: без капитализации внутри года, переоформление раз в год, налог с необлагаемой частью
+{
+  const r1 = B.depositNet(1e6, { settle: '2026-01-01', horizon: '2027-01-01', rates: [0.10], reform: false, exempt: () => 160000 });
+  ok('вклад 1 год 10%: проценты 100 000, налога нет (ниже лимита)', near(r1.gross, 100000, 0.5) && r1.tax === 0, r1.gross);
+  const r2 = B.depositNet(10e6, { settle: '2026-01-01', horizon: '2028-01-01', rates: [0.10, 0.08], reform: false, exempt: () => 160000 });
+  // год 1: 1 000 000; год 2: 11 000 000 × 8% = 880 000
+  ok('вклад 2 года: переоформление с процентами по новой ставке', near(r2.gross, 1000000 + 880000, 1), r2.gross);
+  ok('вклад 2 года: налог 13% сверх 160 тыс. в каждом году', near(r2.tax, 0.13 * (1000000 - 160000) + 0.13 * (880000 - 160000), 1), r2.tax);
+  const r3 = B.depositNet(12e6, { settle: '2026-01-01', horizon: '2027-01-01', rates: [0.12], payout: 'monthly', reform: false, exempt: () => 0 });
+  ok('вклад, проценты ежемесячно: 12% простых', near(r3.gross, 1440000, 500), r3.gross);
+  const r4 = B.depositNet(1e6, { settle: '2026-01-01', horizon: '2026-07-02', rates: [0.10], reform: false, exempt: () => 0 });
+  ok('вклад на полгода: простые проценты за 182 дня', near(r4.gross, 1e6 * 0.10 * 182 / 365, 0.5), r4.gross);
+  // крупный вклад, 2027 по реформе: 50 млн × 14% = 7 млн дохода в 2027 → шкала
+  const r5 = B.depositNet(50e6, { settle: '2026-01-01', horizon: '2028-01-01', rates: [0.14, 0.14], reform: true, exempt: () => 0 });
+  // проценты выплачиваются в годовщину вклада: 01.01.2027 и 01.01.2028 — оба года уже по шкале
+  ok('вклад по реформе: налог по шкале в год выплаты процентов', near(r5.tax, B.taxScale(7e6) + B.taxScale(57e6 * 0.14), 2), r5.tax);
+  const r6 = B.depositNet(50e6, { settle: '2026-01-01', horizon: '2027-01-01', rates: [0.14], reform: false, exempt: () => 0 });
+  ok('без реформы: 13% до 2,4 млн и 15% сверху', near(r6.tax, 2.4e6 * 0.13 + 4.6e6 * 0.15, 1), r6.tax);
+  // путь ставок по кривой: плоская кривая → ставка не меняется; падающая → снижается
+  const flat = B.depositPath(0.13, [[1, 14], [2, 14], [3, 14]], 3);
+  ok('плоская кривая — ставка вклада постоянна', flat.every(v => near(v, 0.13, 1e-9)), flat);
+  const down = B.depositPath(0.13, [[1, 14], [2, 13], [3, 12.5]], 3);
+  ok('падающая кривая — ставка вклада снижается', down[1] < 0.13 && down[2] < down[1], down);
+  // вывод купонов: короткая бумага в длинном сроке — погашение реинвестируется, купоны на руки, годовая простая
+  {
+    const fl = []; for (let k = 1; k <= 4; k++) fl.push({ ms: Date.UTC(2026, 3 * k, 1), amt: 40, kind: 'c', date: '' });
+    fl.push({ ms: Date.UTC(2027, 0, 1), amt: 1000, kind: 'a', date: '' });
+    const ps = [{ id: 'w', qty: 1000, bond: { face: 1000 }, flows: fl, clean: 100, accrued: 0, fx: 1, ytm: 0.16 }];
+    const w = B.simulate(ps, { settle: '2026-01-01', horizon: '2029-01-01', account: 'none', reinvest: 0.16, withdraw: true });
+    ok('вывод: купоны на руки = 160 тыс.', near(w.paidOut, 160000, 1e-6), w.paidOut);
+    ok('вывод: погашение реинвестировано (1 млн × 1,16² за 2 года)', near(w.final - w.paidOut, 1e6 * Math.pow(1.16, 731 / 365), 1), w.final - w.paidOut);
+    ok('вывод: годовая простая', near(w.annual, (w.final / 1e6 - 1) / w.years, 1e-12), w.annual);
+  }
+  // ИИС-3: освобождение до 30 млн ₽ дохода, с превышения — налог по шкале в год закрытия
+  {
+    const fl = [{ ms: Date.UTC(2031, 0, 10), amt: 2000, kind: 'a', date: '2031-01-10' }];
+    const ps = [{ id: 'z', qty: 50000, bond: { face: 1000 }, flows: fl, clean: 100, accrued: 0, fx: 1, ytm: 0.149 }];
+    const r = B.simulate(ps, { settle: '2026-01-10', horizon: '2031-01-10', account: 'iis3', reinvest: 0, reform: true });
+    ok('ИИС-3: налог только с дохода сверх 30 млн', near(r.iisTax, B.taxScale(50e6 - 30e6), 1e-6), r.iisTax);
+    const r2 = B.simulate([{ ...ps[0], qty: 10000 }], { settle: '2026-01-10', horizon: '2031-01-10', account: 'iis3', reinvest: 0, reform: true });
+    ok('ИИС-3: до 30 млн — без налога', r2.iisTax === 0 && r2.taxPaid === 0, r2.taxPaid);
+  }
+  const up = B.depositPath(0.13, [[1, 14], [2, 15], [3, 16]], 3);
+  ok('растущая кривая — ставка вклада не выше текущей', up.every(v => v <= 0.13 + 1e-12), up);
+  // доходность ОФЗ по номиналу из бескупонной кривой: плоская кривая → та же ставка; растущая → чуть ниже бескупонной
+  ok('parYield: плоская кривая', near(B.parYield([[1, 14], [5, 14]], 3, 2), 0.14, 1e-12));
+  ok('parYield: срок короче купона = бескупонная', near(B.parYield([[0.25, 12], [1, 14]], 0.25, 2), 0.12, 1e-12));
+  const pz = B.parYield([[1, 14], [3, 16]], 3, 2);
+  ok('parYield: растущая кривая — ниже бескупонной на конце', pz < 0.16 && pz > 0.15, pz);
+  // ОФЗ на срок: без налога и реинвест по y — годовая = y
+  const o = B.parBondNet(1e7, 0.14, 2, '2026-01-01', '2029-01-01', 'none', true, false);
+  ok('ОФЗ на срок без налога = доходности кривой', near(o.annual, 0.14, 1e-6), o.annual);
+}
 console.log(fails ? `\n${fails} FAILED` : '\nALL OK');
 process.exit(fails ? 1 : 0);

@@ -58,12 +58,13 @@ def block(d, today):
     top = (d.get("meta") or {}).get("top") or {}
     groups = [("AA", "AA–AAA"), ("A", "A"), ("CNY", "¥ юани")]
     if any(top.get(k) for k, _ in groups):
-        lines.append("<b>Лучшие бумаги</b> <i>— переплата к норме своего рейтинга и срока</i>")
+        lines.append("<b>Лучшие бумаги</b> <i>— оценка по сумме показателей: доходность, переплата к норме рейтинга, надёжность, ликвидность</i>")
         for k, title in groups:
             for t in top.get(k) or []:
                 cp = f" · купон {fnum(t['cpn'])}% {_fq(t.get('freq'))}" if t.get("cpn") else ""
+                sc = f" · оценка {t['cs']}" if t.get("cs") is not None else ""
                 lines.append(f"• {title}: {_link(t['id'], t['name'])} {e(t['rating'])} · {fnum(t['ytm'] * 100)}% "
-                             f"(+{fnum(t['prem'] * 100)} п.п.) · до {e(_ddmm(t['end']))}.{e((t['end'] or '')[2:4])}{cp}")
+                             f"({'+' if t['prem'] >= 0 else '−'}{fnum(abs(t['prem']) * 100)} п.п. к норме) · до {e(_ddmm(t['end']))}.{e((t['end'] or '')[2:4])}{cp}{sc}")
     pl = d.get("placements")
     if pl is not None:
         t0 = today.isoformat()

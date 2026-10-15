@@ -67,3 +67,39 @@ def compute_fair(rows):
         liq = max(-0.4, min(0.3, 0.25 * math.log10(max(r.get("tv") or 0, 1e5) / 2e7)))
         r["score"] = None if r["flag"] else r["prem"] * 100 + (0.3 if r.get("ofz") else liq)
     return rows
+
+
+def composite(rows):
+    """Сводная оценка 0–100 «по сумме показателей» внутри списка — копия composite() из docs/bondscore.js:
+    доходность 35% (внутри своего типа купона) + премия к норме 25% + надёжность 25% + ликвидность 15% (перцентили внутри списка)."""
+    import bisect
+    live = [r for r in rows if r.get("ytm") is not None and not r.get("flag")]
+
+    def ranker(key):
+        v = sorted(x for x in (key(r) for r in live) if x is not None and math.isfinite(x))
+        n = len(v)
+
+        def f(x):
+            if x is None or not math.isfinite(x) or n < 2:
+                return 0.5 if n < 2 else 0.3
+            lo, hi = bisect.bisect_left(v, x), bisect.bisect_right(v, x)
+            return ((lo + hi - 1) / 2) / (n - 1)
+        return f
+    liq = lambda r: math.log10(1 + (r.get("tv") or 0))  # noqa: E731
+    is_f = lambda r: r.get("kind") == "float"  # noqa: E731
+    r_yf, r_yx = ranker(lambda r: r["ytm"] if is_f(r) else None), ranker(lambda r: None if is_f(r) else r["ytm"])
+    r_y = lambda x, r: (r_yf if is_f(r) else r_yx)(x)  # noqa: E731
+    r_p, r_l = ranker(lambda r: r.get("prem")), ranker(liq)
+
+    def quality(r):
+        if r.get("rating") == "ГОС":
+            return 1.0
+        s = rscore(r.get("rating"))
+        return 0.05 if s >= 99 else max(0.0, (20 - s) / 19) ** 2     # выпуклая шкала, как в bondscore.js
+    for r in rows:
+        if r.get("ytm") is None or r.get("flag"):
+            r["cs"] = 0
+            continue
+        p = (r_y(r["ytm"], r), r_p(r.get("prem")), quality(r), r_l(liq(r)))
+        r["cs"] = int(math.floor(100 * (0.35 * p[0] + 0.25 * p[1] + 0.25 * p[2] + 0.15 * p[3]) + 0.5))   # как Math.round
+    return rows

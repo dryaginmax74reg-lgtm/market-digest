@@ -64,9 +64,11 @@
    *  по той же доходности). Только для фикс. купона без амортизации — по текущей ставке купона. */
   function afterTax(r, BM, settle) {
     if (r._at !== undefined) return r._at;
-    if (!['fixed', 'disc'].includes(r.kind) || !r.end || r.ytm == null || !r.price) return (r._at = null);
+    if (!['fixed', 'disc', 'amort', 'float'].includes(r.kind) || !r.end || r.ytm == null || !r.price) return (r._at = null);
     const per = r.couponPeriod > 0 ? r.couponPeriod : 182;
-    const cpn = r.kind === 'disc' ? 0 : (r.cpn != null ? r.cpn : (r.cpnVal && per ? r.cpnVal / r.face * 365 / per * 100 : null));
+    // амортизация и флоатер — приближённо: как бумага с тем же купоном (у флоатера — текущим или оценкой) без амортизации
+    let cpn = r.kind === 'disc' ? 0 : (r.cpn != null ? r.cpn : (r.cpnVal && per ? r.cpnVal / r.face * 365 / per * 100 : null));
+    if (cpn == null && r.kind === 'float') cpn = r.ytm * 100 * r.price / 100;
     if (cpn == null) return (r._at = null);
     const s = BM.toMs(settle), end = BM.toMs(r.end), D = 864e5;
     const flows = [];
@@ -84,5 +86,36 @@
     return (r._at = r.ytm - (y - res.annual));
   }
 
-  return { computeFair, afterTax, rScore, wmedian };
+  /** Сводная оценка 0–100 — «по сумме показателей» среди переданных бумаг (обычно — после фильтров):
+   *  доходность 35% + премия к норме 25% + надёжность (рейтинг) 25% + ликвидность 15%.
+   *  Доходность, премия и ликвидность — перцентиль внутри списка (0 — худшая, 1 — лучшая); надёжность: ГОС и AAA = 1, дальше выпукло ((20 − ступень)/19)² — AA 0,8 · A 0,54 · BBB 0,33; без рейтинга 0,05. Доходность сравнивается внутри типа купона.
+   *  Бумаги с меткой «риск» получают 0. Результат: r.cs и r.csParts. */
+  function composite(rows) {
+    const live = rows.filter(r => r.ytm != null && !r.flag);
+    const ranker = key => {
+      const v = live.map(key).filter(x => x != null && isFinite(x)).sort((a, b) => a - b), n = v.length;
+      return x => {
+        if (x == null || !isFinite(x) || n < 2) return n < 2 ? 0.5 : 0.3;
+        let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (v[m] < x) lo = m + 1; else hi = m; }
+        let lo2 = lo, hi2 = n; while (lo2 < hi2) { const m = (lo2 + hi2) >> 1; if (v[m] <= x) lo2 = m + 1; else hi2 = m; }
+        return ((lo + lo2 - 1) / 2) / (n - 1);
+      };
+    };
+    // доходность сравниваем внутри своего типа купона: у флоатера она — оценка при неизменной ставке, с фикс. купоном не сопоставима
+    const isF = r => r.kind === 'float';
+    const rYf = ranker(r => isF(r) ? r.ytm : null), rYx = ranker(r => isF(r) ? null : r.ytm);
+    const rY = (x, r) => (isF(r) ? rYf : rYx)(x);
+    const rP = ranker(r => r.prem), rL = ranker(r => Math.log10(1 + (r.tv || 0)));
+    // надёжность: выпуклая шкала — каждая ступень вниз от AAA стоит всё дороже (AAA 1 · AA 0,80 · A 0,54 · A− 0,47 · BBB 0,33 · BBB− 0,28)
+    const quality = r => r.rating === 'ГОС' ? 1 : (rScore(r.rating) >= 99 ? 0.05 : Math.pow(Math.max(0, (20 - rScore(r.rating)) / 19), 2));
+    for (const r of rows) {
+      if (r.ytm == null || r.flag) { r.cs = 0; r.csParts = null; continue; }
+      const p = { y: rY(r.ytm, r), p: rP(r.prem), q: quality(r), l: rL(Math.log10(1 + (r.tv || 0))) };
+      r.csParts = p;
+      r.cs = Math.round(100 * (0.35 * p.y + 0.25 * p.p + 0.25 * p.q + 0.15 * p.l));
+    }
+    return rows;
+  }
+
+  return { computeFair, afterTax, composite, rScore, wmedian };
 }));

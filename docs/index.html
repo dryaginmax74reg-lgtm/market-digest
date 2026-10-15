@@ -367,7 +367,8 @@ tr:last-child td{border:0}
   }
   function defaultRates(){
     const t=CALC.months/12;
-    return { dep: has('DEP')?last('DEP'):12, ofz: curveAt(t) ?? 13, corp: has('CORP_Y')?last('CORP_Y'):16,
+    const cv=(DATA.curves||{})['сегодня'], par=cv&&window.BondMath&&BondMath.parYield ? BondMath.parYield(cv.points, t, 2) : null;
+    return { dep: has('DEP')?last('DEP'):12, ofz: par!=null ? Math.round(par*1e4)/100 : (curveAt(t) ?? 13), corp: has('CORP_Y')?last('CORP_Y'):16,
              mmf: has('RUONIA')?Math.max(0,last('RUONIA')-0.4):12 };
   }
   // облигация по номиналу с эффективной доходностью y, f купонов в год, на срок months;
@@ -385,7 +386,8 @@ tr:last-child td{border:0}
     flows.push({ms:U(end),amt:1000,kind:'a',date:BondMath.iso(U(end))});
     const pos=[{id:'b',qty:A/1000,bond:{face:1000},flows,clean:100,accrued:0,fx:1,ytm:y}];
     const run=acc=>BondMath.simulate(pos,{settle:BondMath.iso(U(st)),horizon:BondMath.iso(U(end)),account:acc,reinvest:mode==='pay'?0:y,reform});
-    if(!CALC.tax||mode==='iis'){ const g=run('none').final-A; return {inc:g, tax:0}; }
+    if(!CALC.tax){ const g=run('none').final-A; return {inc:g, tax:0}; }
+    if(mode==='iis'){ const r=run('iis3'); return {inc:r.final-A+r.taxPaid, tax:r.taxPaid}; }   // ИИС-3: без налога до 30 млн ₽ дохода
     const r=run('std');                       // доход, реально полученный при удержании налога, и фактический налог
     return {inc:r.final-A+r.taxPaid, tax:r.taxPaid};
   }
@@ -393,21 +395,25 @@ tr:last-child td{border:0}
   const moneyShort = v => Math.abs(v)>=1e6 ? nf(v/1e6, Math.abs(v)>=1e8?0:2)+' млн ₽' : money(v);
   function calcResults(){
     const A=CALC.amount, m=CALC.months, t=m/12, R=CALC.rates, mode=CALC.reinv, iis=mode==='iis';
-    const cap = mode!=='pay';
-    const sub = {pay:'купоны выплачиваются', reinv:'купоны реинвестируются после 13% НДФЛ', iis:'на ИИС-3: купоны реинвестируются целиком, без НДФЛ'}[mode];
+    const sub = {pay:'купоны выплачиваются', reinv:'купоны реинвестируются после 13% НДФЛ', iis:'на ИИС-3: купоны реинвестируются целиком, без НДФЛ (до 30 млн ₽ дохода)'}[mode];
     const rows=[
-      ['dep','Вклад', cap?'макс. ставка топ-10 банков; ежемесячная капитализация':'макс. ставка топ-10 банков; проценты в конце срока',
-        cap ? A*(Math.pow(1+R.dep/100/12,12*t)-1) : A*R.dep/100*t],
-      ['mmf','Фонд денежного рынка','≈ RUONIA минус комиссия 0,4%; налог при продаже'+(iis?' (на ИИС-3 — без налога)':''), A*(Math.pow(1+R.mmf/100/365,365*t)-1)],
+      ['dep','Вклад', 'макс. ставка топ-10 банков (ЦБ, без капитализации); '+(mode==='pay'?'проценты ежемесячно':'проценты раз в год')+(t>1?', дальше переоформление: если кривая ОФЗ ждёт снижения ставок — ниже, рост не закладывается':''), null],
+      ['mmf','Фонд денежного рынка','≈ RUONIA минус комиссия 0,4%; налог при продаже'+(iis?' (на ИИС-3 — без налога до 30 млн ₽ дохода)':''), A*(Math.pow(1+R.mmf/100/365,365*t)-1)],
       ['ofz','ОФЗ на срок','доходность по кривой ОФЗ, купон 2 раза в год; '+sub, null, 2],
       ['corp','Корп. облигации','доходность индекса Мосбиржи, купон ежемесячно; '+sub+'; есть кредитный риск', null, 12],
     ].map(([k,n,s,inc,f])=>{
       let taxNow, taxRef;
-      if(f){
+      if(k==='dep'){
+        const st=new Date(lastDate()), H=new Date(st); H.setMonth(H.getMonth()+m);
+        const U=d=>BondMath.iso(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+        const cv=(DATA.curves||{})['сегодня'], path=BondMath.depositPath(R.dep/100, cv?cv.points:null, t);
+        const run=rf=>BondMath.depositNet(A,{settle:U(st),horizon:U(H),rates:path,payout:mode==='pay'?'monthly':'end',reform:rf,exempt:y=>depExempt(y,rf)});
+        const a=run(false), b=run(true); inc=a.gross; taxNow=CALC.tax?a.tax:0; taxRef=CALC.tax?b.tax:0;
+      } else if(f){
         const y=R[k]/100;
         const a=bondSim(A,y,f,m,mode,false), b=bondSim(A,y,f,m,mode,true);
         inc=a.inc; taxNow=a.tax; taxRef=b.tax;
-      } else if(k==='mmf' && iis){ taxNow=taxRef=0; }
+      } else if(k==='mmf' && iis){ const ey=splitYears(m).endYear, over=Math.max(0,inc-30e6); taxNow=CALC.tax?yearTax(ey,over,false):0; taxRef=CALC.tax?yearTax(ey,over,true):0; }   // ИИС-3: без налога до 30 млн ₽ дохода
       else { taxNow=taxFor(k,inc,m,false); taxRef=taxFor(k,inc,m,true); }
       const tax=CALC.reform?taxRef:taxNow, net=inc-tax;
       return {k,n,s,inc,tax,taxNow,taxRef,net,ann:(Math.pow(1+net/A,1/t)-1)*100};

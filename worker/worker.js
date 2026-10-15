@@ -242,6 +242,32 @@ function bondNet(A, y, f, months, reform, start = new Date()) {
   Object.keys(yrs).forEach(k => settle(+k));
   return cash;
 }
+// вклад — как на дашборде (bondmath.js depositNet/depositPath): ставка без капитализации, проценты раз в год,
+// переоформление по ставке, которую закладывает кривая ОФЗ (не выше текущей); налог по году выплаты процентов сверх необлагаемой части
+function depositPath(rate0, pts, years) {
+  pts = (pts || []).slice().sort((a, b) => a[0] - b[0]);
+  const z = t => { if (!pts.length) return null; if (t <= pts[0][0]) return pts[0][1]; if (t >= pts[pts.length - 1][0]) return pts[pts.length - 1][1];
+    for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; return y0 + (y1 - y0) * (t - x0) / (x1 - x0); } };
+  const out = [rate0], z1 = z(1);
+  for (let k = 1; k < Math.ceil(years); k++) {
+    const a = z(k), b = z(k + 1);
+    if (a == null || b == null || z1 == null) { out.push(rate0); continue; }
+    out.push(Math.min(rate0, Math.max(0.01, rate0 + ((Math.pow(1 + b / 100, k + 1) / Math.pow(1 + a / 100, k) - 1) * 100 - z1) / 100)));
+  }
+  return out;
+}
+function depositNet(A, months, rates, reform, exempt, start = new Date()) {
+  const s = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const e = new Date(start); e.setMonth(e.getMonth() + months); const H = Date.UTC(e.getFullYear(), e.getMonth(), e.getDate());
+  const inc = {}; let bal = A, a = s, k = 0;
+  while (a < H) {
+    const d = new Date(a); d.setUTCFullYear(d.getUTCFullYear() + 1);
+    const b = Math.min(d.getTime(), H), v = bal * rates[Math.min(k, rates.length - 1)] * (b - a) / 864e5 / 365, y = new Date(b).getUTCFullYear();
+    inc[y] = (inc[y] || 0) + v; bal += v; a = b; k++;
+  }
+  let tax = 0; for (const [y, v] of Object.entries(inc)) tax += yearTax(+y, Math.max(0, v - exempt(+y, reform)), reform);
+  return bal - A - tax;
+}
 function maxKeyOn1st(D, y) {
   let mx = null; const lastD = last(D, "KEY");
   for (let m = 0; m < 12; m++) { const iso = `${y}-${String(m + 1).padStart(2, "0")}-01`; if (lastD && iso > lastD[0]) break; const v = asOf(D, "KEY", iso); if (v != null) mx = Math.max(mx ?? v, v); }
@@ -252,6 +278,15 @@ function curveAt(D, years) {
   const p = c.points.slice().sort((a, b) => a[0] - b[0]);
   if (years <= p[0][0]) return p[0][1]; if (years >= p[p.length - 1][0]) return p[p.length - 1][1];
   for (let i = 1; i < p.length; i++) if (years <= p[i][0]) { const [x0, y0] = p[i - 1], [x1, y1] = p[i]; return y0 + (y1 - y0) * (years - x0) / (x1 - x0); }
+}
+// ОФЗ по номиналу на срок — как BondMath.parYield на дашборде (из бескупонной кривой), в %
+function parYield(D, years, f = 2) {
+  const c = D && D.curves && D.curves["сегодня"]; if (!c || !(years > 0)) return null;
+  const DF = t => Math.pow(1 + curveAt(D, t) / 100, -t);
+  const n = Math.max(1, Math.round(years * f)); let ann = 0, prev = 0;
+  for (let k = 1; k <= n; k++) { const t = years - (n - k) / f; ann += DF(t) * (t - prev); prev = t; }
+  const tau = Math.min(years, 1 / f);
+  return (Math.pow(1 + (1 - DF(years)) / ann * tau, 1 / tau) - 1) * 100;
 }
 function cmdCalc(D, args) {
   // «100млн 1г», «25 000 000 6м», «1,5 млрд 2 года»: срок - в конце, остальное - сумма
@@ -271,13 +306,18 @@ function cmdCalc(D, args) {
   const { parts, endYear } = splitYears(start, months);
   const taxFor = (kind, inc, reform) => kind === "mmf" ? yearTax(endYear, inc, reform)
     : parts.reduce((s, [y, f]) => s + yearTax(y, inc * f - (kind === "dep" ? exempt(y, reform) : 0), reform), 0);
-  const R = { dep: dep ? dep[1] : 12, mmf: ru ? Math.max(0, ru[1] - 0.4) : 12, ofz: curveAt(D, t) ?? 13, corp: corp ? corp[1] : 16 };
+  const R = { dep: dep ? dep[1] : 12, mmf: ru ? Math.max(0, ru[1] - 0.4) : 12, ofz: parYield(D, t) ?? curveAt(D, t) ?? 13, corp: corp ? corp[1] : 16 };
   const rows = [
-    ["dep", "Вклад", R.dep, amount * (Math.pow(1 + R.dep / 100 / 12, 12 * t) - 1)],
+    ["dep", "Вклад", R.dep, null, 0],
     ["mmf", "Фонд ден. рынка", R.mmf, amount * (Math.pow(1 + R.mmf / 100 / 365, 365 * t) - 1)],
     ["ofz", "ОФЗ на срок", R.ofz, null, 2],
     ["corp", "Корп. облиг.", R.corp, null, 12],
   ].map(([k, n, r, inc, f]) => {
+    if (k === "dep") {
+      const pts = D && D.curves && D.curves["сегодня"] ? D.curves["сегодня"].points : null, path = depositPath(r / 100, pts, t);
+      const a = depositNet(amount, months, path, false, exempt), b = depositNet(amount, months, path, true, exempt);
+      return { n, r, net: b, extra: a - b };
+    }
     if (f) { const a = bondNet(amount, r / 100, f, months, false), b = bondNet(amount, r / 100, f, months, true); return { n, r, net: b, extra: a - b }; }
     const tn = taxFor(k, inc, false), tr = taxFor(k, inc, true); return { n, r, net: inc - tr, extra: tr - tn };
   });
@@ -288,7 +328,7 @@ function cmdCalc(D, args) {
     table([["", "ставка", "на руки", "к вкладу"], ...rows.map(r => [r.n, nf(r.r) + "%", fmtM(r.net), r === rows[0] ? "—" : (r.net >= base ? "+" : "−") + fmtM(Math.abs(r.net - base))])]) +
     (reformHits ? `<i>Доход с 2027 г. — по законопроекту № 617-9 (13–22%, ещё не принят). Из-за реформы налог выше на: ` +
       rows.map(r => `${r.n} ${fmtM(r.extra)} ₽`).join(", ") + ".</i>\n" : "") +
-    `<i>Вклад — макс. ставка топ-10 с ежемесячной капитализацией; облигации — до погашения, купоны реинвестируются после 13% НДФЛ, в конце года доплата по шкале. Ориентир, не рекомендация.</i>`;
+    `<i>Вклад — макс. ставка топ-10 (без капитализации), проценты раз в год, дальше — по ставке, которую ждёт рынок; облигации — до погашения, купоны реинвестируются после 13% НДФЛ, в конце года доплата по шкале. Ориентир, не рекомендация.</i>`;
 }
 
 // ---------------------------------------------------------------- дивиденды

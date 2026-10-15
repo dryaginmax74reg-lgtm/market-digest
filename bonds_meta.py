@@ -17,7 +17,7 @@ import sys
 import time
 from datetime import datetime
 
-from bondscore import compute_fair, rscore
+from bondscore import composite, compute_fair, rscore
 from common import ISS, MSK, http_get, log
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -138,6 +138,8 @@ def _kind(s):
     t = s.get("BONDTYPE") or ""
     if re.search(r"Линкер|Структур|Конверт", t, re.I) or "ИОС" in (s.get("SHORTNAME") or ""):
         return "other"
+    if not t and not s.get("COUPONPERIOD"):          # тип не указан и купонов нет — экзотика (как правило, структурные)
+        return "other"
     if re.search(r"плавающ", t, re.I) or s["SECID"].startswith("SU29"):
         return "float"
     if re.search(r"Дисконт", t, re.I):
@@ -151,7 +153,7 @@ def board_bonds():
     for board in ("TQOB", "TQCB"):
         j = json.loads(http_get(f"{ISS}engines/stock/markets/bonds/boards/{board}/securities.json?iss.meta=off"
                                 "&iss.only=securities,marketdata,marketdata_yields"
-                                "&securities.columns=SECID,SHORTNAME,SECNAME,FACEUNIT,BONDTYPE,MATDATE,OFFERDATE,PREVPRICE,COUPONPERCENT,COUPONPERIOD"
+                                "&securities.columns=SECID,SHORTNAME,SECNAME,FACEUNIT,BONDTYPE,MATDATE,OFFERDATE,PREVPRICE,COUPONPERCENT,COUPONPERIOD,ACCRUEDINT,FACEVALUE"
                                 "&marketdata.columns=SECID,LAST,WAPRICE,OFFER"
                                 "&marketdata_yields.columns=SECID,PRICE,EFFECTIVEYIELD,DURATION,YIELDDATE,YIELDDATETYPE"))
         tab = lambda k: [dict(zip(j[k]["columns"], r)) for r in j[k]["data"]]  # noqa: E731
@@ -162,7 +164,7 @@ def board_bonds():
             out.append({"s": s, "board": board,
                         "price": m.get("OFFER") or m.get("LAST") or m.get("WAPRICE") or y.get("PRICE") or s.get("PREVPRICE"),
                         "ytm": y.get("EFFECTIVEYIELD"), "dur": y.get("DURATION"), "end": y.get("YIELDDATE") or s.get("MATDATE"),
-                        "ydt": y.get("YIELDDATETYPE")})
+                        "ydt": y.get("YIELDDATETYPE"), "yprice": y.get("PRICE")})
     return out
 
 
@@ -179,9 +181,14 @@ def best_bonds(quotes, ratings, tvavg, today, em=None):
         if kind == "disc" and price and end and end > today:
             yrs = (datetime.fromisoformat(end).date() - datetime.fromisoformat(today).date()).days / 365
             ytm = (100 / price) ** (1 / yrs) - 1 if yrs > 0 else None
+        elif ytm is not None and kind != "float" and q.get("yprice") and price and abs(price - q["yprice"]) > 1e-9 and q["dur"]:
+            # доходность к цене предложения (как на странице): поправка через модифицированную дюрацию
+            ai = s.get("ACCRUEDINT") if s.get("FACEUNIT") == "SUR" else None
+            dirty = q["yprice"] + ((ai or 0) / (s.get("FACEVALUE") or 1000) * 100)
+            ytm -= (price - q["yprice"]) / dirty / (q["dur"] / 365 / (1 + ytm))
         rows.append({"id": s["SECID"], "name": s.get("SHORTNAME"), "cur": "RUB" if s.get("FACEUNIT") == "SUR" else s.get("FACEUNIT"),
                      "kind": kind, "ofz": ofz, "rating": "ГОС" if ofz else ratings.get(s["SECID"], ""),
-                     "mbs": q["ydt"] == "MBS" or bool(re.search(r"СФО|Ипотечн|(^|[\s«\"])ИА\s", name, re.I)),
+                     "mbs": q["ydt"] == "MBS" or bool(re.search(r"СФО|Секью|Ипотечн|(^|[\s«\"])ИА\s", name, re.I)),
                      "sub": "СУБ" in name, "ytm": ytm, "dur": (q["dur"] or 0) / 365, "price": price or 0,
                      "tv": tvavg.get(s["SECID"], 0), "end": end, "cpn": s.get("COUPONPERCENT"),
                      "freq": round(365 / s["COUPONPERIOD"]) if s.get("COUPONPERIOD") else None,
@@ -192,12 +199,13 @@ def best_bonds(quotes, ratings, tvavg, today, em=None):
 
     def pick(f, n):
         best, seen = [], set()
-        for r in sorted((r for r in good if f(r)), key=lambda r: -r["score"]):
+        cand = composite([dict(r) for r in good if f(r)])          # сводная оценка внутри группы (как на странице)
+        for r in sorted(cand, key=lambda r: (-r["cs"], -r["score"])):
             key = (em or {}).get(r["id"], (r["id"],))[0] or r["id"]     # не больше одной бумаги на эмитента
             if key in seen:
                 continue
             seen.add(key)
-            best.append({k: r[k] for k in ("id", "name", "rating", "ytm", "fair", "prem", "dur", "end", "cpn", "freq", "cur")})
+            best.append({k: r[k] for k in ("id", "name", "rating", "ytm", "fair", "prem", "dur", "end", "cpn", "freq", "cur", "cs")})
             if len(best) >= n:
                 break
         return best

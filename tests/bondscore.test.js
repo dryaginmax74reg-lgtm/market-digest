@@ -26,4 +26,22 @@ ok('после НДФЛ: купон 10% → 8,70%', near(at, 0.087, 2e-4), at);
 const r2 = { id: 'y', kind: 'disc', end: '2027-01-01', ytm: 100 / 90 - 1, price: 90, face: 1000, ai: 0 };
 const at2 = S.afterTax(r2, B, settle);
 ok('дисконтная: после НДФЛ 9,67%', near(at2, 8.7 / 90, 3e-4), at2);
+
+// Сводная оценка: при равной доходности выше рейтинг → выше балл; «риск» → 0; ликвиднее → выше
+{
+  const L = [
+    { id: 'aaa', rating: 'AAA', ytm: 0.16, prem: 0.01, tv: 5e7 },
+    { id: 'bbb', rating: 'BBB', ytm: 0.16, prem: 0.01, tv: 5e7 },
+    { id: 'hiY', rating: 'A', ytm: 0.22, prem: 0.01, tv: 5e7 },
+    { id: 'loY', rating: 'A', ytm: 0.12, prem: 0.01, tv: 5e7 },
+    { id: 'ill', rating: 'AAA', ytm: 0.16, prem: 0.01, tv: 1e4 },
+    { id: 'rsk', rating: 'AA', ytm: 0.30, prem: 0.08, tv: 5e7, flag: 'risk' },
+  ];
+  S.composite(L); const c = id => L.find(r => r.id === id).cs;
+  ok('рейтинг выше → балл выше при равной доходности', c('aaa') > c('bbb'), c('aaa') + ' > ' + c('bbb'));
+  ok('доходность выше → балл выше при равном рейтинге', c('hiY') > c('loY'));
+  ok('ликвидность выше → балл выше', c('aaa') > c('ill'));
+  ok('метка «риск» → 0', c('rsk') === 0);
+  ok('баллы в 0..100', L.every(r => r.cs >= 0 && r.cs <= 100));
+}
 console.log(fails ? `\n${fails} FAILED` : '\nALL OK'); process.exit(fails ? 1 : 0);

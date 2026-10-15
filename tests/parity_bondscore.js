@@ -10,5 +10,5 @@ for (let i = 0; i < 600; i++) {
     price: 50 + rnd() * 55, tv: rnd() < 0.2 ? 0 : rnd() * 3e8, ok: rnd() < 0.97 });
 }
 fs.writeFileSync(process.argv[2], JSON.stringify(rows));
-S.computeFair(rows);
-fs.writeFileSync(process.argv[3], JSON.stringify(rows.map(r => [r.id, r.fair, r.prem, r.flag, r.score])));
+S.computeFair(rows); S.composite(rows);
+fs.writeFileSync(process.argv[3], JSON.stringify(rows.map(r => [r.id, r.fair, r.prem, r.flag, r.score, r.cs])));
