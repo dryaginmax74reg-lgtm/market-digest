@@ -54,6 +54,10 @@ h2{font-size:16px;margin:26px 0 10px}
 .card .meta{font-size:12px;color:var(--ink2);margin:2px 0 8px;font-variant-numeric:tabular-nums}
 .cv{position:relative;height:220px}
 .card.wide .cv{height:280px}
+.card.focus{border:2px solid var(--accent)}
+.card.focus .cv{height:360px}
+.back{font-size:13px;color:var(--accent);text-decoration:none;margin-left:8px;font-weight:400}
+#focus:empty{display:none}
 .note{font-size:12px;color:var(--ink3);margin-top:28px}
 @media (max-width:420px){.grid{grid-template-columns:1fr}.cv{height:200px}.kpi .v{font-size:19px}}
 </style>
@@ -73,16 +77,17 @@ h2{font-size:16px;margin:26px 0 10px}
     </div>
     <div class="seg theme"><button id="themeBtn" title="Светлая/тёмная тема">◐ Тема</button></div>
   </div>
+  <div id="focus"></div>
   <div class="kpis" id="kpis"></div>
 
   <h2>Что принёс период</h2>
   <div class="grid">
-    <div class="card wide"><h3>Доходность за выбранный период</h3>
+    <div class="card wide" id="card_PERF"><h3>Доходность за выбранный период</h3>
       <div class="meta">индексы с купонами (TR), депозит — начисление по макс. ставке топ-10 банков, валюта — изменение курса</div>
       <div class="cv"><canvas id="perf"></canvas></div></div>
-    <div class="card"><h3>Ставки и доходности</h3><div class="meta">% годовых</div>
+    <div class="card" id="card_RATES"><h3>Ставки и доходности</h3><div class="meta">% годовых</div>
       <div class="cv"><canvas id="ratesCmp"></canvas></div></div>
-    <div class="card"><h3>Кривая ОФЗ (G-curve)</h3><div class="meta">доходность, % · срок, лет</div>
+    <div class="card" id="card_CURVE"><h3>Кривая ОФЗ (G-curve)</h3><div class="meta">доходность, % · срок, лет</div>
       <div class="cv"><canvas id="curve"></canvas></div></div>
   </div>
   <div id="groups"></div>
@@ -200,7 +205,7 @@ h2{font-size:16px;margin:26px 0 10px}
       const sec=document.createElement('section');
       sec.innerHTML=`<h2>${g}</h2><div class="grid">`+groups[g].map(k=>{
         const s=DATA.series[k], p=slice(k), last=p.length?p[p.length-1][1]:null, c=change(k), rate=s.unit==='%';
-        return `<div class="card"><h3>${s.label}</h3><div class="meta">${nf(last,rate?2:(last>1000?0:2))} ${s.unit} · `+
+        return `<div class="card" id="card_${k}"><h3>${s.label}</h3><div class="meta">${nf(last,rate?2:(last>1000?0:2))} ${s.unit} · `+
           `<span class="${cls(c)}">${sg(c,rate?2:1,rate?' п.п.':'%')}</span> за период</div><div class="cv"><canvas id="c_${k}"></canvas></div></div>`;
       }).join('')+'</div>';
       host.appendChild(sec);
@@ -211,10 +216,28 @@ h2{font-size:16px;margin:26px 0 10px}
       });
     });
   }
+  // Кнопка в Telegram открывает dashboard/#IMOEX - показываем этот график крупно сверху
+  const FOCUS=(location.hash||'').replace('#','').toUpperCase();
+  function renderFocus(){
+    const host=document.getElementById('focus'); host.innerHTML='';
+    if(!FOCUS) return;
+    const s=DATA.series[FOCUS];
+    if(!s){ // составные графики: CURVE, RATES, PERF - подсветить и прокрутить
+      const el=document.getElementById('card_'+FOCUS);
+      if(el){ el.classList.add('focus'); setTimeout(()=>el.scrollIntoView({block:'center'}),50); }
+      return;
+    }
+    const p=slice(FOCUS), last=p.length?p[p.length-1][1]:null, c=change(FOCUS), rate=s.unit==='%';
+    host.innerHTML=`<div class="grid"><div class="card wide focus"><h3>${s.label}<a class="back" href="#" onclick="location.hash='';location.reload();return false">все графики ↓</a></h3>`+
+      `<div class="meta">${nf(last,rate?2:(last>1000?0:2))} ${s.unit} · <span class="${cls(c)}">${sg(c,rate?2:1,rate?' п.п.':'%')}</span> за период</div>`+
+      `<div class="cv"><canvas id="f_${FOCUS}"></canvas></div></div></div>`;
+    charts.push(new Chart(document.getElementById('f_'+FOCUS),{type:'line',
+      data:{datasets:[lineDs(s.label,p,tok('--s1'),['KEY','DEP'].includes(FOCUS))]},options:baseOpts(s.unit)}));
+  }
   function render(){
     kill();
     document.querySelectorAll('#ranges button').forEach(b=>b.classList.toggle('on',b.dataset.r===RANGE));
-    renderKpis(); renderPerf(); renderRatesCmp(); renderCurve(); renderGroups();
+    renderFocus(); renderKpis(); renderPerf(); renderRatesCmp(); renderCurve(); renderGroups();
   }
   document.getElementById('ranges').addEventListener('click',e=>{
     const r=e.target.dataset&&e.target.dataset.r; if(!r) return; RANGE=r;
