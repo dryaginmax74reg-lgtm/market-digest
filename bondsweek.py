@@ -44,7 +44,7 @@ def _link(secid, name):
     if not base:
         return f"<b>{e(name)}</b>"
     base = base if base.endswith("/") else base + "/"
-    return f'<a href="{e(base)}bonds.html#q={e(secid)}">{e(name)}</a>'
+    return f'<a href="{e(base)}bonds.html?q={e(secid)}">{e(name)}</a>'
 
 
 def _fq(f):

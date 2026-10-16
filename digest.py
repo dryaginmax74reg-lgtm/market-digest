@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Ежедневный рыночный дайджест -> Telegram. Без ИИ и платных API.
 
-Запуск:  python digest.py            боевой (нужны TG_BOT_TOKEN, TG_CHAT_ID)
+Запуск:  python digest.py            боевой (нужны TG_BOT_TOKEN, TG_CHAT_ID): карточка-картинка + кнопки
+         python digest.py --build    только собрать (карточка, docs/digest.json для кнопок «Подробнее» и др.)
+         python digest.py --send     отправить собранное (в Actions — после публикации сайта)
          python digest.py --demo     демо-данные, печать в консоль
          DRY_RUN=1 python digest.py  живые данные, печать в консоль
 Настройки: NEWS_LIMIT (по умолчанию 5), MONEY_NEWS_LIMIT (5), DIV_DAYS (14).
 Даты заседаний ЦБ и пороги «сильных движений» - в common.py.
 """
+import json
 import os
 import sys
 from datetime import date, datetime, timedelta
@@ -58,6 +61,14 @@ def collect(today):
     # понедельник (или BONDS_WEEK=1): облигации — лучшие бумаги, размещения, рейтинги за неделю
     if today.weekday() == 0 or os.environ.get("BONDS_WEEK") == "1":
         d["bondsweek"] = bondsweek.collect()
+        d["placements"] = (d["bondsweek"] or {}).get("placements")
+    else:
+        try:
+            import placements
+            d["placements"] = placements.fetch_placements()
+        except Exception as ex:  # noqa: BLE001
+            log(f"[warn] размещения bonds-lab: {ex}")
+            d["placements"] = None
     d["watch_news"] = events.watch_news(d["watch"], exclude=[t for _s, t, _l in macro + money])
     apply_sanity(d)
     return d
@@ -409,7 +420,7 @@ def card_ok(d):
 
 
 def caption(d, now):
-    """Подпись к карточке дня: дата + сильные движения (если есть)."""
+    """Подпись к карточке дня: дата, сильные движения, повод для звонка, ваш список (только в чате — на сайт не публикуется)."""
     lines = [f"<b>Рынки · {now.day} {MONTHS[now.month - 1]}</b>"]
     moves = strong_moves(d, now.date())
     if moves:
@@ -423,36 +434,93 @@ def caption(d, now):
     nm = next_meeting(now.date())
     if nm and nm == now.date():
         lines.append("🏦 Сегодня заседание ЦБ — флеш с решением около 13:35.")
-    lines.append("<i>Подробности и кнопки — ниже 👇</i>")
-    return "\n".join(lines)
+    watch = watch_lines(d, now.date())
+    out = "\n".join(lines)
+    if watch:
+        extra = "\n⭐ <b>Ваш список</b>"
+        for w in watch:
+            if len(_plain(out + extra + "\n" + w)) > 1000:
+                break
+            extra += "\n" + w
+        out += extra
+    return out
+
+
+def _plain(html):
+    import re as _re
+    return _re.sub(r"<[^>]+>", "", html)
+
+
+def watch_lines(d, today):
+    """Строки «Ваш список» (без заголовка) — только для подписи в чате."""
+    b = build_watch(d, today)
+    if not b:
+        return []
+    return [ln for ln in b.split("\n")[1:] if ln.strip()][:6]
+
+
+VIEWS = [("📋 Подробнее", "details"), ("📰 Новости", "news"), ("💰 Денежные события", "money"), ("🆕 Размещения", "placements")]
 
 
 def keyboard():
-    """Кнопки под дайджестом. Если задан DASHBOARD_URL - каждая открывает свой график на дашборде,
-    иначе - страницы ЦБ/Мосбиржи/Yahoo."""
+    """Кнопки под карточкой. Адреса — с параметром ?v=… : Telegram, открывая страницу внутри чата,
+    дописывает свои данные после «#», поэтому якоря вида #CNY в Mini App не работают."""
     dash = pages_url()
     if dash:
         base = dash if dash.endswith("/") else dash + "/"
         rows = [
-            [("📊 Дашборд", base), ("🧮 Калькулятор", base + "#CALC"), ("🏦 Ставки", base + "#RATES")],
-            [("📈 IMOEX", base + "#IMOEX"), ("📉 Кривая ОФЗ", base + "#CURVE"), ("💰 Депозит vs обл.", base + "#PERF")],
-            [("💵 Доллар", base + "#USD"), ("🇨🇳 Юань", base + "#CNY"), ("🛢 Brent", base + "#BRENT")],
-            [("🥇 Золото", base + "#GOLD"), ("₿ Bitcoin", base + "#BTC"), ("🗓 Дивиденды", "https://smart-lab.ru/dividends/")],
-            [("🧾 Подбор облигаций", base + "bonds.html"), ("💼 Портфель", base + "bonds.html#PORT")],
+            [(VIEWS[0][0], base + "?v=details"), (VIEWS[1][0], base + "?v=news")],
+            [(VIEWS[2][0], base + "?v=money"), (VIEWS[3][0], base + "?v=placements")],
+            [("📊 Дашборд", base + "?v=overview"), ("🧮 Калькулятор", base + "?v=calc"), ("🧾 Облигации", base + "bonds.html")],
         ]
-        # ссылки на дашборд открываются прямо внутри Telegram (Mini App)
-        return {"inline_keyboard": [[({"text": t, "web_app": {"url": u}} if u.startswith(base) else {"text": t, "url": u})
-                                     for t, u in r] for r in rows]}
-    else:
-        rows = [
-            [("📈 IMOEX", "https://www.moex.com/ru/index/IMOEX"), ("📉 Кривая ОФЗ", "https://www.moex.com/s2532"),
-             ("🏦 Ключевая", "https://www.cbr.ru/hd_base/KeyRate/")],
-            [("💰 Депозиты", "https://www.cbr.ru/statistics/avgprocstav/"),
-             ("🇨🇳 Юань", "https://www.cbr.ru/currency_base/dynamics/?UniDbQuery.VAL_NM_RQ=R01375"),
-             ("🛢 Brent", "https://finance.yahoo.com/quote/BZ%3DF/")],
-            [("🥇 Золото", "https://finance.yahoo.com/quote/GC%3DF/"), ("🗓 Дивиденды", "https://smart-lab.ru/dividends/")],
-        ]
+        return {"inline_keyboard": [[{"text": t, "web_app": {"url": u}} for t, u in r] for r in rows]}
+    rows = [
+        [("📈 IMOEX", "https://www.moex.com/ru/index/IMOEX"), ("📉 Кривая ОФЗ", "https://www.moex.com/s2532"),
+         ("🏦 Ключевая", "https://www.cbr.ru/hd_base/KeyRate/")],
+        [("💰 Депозиты", "https://www.cbr.ru/statistics/avgprocstav/"), ("🆕 Размещения", "https://bonds-lab.ru/placements"),
+         ("🗓 Дивиденды", "https://smart-lab.ru/dividends/")],
+    ]
     return {"inline_keyboard": [[{"text": t, "url": u} for t, u in r] for r in rows]}
+
+
+def placements_soon(pl, today, days=14):
+    """Первичные размещения: сбор заявок или размещение в ближайшие days дней (по данным bonds-lab)."""
+    if pl is None:
+        return None
+    t0, t1 = today.isoformat(), (today + timedelta(days=days)).isoformat()
+    soon = [p for p in pl if (p.get("book") and t0 <= p["book"] <= t1) or (p.get("place") and t0 <= p["place"] <= t1)]
+    soon.sort(key=lambda p: p.get("book") or p.get("place") or "")
+    last = max((p.get("book") or "" for p in pl), default="") or None
+    return {"items": soon, "days": days, "source_last": last, "total": len(pl)}
+
+
+def public_sections(d, now):
+    """То, что раньше шло текстом под карточкой, — для страницы дашборда (docs/digest.json).
+    Список наблюдения (WATCHLIST) сюда НЕ попадает: сайт публичный."""
+    today = now.date()
+    pub = dict(d)
+    pub["watch"] = None
+    details = list(events.daily_blocks(today, pub, None))
+    if not card_ok(d):
+        details.insert(0, build_moves(pub, today))
+    if d.get("bondsweek"):
+        bw = dict(d["bondsweek"])
+        details.append(bondsweek.block(bw, today))
+    details += [build_fx(pub), build_rates(pub, today), build_yields(pub, today), build_markets(pub)]
+    return {
+        "date": today.isoformat(), "updated": now.strftime("%Y-%m-%d %H:%M"),
+        "details": [b for b in details if b],
+        "money": build_events(pub, today).replace(" · нажмите, чтобы раскрыть", ""),
+        "news": build_news(pub).replace(" · нажмите, чтобы раскрыть", ""),
+        "placements": placements_soon(d.get("placements"), today),
+    }
+
+
+def write_public(d, now):
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "digest.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(public_sections(d, now), f, ensure_ascii=False)
+    return path
 
 
 def make_visuals(d, now, demo=False):
@@ -483,41 +551,77 @@ def now_msk():
     return datetime.now(MSK)
 
 
+SEND_STATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".digest_send.json")
+
+
 def main():
+    """Режимы: --build (собрать данные, карточку, docs/digest.json, подготовить отправку), --send (отправить
+    подготовленное), без флагов — всё сразу. В GitHub Actions: build → публикация сайта → send,
+    чтобы кнопки под карточкой сразу открывали свежий выпуск."""
     demo = "--demo" in sys.argv
+    build = "--send" not in sys.argv
+    send = "--build" not in sys.argv
     now = now_msk()
-    manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch" or os.environ.get("FORCE") == "1"
-    if not demo and not manual and not events.is_workday(now.date()):
-        log(f"{now:%d.%m} - нерабочий день, дайджест не отправляю (ручной запуск отправит).")
-        return
-    data = demo_data() if demo else collect(now.date())
-    if demo:
-        data["bondsweek"] = bondsweek.demo(now.date())
-    if demo:
-        data["watch"] = events.load_watchlist()
-        data.setdefault("watch_news", [])
-    core = [data.get("cur"), data.get("key"), data.get("IMOEX"), data.get("brent"), data.get("zcyc")]
-    if not demo and not any(core):
-        log("Ни один основной источник не ответил - дайджест не отправлен.")
-        sys.exit(1)
-    make_visuals(data, now, demo)
-    msgs = pack(build_blocks(data, now))
-    photos_after = [(data["_charts"], "📊 Графики за год")] if data.get("_charts") else []
-    if data.get("_card"):
-        deliver_card(data["_card"], caption(data, now))
-    deliver(msgs, keyboard=keyboard(), photos=photos_after)
+    if build:
+        manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch" or os.environ.get("FORCE") == "1"
+        if not demo and not manual and not events.is_workday(now.date()):
+            log(f"{now:%d.%m} - нерабочий день, дайджест не отправляю (ручной запуск отправит).")
+            if os.path.exists(SEND_STATE):
+                os.remove(SEND_STATE)
+            return
+        data = demo_data() if demo else collect(now.date())
+        if demo:
+            data["bondsweek"] = bondsweek.demo(now.date())
+            data["placements"] = data["bondsweek"]["placements"]
+            data["watch"] = events.load_watchlist()
+            data.setdefault("watch_news", [])
+        core = [data.get("cur"), data.get("key"), data.get("IMOEX"), data.get("brent"), data.get("zcyc")]
+        if not demo and not any(core):
+            log("Ни один основной источник не ответил - дайджест не отправлен.")
+            sys.exit(1)
+        make_visuals(data, now, demo)
+        try:
+            write_public(data, now)
+        except Exception as ex:  # noqa: BLE001
+            log(f"[warn] digest.json: {type(ex).__name__}: {ex}")
+        state = {"card": data.get("_card"), "caption": caption(data, now), "charts": data.get("_charts"),
+                 "fallback": None if data.get("_card") else "\n\n".join(build_blocks(data, now))}
+        with open(SEND_STATE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False)
+    if send:
+        if not os.path.exists(SEND_STATE):
+            log("Нечего отправлять (нерабочий день или сборка не прошла).")
+            return
+        with open(SEND_STATE, encoding="utf-8") as f:
+            st = json.load(f)
+        kb = keyboard()
+        if st.get("card") and os.path.exists(st["card"]):
+            deliver_card(st["card"], st["caption"], kb)
+        else:   # карточка не нарисовалась — как раньше, текстом
+            deliver(pack([st["caption"], st.get("fallback") or ""]), keyboard=kb)
+        if st.get("charts") and os.path.exists(st["charts"]):
+            deliver([], photos=[(st["charts"], "📊 Графики за год")])
 
 
-def deliver_card(path, cap):
+def deliver_card(path, cap, kb=None):
     if os.environ.get("DRY_RUN") == "1" or "--demo" in sys.argv:
         print(f"[карточка] {path}\n{cap}\n" + "-" * 40)
+        if kb:
+            print("[кнопки]", " | ".join(b["text"] + " → " + ((b.get("web_app") or {}).get("url") or b.get("url", "")) for row in kb["inline_keyboard"] for b in row))
         return
-    from common import tg_creds, tg_photo
+    from common import tg_creds, tg_photo, tg_send
     token, chat = tg_creds()
     try:
-        tg_photo(token, chat, path, cap)
+        tg_photo(token, chat, path, cap, reply_markup=kb)
     except Exception as ex:  # noqa: BLE001
-        log(f"[warn] карточка не отправилась: {ex}")
+        log(f"[warn] карточка с кнопками не отправилась ({ex}) — пробую без кнопок")
+        try:
+            tg_photo(token, chat, path, cap)
+            if kb:
+                tg_send(token, chat, "Подробности 👇", reply_markup=kb)
+        except Exception as ex2:  # noqa: BLE001
+            log(f"ОШИБКА ОТПРАВКИ: {ex2}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

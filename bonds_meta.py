@@ -185,7 +185,9 @@ def best_bonds(quotes, ratings, tvavg, today, em=None):
             # доходность к цене предложения (как на странице): поправка через модифицированную дюрацию
             ai = s.get("ACCRUEDINT") if s.get("FACEUNIT") == "SUR" else None
             dirty = q["yprice"] + ((ai or 0) / (s.get("FACEVALUE") or 1000) * 100)
-            ytm -= (price - q["yprice"]) / dirty / (q["dur"] / 365 / (1 + ytm))
+            yrs = (datetime.fromisoformat(end).date() - datetime.fromisoformat(today).date()).days / 365 if end else 0
+            dm = max(q["dur"] / 365, yrs * 0.3)        # у Мосбиржи бывает нереально короткая дюрация
+            ytm = (1 + ytm) * (dirty / (dirty + price - q["yprice"])) ** (1 / dm) - 1   # как на странице: (1+y)^−D
         rows.append({"id": s["SECID"], "name": s.get("SHORTNAME"), "cur": "RUB" if s.get("FACEUNIT") == "SUR" else s.get("FACEUNIT"),
                      "kind": kind, "ofz": ofz, "rating": "ГОС" if ofz else ratings.get(s["SECID"], ""),
                      "mbs": q["ydt"] == "MBS" or bool(re.search(r"СФО|Секью|Ипотечн|(^|[\s«\"])ИА\s", name, re.I)),

@@ -171,6 +171,23 @@ details.params summary{cursor:pointer;font-weight:700;color:var(--acc);font-size
 .shield.weak .shn{background:linear-gradient(160deg,#f59e0b,#d97706)}
 .shield.none .shn{background:linear-gradient(160deg,#94a3b8,#64748b);font-size:22px}
 .shield h2{margin:0 0 4px}.shield .sub{margin:0}
+.kx{display:grid;gap:6px;margin:6px 0}.kxr{display:grid;grid-template-columns:80px 1fr 110px;gap:10px;align-items:center;font-size:13px;font-weight:700}
+.kxr i{display:block;height:12px;border-radius:7px;background:linear-gradient(90deg,var(--acc),var(--acc2))}.kxr.dep i{background:var(--ink3)}.kxr b{text-align:right;font-variant-numeric:tabular-nums}
+.kxd{font-weight:800;font-size:14px;margin-top:2px}
+#kx{width:100%;accent-color:var(--acc)}
+.goals{display:grid;gap:8px;margin-bottom:8px}.goal{display:grid;grid-template-columns:150px 170px 1fr 40px;gap:8px}
+.goal input{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:12px;padding:10px 12px;font:inherit;font-weight:700;min-width:0}
+@media(max-width:640px){.goal{grid-template-columns:1fr 1fr 40px}.goal input[data-gn]{grid-column:1/3}}
+.goalsc .gl{padding:10px 0;border-bottom:1px solid var(--line)}.goalsc .gl:last-of-type{border:0}
+.gl .gd{font-weight:800}.gl .gv{font-size:14px;margin-top:2px}.gl.ok .gv{color:var(--up)}.gl.no .gv{color:var(--down)}.gl .gn{font-size:12px;color:var(--ink2);margin-top:2px}
+.goalsc{margin-bottom:14px}
+.salary .sal-big{font-size:28px;font-weight:800;margin:4px 0 10px}.salary .sal-big span{font-size:13px;font-weight:600;color:var(--ink2)}
+.sal-bars{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;height:120px;align-items:end}
+.sal-bars div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px}
+.sal-bars i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,var(--acc2),var(--acc))}
+.sal-bars span{font-size:10.5px;font-weight:700;color:var(--ink2)}
+.salary{margin-bottom:14px}.bt{margin-bottom:14px}
+.prob{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 2px}.prob div{background:var(--soft);border-radius:14px;padding:8px 12px;min-width:120px}.prob b{display:block;font-size:22px;font-weight:800;color:var(--up)}.prob span{font-size:11.5px;font-weight:700;color:var(--ink2)}
 .shbars{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .shbars span{font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--soft);color:var(--ink2)}
 .shbars span.ref{background:transparent;border:1px dashed var(--ink3,#94a3b8)}.shbars span.ok{background:color-mix(in srgb,var(--up) 14%,transparent);color:var(--up)}.shbars span.no{background:color-mix(in srgb,var(--down) 12%,transparent);color:var(--down)}
@@ -178,6 +195,51 @@ details.params summary{cursor:pointer;font-weight:700;color:var(--acc);font-size
 .termbtns{display:flex;gap:6px;flex-wrap:wrap}
 .termbtns button{border:0;background:var(--soft);color:var(--ink2);font:inherit;font-weight:800;font-size:14px;padding:10px 14px;border-radius:11px;cursor:pointer}
 .termbtns button.on{background:var(--ink);color:var(--card)}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px 22px;margin-top:6px}
+.sgt{font-size:12.5px;font-weight:800;color:var(--ink2);margin-bottom:6px;text-transform:none}
+.sbar{display:grid;grid-template-columns:minmax(90px,38%) 1fr 38px;gap:8px;align-items:center;font-size:12.5px;font-weight:600;margin:4px 0}
+.sbar .sk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sbar .st{position:relative;height:8px;border-radius:5px;background:var(--soft)}
+.sbar .st i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.sbar .st b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink2);opacity:.55}
+.sbar .sv{text-align:right;font-variant-numeric:tabular-nums}
+.sbar.over .st i{background:var(--down)}.sbar.over .sv{color:var(--down);font-weight:800}
+.nm[data-why]{cursor:pointer}.nm[data-why]:hover{color:var(--acc)}
+tr.whyon td{background:var(--soft)}
+.whyrow td{padding:0!important;background:var(--soft)}
+.why{padding:12px 14px 14px;white-space:normal;position:sticky;left:0;max-width:calc(100vw - 56px)}@media(min-width:900px){.why{max-width:1100px}}
+.why .wh{font-weight:800;font-size:14px;margin-bottom:8px}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px 22px}
+.wy{display:grid;grid-template-columns:118px 1fr 28px;gap:6px 10px;align-items:center;font-size:12.5px}
+.wy .wl{font-weight:800}.wy .wt{height:7px;border-radius:5px;background:var(--card);overflow:hidden}.wy .wt i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:5px}
+.wy .wv{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}.wy .wx{grid-column:1/-1;color:var(--ink2);font-weight:600;line-height:1.35}
+.wf{margin:10px 0 0;padding-left:18px;font-size:12.5px;line-height:1.5;color:var(--ink)}.wf li{margin:2px 0}
+.wn{margin-top:8px;font-size:11.5px;color:var(--ink3)}
+#xr_text{width:100%;margin-top:10px;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:14px;padding:12px 14px;font:inherit;font-size:14px;resize:vertical}
+.xsum{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}.xsum .l{font-size:12.5px;color:var(--ink2);font-weight:700}.xsum .v{font-size:26px;font-weight:800;margin:4px 0}.xsum .c{font-size:12.5px;color:var(--ink2);font-weight:600}
+.xsum .warn .v{color:var(--down)}.xsum .good .v{color:var(--up)}
+@media(max-width:760px){.xsum{grid-template-columns:1fr}}
+.pres{position:fixed;inset:0;z-index:1000;background:radial-gradient(120% 90% at 10% 0%,#3b2fd1 0%,#1a1446 45%,#0b0b1e 100%);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:clamp(20px,5vw,72px);overflow:auto}
+.pres-s{max-width:1100px;width:100%;margin:0 auto;animation:pin .35s ease}
+@keyframes pin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.sl-k{font-size:clamp(13px,1.6vw,18px);font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-bottom:14px}
+.sl-h{font-size:clamp(32px,6vw,72px);font-weight:800;line-height:1.08;letter-spacing:-.02em}
+.sl-acc{background:linear-gradient(90deg,#8ef0c4,#7ab8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sl-s{font-size:clamp(14px,1.8vw,20px);opacity:.8;margin-top:18px;font-weight:600;max-width:900px}.sl-s b{opacity:1;color:#8ef0c4}
+.sl-bar{display:grid;grid-template-columns:minmax(110px,22%) 1fr auto auto;gap:14px;align-items:center;margin:14px 0;font-size:clamp(14px,1.9vw,22px);font-weight:700}
+.sl-bar i{display:block;height:clamp(14px,2vw,24px);border-radius:12px;background:rgba(255,255,255,.28)}.sl-bar.me i{background:linear-gradient(90deg,#8ef0c4,#7ab8ff)}
+.sl-bar b{font-variant-numeric:tabular-nums}.sl-bar em{font-style:normal;opacity:.65;font-size:.8em;min-width:70px;text-align:right}
+.sl-cols{display:flex;gap:1.2%;align-items:flex-end;height:clamp(120px,22vh,220px);margin-top:20px}.sl-cols i{flex:1;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#8ef0c4,#7ab8ff)}
+.pres-nav{display:flex;justify-content:center;align-items:center;gap:18px;margin-top:clamp(24px,5vh,56px)}
+.pres-nav button{border:0;background:rgba(255,255,255,.14);color:#fff;font-size:28px;width:52px;height:52px;border-radius:50%;cursor:pointer}.pres-nav button[disabled]{opacity:.25}
+.pres-nav span{display:flex;gap:8px}.pres-nav span i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.3)}.pres-nav span i.on{background:#fff}
+.pres-x{position:absolute;top:16px;right:16px;border:0;background:rgba(255,255,255,.14);color:#fff;width:42px;height:42px;border-radius:50%;font-size:18px;cursor:pointer}
+.pres-f{position:absolute;left:clamp(20px,5vw,72px);bottom:18px;font-size:13px;opacity:.6;font-weight:600}
+@media print{#presroot{display:none!important}}
+.qrbox{display:flex;flex-direction:column;align-items:center;gap:4px;width:110px}.qrbox svg{width:96px;height:96px}.qrbox span{font-size:9px;color:var(--ink2);text-align:center;line-height:1.2}
+.trackc{margin-bottom:14px;border:2px solid var(--acc)}.trk{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.trk div{background:var(--soft);border-radius:12px;padding:10px 12px}
+.trk span{display:block;font-size:12px;color:var(--ink2);font-weight:700}.trk b{font-size:20px}.trk .up b{color:var(--up)}.trk .down b{color:var(--down)}
+@media(max-width:640px){.trk{grid-template-columns:1fr 1fr}}
 .maplegend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;font-weight:700;color:var(--ink2);margin:8px 0 4px}
 .maplegend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
 .cv.map{height:320px}@media(max-width:640px){.cv.map{height:260px}}
@@ -247,7 +309,12 @@ input[type=range]{width:100%;accent-color:var(--acc)}
   if (window.Chart) Chart.defaults.font.family = FONT;
   const t0 = store.get('theme',''); if(t0) document.documentElement.dataset.theme=t0;
   const ISS = new URLSearchParams(location.search).get('iss') || 'https://iss.moex.com/iss/';
+  const TG = window.Telegram && window.Telegram.WebApp;
+  const IN_TG = !!(TG && TG.platform && TG.platform!=='unknown');
 
+  // ---------------- отрасль эмитента (по названию; «Прочее», если не узнали)
+  const SECTOR_RULES = [["Секьюритизация", "СФО|Ипотечный агент|ипотечн|Секьюрит|специализированное финансовое"], ["Регионы и города", "министерство финансов (?!Российской)|департамент финансов|комитет финансов|Правительство|Мэрия|Администрац|Республика .* в лице"], ["Банки", "банк|Сбербанк|ВТБ|Совкомбанк|Т-Банк|Тинькофф|МКБ|Московский кредитный|Альфа|ПСБ|Промсвязь|Росбанк|\\\"ДОМ\\.РФ\\\"|ВЭБ|РСХБ|Россельхоз|Уралсиб|Хоум|Ренессанс Кредит|Синара Банк|кредитн"], ["Лизинг", "лизинг|ГТЛК|Европлан|Интерлизинг|Бизнес Альянс|Аренза|ФЛИТ|АдвансТрак|(?:^|[^А-Яа-яЁёA-Za-z])ЛК(?![А-Яа-яЁёA-Za-z])|ЛК-|Практика ЛК|Эконом|ТрансФин"], ["МФО и ломбарды", "микрофинанс|МФК|МКК|Займер|коллектор|Вэббанкир|ПКО|Займ|МГКЛ|ломбард|Л-Старт|Центр-резерв|СмартФакт|факторинг"], ["Промышленность", "двигател|авиастро|судостро|ГИДРОМАШ|Гидромаш|Объединенная авиа|Уралвагон|Трансмаш|СтанкоМаш|приборостро|Электроаппарат|сода(?![А-Яа-яЁёA-Za-z])"], ["Энергетика", "энерг|Россети|сетев|РусГидро|РусГидро|Гидрогенер|генерирующ|ОГК|ТГК|Интер РАО|МОЭК|Юнипро|Мосэнерго|Т Плюс|ЕСЭГ|электр|теплов|Атомный энергопромышленный|Атомэнергопром|Росэнергоатом|Квадра|ЛОЭСК|энергосет|ЭН\\+|Эн\\+"], ["Транспорт и инфраструктура", "железн|РЖД|ПГК|Первая грузовая|Трансконтейнер|Совкомфлот|флот|морск|порт|Стивидор|контейнерн|НМТП|Аэрофлот|авиа|Аэрофьюэлз|Фьюэл|логист|перевоз|пассажир|Глобалтрак|Дело(?![А-Яа-яЁёA-Za-z])|Автодор|Государственная компания|дорог|магистрал|концесс|диаметр|Монополия|ПКТ|Почта России|ВУШ|Делимобиль|Каршеринг|КАМАЗ|Камаз|Соллерс|автомоб|РОЛЬФ|Рольф|АВТОБАН|Автобан|АвтоТранс|пригородн|экологический оператор|Спецтранс|Транс-Миссия|Новотранс|ТрансКомплект"], ["Девелопмент", "Самолет|ЛСР|(?:^|[^А-Яа-яЁёA-Za-z])ПИК(?![А-Яа-яЁёA-Za-z])|Эталон|Брусника|девелоп|строит|недвиж|Глоракс|Джи-групп|Хайтэк|Сэтл|Пионер|Легенда|Талан|Унистрой|Инград|АБЗ|Асфальт|Мостотрест|АПРИ|БЭЛТИ|А101|Ландскейп|Элит Строй|Строй"], ["Нефть и газ", "нефт|Газпром(?!банк)|Новатэк|НОВАТЭК|Транснефть|ЛУКОЙЛ|Татнефть|Роснефть|Сургут|РусГазДобыч|ННК|Славнефть|Зарубежнефть|ЯТЭК|Якутская топливно|Ойл|Oil|ОЙЛ|газ(?![А-Яа-яЁёA-Za-z])|ЕвроТранс|Топлив|Нафта"], ["Металлы и добыча", "металл|Металлоинвест|МЕТАЛЛОИНВЕСТ|сталь|Северсталь|НЛМК|Новолипецк|ММК|Магнитогор|Норильский|Русал|РУСАЛ|Алроса|АЛРОСА|Полюс|Полиметалл|Селигдар|ЮГК|Южуралзолото|золот|Мечел|ГМК|Распадская|[Уу]голь|СУЭК|Евраз|ЕВРАЗ|ТМК|Трубная|Уралкалий|Петропавловск|Высочайший|руд|Хайленд|Кокс|КОКС|Феррум|кузниц"], ["Химия и удобрения", "хим|ФосАгро|Акрон|Сибур|СИБУР|Уралхим|ЕвроХим|Полипласт|удобрен|азот|Аммоний|Пигмент|оргсинтез|МИРРИКО|СибСульфур|ПЭТ ПЛАСТ|пласт"], ["Телеком и IT", "МТС|Мобильные ТелеСистемы|Ростелеком|телеком|связь|Мегафон|ВымпелКом|Яндекс|ЯНДЕКС|Позитив|Софтлайн|ВК(?![А-Яа-яЁёA-Za-z])|Т-Технолог|Озон|Ozon|Селектел|технолог|Технолоджи|Диасофт|Астра|Аренадата|Кибер|Софт|Р-Вижн|Цифров|Солюшнз|Вымпел|Мэйл|Mail"], ["АПК и продукты", "Черкизово|Русагро|агро|АПК|Мираторг|ОМПК|мясо|молоч|Молочн|хлеб|зерн|Племзавод|птице|ЭкоНива|Байсэл|Урожай|Содружество|Сергиевское|РЕГИОН-ПРОДУКТ|ИнтерФуд|продукт"], ["Ритейл и потребсектор", "Магнит|ИКС 5|X5|Лента|М\\.Видео|МВидео|О'КЕЙ|ОКЕЙ|ритейл|торгов|Детский мир|Фикс|Абрау|Мать и дитя|МД Медикал|Медси|фарм|Фарм|Промомед|ПРОМОМЕД|36,6|Аптечн|Сегежа|лес|Реиннольц|НоваБев|Кристалл|ЛИКЕРО|Вита|Обувь|ВсеИнструменты|реСтор|Бианка|Воксис|СИМПЛ|Виллина|Медицинск|Криохранен|Борец|Инарктика|Самокат|КЛС|Медскан|Ю Ди Пи|АВТОАССИСТАНС|Фэшн|ФЭШН|Простая еда|Сказка"], ["Промышленность", "завод|Завод|комбинат|машин|ХРОМОС|Арлифт|Стекло|С-Принт|Патриот|Гидромаш|ВИС(?![А-Яа-яЁёA-Za-z])|ВИС ФИНАНС|Инжиниринг|Промышлен"], ["Финансы и холдинги", "Система|АФК|капитал|Капитал|финанс|Финанс|инвест|Инвест|холдинг|Холдинг|страх|Сафмар|Московская биржа|Ростех|госкорпорац|фонд|РОССИУМ|Кеарли|Группа"]].map(([n,p])=>[n,new RegExp(p,'i')]);
+  const sectorOf = (name, ofz) => ofz ? 'ОФЗ' : ((SECTOR_RULES.find(([n,rx])=>rx.test(name||''))||['Прочее'])[0]);
   // ---------------- рейтинги и профили
   const RAT = ['AAA','AA+','AA','AA-','A+','A','A-','BBB+','BBB','BBB-','BB+','BB','BB-','B+','B','B-','CCC','CC','C','D'];
   const rScore = r => r==='ГОС' ? 0 : (RAT.indexOf(r)+1 || 99);
@@ -256,14 +323,14 @@ input[type=range]{width:100%;accent-color:var(--acc)}
   const rTag = r => `<span class="rt ${rCls(r)}">${esc(r||'н/р')}</span>`;
   const rFromScore = s => s<0.5 ? 'ГОС' : RAT[Math.min(RAT.length-1,Math.max(0,Math.round(s)-1))];
   const PROFILES = {
-    cons: {name:'Консервативный', d:'ОФЗ от 50%, остальное AA и выше, только фикс. купон, дюрация до 3 лет',
-           ofzMin:50, minRating:'AA', issuerMax:10, durMax:3, floaterMax:0, bandCap:{}, minIssuers:4, liq:1},
-    mod:  {name:'Умеренный', d:'ОФЗ от 20%, рейтинг от AA−, флоатеры до 30%, до 10% на эмитента',
-           ofzMin:20, minRating:'AA-', issuerMax:10, durMax:4, floaterMax:30, bandCap:{}, minIssuers:6, liq:1},
-    inc:  {name:'Доходный', d:'рейтинг от A−, группа «A» до 40%, до 7% на эмитента',
-           ofzMin:0, minRating:'A-', issuerMax:7, durMax:5, floaterMax:40, bandCap:{A:40}, minIssuers:10, liq:1},
-    agg:  {name:'Агрессивный', d:'рейтинг от BBB−, группа «BBB» до 30%, до 5% на эмитента, от 15 эмитентов',
-           ofzMin:0, minRating:'BBB-', issuerMax:5, durMax:6, floaterMax:50, bandCap:{BBB:30}, minIssuers:15, liq:1},
+    cons: {name:'Консервативный', d:'ОФЗ от 50%, остальное AA и выше, только фикс. купон, дюрация до 3 лет, до 25% на отрасль',
+           ofzMin:50, minRating:'AA', issuerMax:10, durMax:3, floaterMax:0, bandCap:{}, minIssuers:4, liq:1, sectorMax:25},
+    mod:  {name:'Умеренный', d:'ОФЗ от 20%, рейтинг от AA−, флоатеры до 30%, до 10% на эмитента и 30% на отрасль',
+           ofzMin:20, minRating:'AA-', issuerMax:10, durMax:4, floaterMax:30, bandCap:{}, minIssuers:6, liq:1, sectorMax:30},
+    inc:  {name:'Доходный', d:'рейтинг от A−, группа «A» до 40%, до 7% на эмитента и 35% на отрасль',
+           ofzMin:0, minRating:'A-', issuerMax:7, durMax:5, floaterMax:40, bandCap:{A:40}, minIssuers:10, liq:1, sectorMax:35},
+    agg:  {name:'Агрессивный', d:'рейтинг от BBB−, группа «BBB» до 30%, до 5% на эмитента и 40% на отрасль, от 15 эмитентов',
+           ofzMin:0, minRating:'BBB-', issuerMax:5, durMax:6, floaterMax:50, bandCap:{BBB:30}, minIssuers:15, liq:1, sectorMax:40},
   };
   const CURS = [['RUB','₽ Рубли'],['CNY','¥ Юани'],['USD','$ Доллары'],['EUR','€ Евро']];
   const CUR_SIGN = {RUB:'₽',CNY:'¥',USD:'$',EUR:'€',CHF:'₣'};
@@ -274,14 +341,18 @@ input[type=range]{width:100%;accent-color:var(--acc)}
   // ---------------- состояние
   let U = [], BYID = {}, META = null, DATA = null, FX = {RUB:1}, SETTLE = null, RF = null;
   let TAB = store.get('b_tab','screen');
-  const F_DEF = {cur:'RUB', kind:'all', minR:'A-', yMin:'', yMax:'', mMin:'', mMax:'', ctype:'all', liq:'1', q:'', sort:'cs', asc:false, offer:'any', risk:'show', seg:'plain', one:'1'};
+  const F_DEF = {cur:'RUB', kind:'all', minR:'A-', yMin:'', yMax:'', mMin:'', mMax:'', ctype:'all', liq:'1', q:'', sort:'cs', asc:false, offer:'any', risk:'show', seg:'plain', one:'1', sec:'all'};
   const F = Object.assign({}, F_DEF, jget('b_filters4',{}));
   const P = Object.assign({amount:30e6, term:12, profile:'mod', params:null, cur:{RUB:100,CNY:0,USD:0,EUR:0}, account:'std', reform:true,
     monthly:false, depRate:null, pos:[], qual:true, step:1, carry:null, warns:[]}, jget('b_port2',{}));
   if(!P.params) P.params = JSON.parse(JSON.stringify(PROFILES[P.profile]||PROFILES.mod));
+  if(P.params.sectorMax==null) P.params.sectorMax = (PROFILES[P.profile]||PROFILES.mod).sectorMax;      // сохранённые до появления лимита на отрасль
   if(!P.carry) P.carry = {on:false, ltv:100, pos:[], warns:[]};
+  if(!P.goals) P.goals=[];
   const SIGN = Object.assign({name:'', title:'', phone:''}, jget('b_sign',{}));
   let ANALYSIS = null, charts = [];
+  // ежемесячные выплаты на руки — только на брокерском счёте: купоны с ИИС-3 выводить нельзя (остаются на счёте и реинвестируются)
+  const PAY = () => !!P.monthly && P.account!=='iis3';
   const savePort = () => store.set('b_port2', JSON.stringify(P));
   const saveF = () => store.set('b_filters4', JSON.stringify(F));
 
@@ -334,7 +405,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     // биржа считает доходность по цене последней сделки, а купить можно по цене предложения (её и показываем):
     // пересчёт через модифицированную дюрацию, чтобы доходность соответствовала цене покупки
     else if(ytm!=null && kind!=='float' && y.PRICE>0 && price && Math.abs(price-y.PRICE)>1e-9 && y.DURATION>0){
-      const D=y.DURATION/365/(1+ytm); ytm -= (price-y.PRICE)/(y.PRICE+(ai>0?ai/face*100:0))/D; }
+      const Dm=Math.max(y.DURATION/365, (years||0)*0.3), a0=(ai>0?ai/face*100:0); ytm = (1+ytm)*Math.pow((y.PRICE+a0)/(price+a0), 1/Dm) - 1; }   // (1+y)^−D: точно для бескупонной, хорошо и при больших сдвигах
     let cpn = s.COUPONPERCENT;
     // «фиксированный» купон без ставки, а биржа показывает доходность около нуля — купон ещё не объявлен (по сути плавающий)
     if(kind!=='float' && kind!=='disc' && cpn==null && ytm!=null && ytm<0.01 && price>50 && years>0){
@@ -355,6 +426,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const dur = kind==='float' ? Math.min(years||0, (per||91)/365) : (y.DURATION ? y.DURATION/365 : null);
     const tvAvg = meta[2]||0, tvToday = m.VALTODAY||0;
     return { id:sec, isin:s.ISIN||sec, name:s.SHORTNAME, full:s.SECNAME, board:s.BOARDID, ofz, cur, kind, rating,
+      sector: sectorOf((meta[1]!=null && META.em[meta[1]]) || s.SECNAME || s.SHORTNAME, ofz),
       em: meta[1]!=null ? String(meta[1]) : (ofz?'MINFIN':sec), emName: meta[1]!=null && META.em[meta[1]] ? emShort(META.em[meta[1]]) : (ofz?'Минфин России':''),
       tv: Math.max(tvAvg, tvToday), tvAvg, tvToday,                  // оборот: средний за 10 дней или сегодняшний, что больше
       price, ai, face, lot:s.LOTSIZE||1, mat:valid(s.MATDATE)?s.MATDATE:null, off, end, days, years, ytm, est, dur,
@@ -418,6 +490,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
       if(liq!=null && liq>0 && !r.ofz && r.tv<liq*1e6) return false;
       if(F.risk==='hide' && r.flag) return false;
       if(F.seg==='plain' && (r.sub||r.mbs)) return false;
+      if(F.sec!=='all' && r.sector!==F.sec) return false;
       return true;
     });
     BS.composite(list);                                   // сводная оценка среди отобранных
@@ -433,9 +506,122 @@ input[type=range]{width:100%;accent-color:var(--acc)}
       return F.asc ? x-y : y-x;
     });
   }
+  // вероятность дефолта за 3 года по рейтингу — «теоретическая» шкала Эксперт РА (наблюдения 2001–2024), %
+  const PD3 = {AAA:0.989,'AA+':1.374,AA:1.693,'AA-':2.083,'A+':2.561,A:3.145,'A-':3.858,'BBB+':4.724,BBB:5.772,'BBB-':7.037,
+    'BB+':8.553,BB:10.359,'BB-':12.494,'B+':14.996,B:17.897,'B-':21.218,CCC:50,CC:70,C:85,D:100};
+  const pdYear = r => r.ofz ? 0 : (r.rating in PD3 ? 1-Math.pow(1-PD3[r.rating]/100, 1/3) : 1-Math.pow(1-0.179,1/3));   // без рейтинга — как B
+  const relWord = r => { const s=rScore(r.rating); return r.ofz?'государство (ОФЗ)':s<=1?'максимальная надёжность на рынке':s<=4?'очень высокая надёжность':s<=7?'высокая надёжность':s<=10?'умеренная надёжность':s<99?'спекулятивный уровень':'рейтинга нет'; };
+  let WHY=null;
+  function whyHtml(r, at, where='в списке'){
+    const P_=r.csParts||{y:0,p:0,q:0,l:0};
+    const bar=(lbl,v,txt)=>`<div class="wy"><span class="wl">${lbl}</span><span class="wt"><i style="width:${Math.round(v*100)}%"></i></span><span class="wv">${Math.round(v*100)}</span><div class="wx">${txt}</div></div>`;
+    const typ=r.kind==='float'?'флоатеров':'бумаг с фиксированным купоном';
+    const pd=pdYear(r);
+    const facts=[
+      r.ofz?'Эмитент — Минфин России':`Эмитент — ${esc(r.emName||'—')} · отрасль: ${esc(r.sector)}`,
+      `${r.off?'Оферта':'Погашение'} ${fmtD(r.end)} (через ${r.days} дн.)${r.call?' · у эмитента есть право досрочно погасить (колл) '+fmtD(r.call):''}`,
+      `Купон ${r.cpn!=null?nf(r.cpn,2)+'%':r.kind==='float'?'плавающий':'—'}${r.freq?', '+freqName(r.freq):''}${r.kind==='amort'?' · номинал возвращается частями (амортизация)':''}`,
+      at!=null?`После НДФЛ 13% — ${(r.kind==='float'||r.kind==='amort')?'≈':''}${pc(at)} годовых`:'',
+      r.flag?`<b class="down">Метка «риск»:</b> рынок требует на ${sg(r.prem*100,2,' п.п.')} больше нормы для такого рейтинга и срока — так бывает, когда инвесторы видят проблемы раньше рейтинговых агентств. В автосборку такие бумаги не попадают.`:'',
+      r.sub?'Субординированная: при проблемах банка может быть списана раньше обычных долгов.':'',
+      r.mbs?'Секьюритизация: номинал гасится по мере погашения кредитов — сроки непредсказуемы.':'',
+    ].filter(Boolean);
+    return `<div class="why"><div class="wh">Почему оценка <b>${r.flag?'—':r.cs}</b> из 100</div>
+      <div class="wgrid">
+      ${bar('Доходность', P_.y, `${pc(r.ytm)} к цене покупки — выше, чем у ${Math.round(P_.y*100)}% ${typ} ${where}`)}
+      ${bar('Переплата к норме', P_.p, r.prem!=null?`${sg(r.prem*100,2,' п.п.')} к норме: похожие бумаги (${esc(r.rating)}, срок ≈ ${nf(r.dur,1)} г., сравнивали с ${r.peers} выпусками) дают ${pc(r.fair)}`:'нет похожих бумаг для сравнения')}
+      ${bar('Надёжность', P_.q, `${esc(r.rating||'без рейтинга')} — ${relWord(r)}${r.ofz?'':`; исторически дефолт ≈ ${nf(pd*100,pd<0.01?2:1)}% в год у компаний с таким рейтингом (Эксперт РА, 2001–2024)`}`)}
+      ${bar('Ликвидность', P_.l, r.tv?`оборот ${nf(r.tv/1e6,1)} млн ₽ в день — больше, чем у ${Math.round(P_.l*100)}% бумаг ${where}`:'сделок почти нет — купить и продать сложно')}
+      </div><ul class="wf">${facts.map(f=>`<li>${f}</li>`).join('')}</ul>
+      <div class="wn">Оценка = доходность 35% + переплата к норме 25% + надёжность 25% + ликвидность 15%; каждая часть — место бумаги среди отобранных (0 — худшая, 100 — лучшая).</div></div>`;
+  }
   const csTitle = r => r.csParts ? `из 100: доходность ${Math.round(r.csParts.y*100)} · переплата к норме ${Math.round(r.csParts.p*100)} · надёжность ${Math.round(r.csParts.q*100)} · ликвидность ${Math.round(r.csParts.l*100)}` : 'метка «риск» или нет данных';
   const csCell = r => `<td class="num" title="${csTitle(r)}"><b class="${r.cs>=70?'up':r.cs<35?'muted':''}">${r.flag?'—':r.cs}</b></td>`;
   const inPort = id => P.pos.some(p=>p.id===id);
+  // ---------------- «Рентген» чужого портфеля и «Замена»: что не так у клиента и как улучшить без роста риска
+  const XR={text:'', acc:'std', res:null};
+  function xrParse(text){
+    const lines=text.split(/\n/).map(l=>l.trim()).filter(Boolean), out=[], miss=[];
+    const byIsin=Object.fromEntries(U.map(r=>[r.isin,r])), byId=Object.fromEntries(U.map(r=>[r.id,r]));
+    const byName={}; U.forEach(r=>{ byName[(r.name||'').toLowerCase()]=r; });
+    for(const l of lines){
+      const code=(l.match(/\b(RU[0-9A-Z]{10}|SU\d{5}RMFS\d|XS\d{9}[0-9A-Z]|[A-Z]{2}[0-9A-Z]{9}\d)\b/i)||[])[1];
+      let r=code ? (byIsin[code.toUpperCase()]||byId[code.toUpperCase()]) : null, rest=l;
+      if(!r){ // по названию: самое длинное совпадение с началом строки
+        const low=l.toLowerCase(); let best=null;
+        for(const [n,x] of Object.entries(byName)) if(n && low.startsWith(n) && (!best || n.length>best[0].length)) best=[n,x];
+        if(best){ r=best[1]; rest=l.slice(best[0].length); }
+      } else rest=l.replace(code,'');
+      if(!r){ miss.push(l); continue; }
+      const nums=[...rest.replace(/(\d)[\s ](?=\d{3}\b)/g,'$1').matchAll(/(\d+(?:[.,]\d+)?)\s*(шт|штук|%|млн|тыс)?/gi)];
+      const m=nums.length?nums[nums.length-1]:null; let rub=null, qty=null, pct=null;
+      if(m){ const v=parseFloat(m[1].replace(',','.')), u=(m[2]||'').toLowerCase();
+        if(u.startsWith('шт')) qty=v; else if(u==='%') pct=v; else if(u==='млн') rub=v*1e6; else if(u==='тыс') rub=v*1e3; else rub=v; }
+      out.push({r, rub, qty, pct, line:l});
+    }
+    return {items:out, miss};
+  }
+  function xrReplace(r, amount){
+    const yrs=r.years||0, grp=r.kind==='float', risky=!!r.flag || ['linker','struct','conv'].includes(r.kind);
+    const base=c=>c.id!==r.id && passBase(c) && c.cur===r.cur && !c.flag && !c.sub && !c.mbs && (risky || (c.kind==='float')===grp)
+      && c.years!=null && Math.abs(c.years-yrs)<=Math.max(0.5,yrs*0.3) && c.ytm!=null && (c.ofz || (c.tv||0)>=amount) && (c.ofz||c.price>=70);
+    if(risky){   // бумага с меткой «риск» или экзотика: замена — надёжная бумага с похожим сроком и лучшей оценкой, доходность вторична
+      const cand=U.filter(c=>base(c) && !c.ofz && rScore(c.rating)<=Math.min(rScore(r.rating),rScore('A-')));
+      if(!cand.length) return null; BS.composite(cand); const c=cand.sort((a,b)=>(b.cs||0)-(a.cs||0))[0]; return c?{...c, _safe:true}:null;
+    }
+    const cand=U.filter(c=>base(c) && (r.ofz ? c.ofz : (!c.ofz && rScore(c.rating)<=rScore(r.rating))) && c.ytm-r.ytm>=0.005);
+    if(!cand.length) return null;
+    BS.composite(cand);
+    return cand.sort((a,b)=>(b.ytm-a.ytm)+((b.cs||0)-(a.cs||0))/400)[0];
+  }
+  function xrRun(){
+    const {items, miss}=xrParse(XR.text); if(!items.length){ XR.res={items:[], miss}; return; }
+    const unit=r=>(r.price/100*r.face+(r.ai||0))*(FX[r.cur]||NaN);
+    const known=items.map(x=>x.rub!=null?x.rub:x.qty!=null?x.qty*unit(x.r):null);
+    const sumKnown=known.reduce((s_,v)=>s_+(v||0),0), pctTot=items.reduce((s_,x)=>s_+(x.pct||0),0);
+    const total = sumKnown>0 ? sumKnown/(1-Math.min(0.99,pctTot/100)) : 10e6;
+    items.forEach((x,i)=>{ x.amt = known[i]!=null ? known[i] : x.pct!=null ? total*x.pct/100 : (sumKnown>0 ? 0 : total/items.length); });
+    const T=items.reduce((s_,x)=>s_+(x.amt||0),0)||1, tx=XR.acc==='std'?0.87:1;
+    // ранги внутри рынка своей валюты
+    for(const c of new Set(items.map(x=>x.r.cur))) BS.composite(U.filter(u=>passBase(u)&&u.cur===c&&!u.sub&&!u.mbs));
+    const em={}, sec={}, issues=[];
+    for(const x of items){ const r=x.r;
+      if(!r.ofz){ em[r.emName||r.em]=(em[r.emName||r.em]||0)+x.amt/T; sec[r.sector]=(sec[r.sector]||0)+x.amt/T; }
+      x.rep = r.ytm!=null ? xrReplace(r, x.amt) : null;
+      x.gain = x.rep && !x.rep._safe ? x.amt*(x.rep.ytm-r.ytm)*tx : 0;
+      if(r.flag) issues.push(`${r.name}: метка «риск» — рынок требует на ${nf(r.prem*100,1)} п.п. больше нормы для ${r.rating}`);
+      if(r.ytm==null) issues.push(`${r.name}: нет доходности (флоатер без объявленного купона или нет сделок)`);
+      if(!r.ofz && r.tv>0 && x.amt>r.tv*3) issues.push(`${r.name}: позиция ${mshort(x.amt)} — это ${nf(x.amt/r.tv,0)} дневных оборотов, быстро продать не получится`);
+      if(r.prem!=null && r.prem<-0.01 && !r.ofz) issues.push(`${r.name}: платит на ${nf(-r.prem*100,1)} п.п. меньше похожих бумаг того же рейтинга — переплата за покупку`);
+      if(['linker','struct','conv'].includes(r.kind)) issues.push(`${r.name}: ${KIND_NAME[r.kind]} — доходность нельзя посчитать обычным способом`);
+    }
+    for(const [k,v] of Object.entries(em)) if(v>0.15) issues.push(`эмитент ${k}: ${nf(v*100,0)}% портфеля — больше 15% на одного`);
+    for(const [k,v] of Object.entries(sec)) if(v>0.35) issues.push(`отрасль «${k}»: ${nf(v*100,0)}% — больше 35% в одной отрасли`);
+    const okY=items.filter(x=>x.r.ytm!=null && !x.r.flag);
+    const wy=okY.reduce((s_,x)=>s_+x.r.ytm*x.amt,0)/(okY.reduce((s_,x)=>s_+x.amt,0)||1);
+    const gain=items.reduce((s_,x)=>s_+x.gain,0), nrep=items.filter(x=>x.rep && !x.rep._safe).length, nsafe=items.filter(x=>x.rep && x.rep._safe).length;
+    XR.res={items, miss, T, wy, gain, nrep, nsafe, issues, em, sec, flagged:items.some(x=>x.r.flag)};
+  }
+  function xrayHtml(){
+    const R_=XR.res;
+    let h=`<div class="card"><h2>Разбор портфеля клиента</h2><div class="sub">вставьте бумаги клиента — например, из отчёта другого брокера: по одной в строке ISIN или название и сумма (₽), количество («шт») или доля («%»). Данные не сохраняются.</div>
+      <textarea id="xr_text" rows="7" placeholder="RU000A10EMU3 3 000 000\nОФЗ 26238  1500 шт\nСамолетP13 10%">${esc(XR.text)}</textarea>
+      <div class="row-actions" style="margin-top:10px"><select id="xr_acc" class="btn ghost" style="font-weight:700"><option value="std" ${XR.acc==='std'?'selected':''}>брокерский счёт</option><option value="iis3" ${XR.acc==='iis3'?'selected':''}>ИИС-3</option></select>
+        <button class="btn acc" data-act="xrun">Разобрать</button>${R_&&R_.items.length?`<button class="btn ghost" data-act="xtoport">Открыть как портфель</button><button class="btn ghost" data-act="xtoport2">Открыть с заменами</button>`:''}</div></div>`;
+    if(!R_) return h;
+    if(!R_.items.length) return h+`<div class="card empty">Не узнал ни одной бумаги. Проверьте ISIN или названия${R_.miss.length?': '+esc(R_.miss.slice(0,3).join('; ')):''}.</div>`;
+    const tx=XR.acc==='std'?0.87:1;
+    h+=`<div class="xsum"><div class="card"><div class="l">Портфель клиента</div><div class="v">${mshort(R_.T)}</div><div class="c">${R_.items.length} бумаг · доходность ${pc(R_.wy)}${R_.flagged?' (без бумаг с меткой «риск»)':''} · после налога ≈ ${pc(R_.wy*tx)}</div></div>
+      <div class="card ${R_.issues.length?'warn':''}"><div class="l">Что не так</div><div class="v">${R_.issues.length||'нет'}</div><div class="c">${R_.issues.length?'проблем найдено — список ниже':'серьёзных проблем не найдено'}</div></div>
+      <div class="card ${R_.gain>0?'good':''}"><div class="l">Замена ${R_.nrep} бумаг</div><div class="v">${R_.gain>0?'+'+mshort(R_.gain):'—'}</div><div class="c">${R_.gain>0?`в год ${XR.acc==='std'?'после налога ':''}— при той же или лучшей надёжности и похожем сроке`:'лучших замен с той же надёжностью не нашлось'}${R_.nsafe?` · ещё ${R_.nsafe} рискованных — на надёжные`:''}</div></div></div>`;
+    if(R_.issues.length) h+=`<div class="card"><h2>Что не так</h2><ul class="warns" style="margin:6px 0 0">${R_.issues.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>`;
+    h+=`<div class="card"><h2>Бумаги и замены</h2><div class="sub">замена — бумага той же валюты и типа купона, с рейтингом не ниже, сроком ±30% и доходностью выше хотя бы на 0,5 п.п.; без меток «риск», субординации и секьюритизации</div>
+      <div class="tblwrap"><table><thead><tr><th>Бумага клиента</th><th>Рейтинг</th><th>Доходн.</th><th>Оценка</th><th>Сумма</th><th>Замена</th><th>Доходн.</th><th>+ в год</th></tr></thead><tbody>${R_.items.map(x=>{ const r=x.r, c=x.rep;
+        return `<tr><td class="nm">${esc(r.name)}${r.flag?'<span class="tag d">риск</span>':''}<small>${esc(r.isin)} · ${r.ofz?'ОФЗ':esc(r.emName||'')} · до ${fmtD(r.end)}</small></td><td>${rTag(r.rating)}</td><td class="num">${r.ytm!=null?pc(r.ytm):'—'}</td><td class="num">${r.flag?'—':(r.cs??'—')}</td><td class="num">${mshort(x.amt)}</td>
+          <td class="nm">${c?`${esc(c.name)}<small>${esc(c.isin)} · ${c.ofz?'ОФЗ':esc(c.emName||'')} · ${esc(c.rating)} · до ${fmtD(c.end)}</small>`:(x.r.ytm!=null&&!x.r.flag?'<span class="muted">лучше нет</span>':'<span class="muted">не нашлось</span>')}</td><td class="num">${c?pc(c.ytm):''}</td><td class="num ${x.gain>0?'up':''}">${c&&c._safe?'<span class="tag w">убрать риск</span>':x.gain>0?'+'+mshort(x.gain):''}</td></tr>`; }).join('')}</tbody></table></div>
+      ${R_.miss.length?`<div class="note" style="margin-top:8px">Не узнал: ${esc(R_.miss.join('; ').slice(0,300))}</div>`:''}</div>`;
+    return h;
+  }
   let LASTLIST=[];
   function screenHtml(){
     const list = screen(); LASTLIST=list;
@@ -444,8 +630,8 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const th=(k,n,c='')=>`<th data-s="${k}" class="${c} ${F.sort===k?'sorted'+(F.asc?' asc':''):''}">${n}</th>`;
     const premCell = r => r.prem==null ? '<td class="num muted">—</td>' :
       `<td class="num ${r.flag?'down':r.prem>0.002?'up':r.prem<-0.01?'muted':''}" title="норма для ${esc(r.rating)} и такого срока: ${pc(r.fair)} (соседей: ${r.peers}${r.width?', рейтинг ±'+r.width:''})">${sg(r.prem*100,2,'')}</td>`;
-    const rows = list.slice(0,250).map(r=>{ const at=BS.afterTax(r, BM, SETTLE); return `<tr>
-      <td class="nm">${r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span> ':''}${esc(r.name)}${r.flag?'<span class="tag d" title="рынок требует заметно больше, чем за такой же рейтинг и срок — видит риск, которого нет в рейтинге">риск</span>':''}${r.est?'<span class="tag w" title="доходность флоатера — оценка при неизменном купоне">~</span>':''}${r.call?'<span class="tag" title="колл-опцион эмитента">колл</span>':''}${r.mbs?'<span class="tag w" title="секьюритизация: досрочные погашения непредсказуемы">СФО</span>':''}${r.sub?'<span class="tag w" title="субординированная: при проблемах банка может быть списана">суборд.</span>':''}<small>${esc(r.isin)} · ${KIND_NAME[r.kind]}${r.cur!=='RUB'?' · '+r.cur:''}${r.emName&&!r.ofz?' · '+esc(r.emName.slice(0,40)):''}</small></td>
+    const rows = list.slice(0,250).map(r=>{ const at=BS.afterTax(r, BM, SETTLE); return `<tr class="${WHY===r.id?'whyon':''}">
+      <td class="nm" data-why="${r.id}" title="почему такая оценка — нажмите">${r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span> ':''}${esc(r.name)}${r.flag?'<span class="tag d" title="рынок требует заметно больше, чем за такой же рейтинг и срок — видит риск, которого нет в рейтинге">риск</span>':''}${r.est?'<span class="tag w" title="доходность флоатера — оценка при неизменном купоне">~</span>':''}${r.call?'<span class="tag" title="колл-опцион эмитента">колл</span>':''}${r.mbs?'<span class="tag w" title="секьюритизация: досрочные погашения непредсказуемы">СФО</span>':''}${r.sub?'<span class="tag w" title="субординированная: при проблемах банка может быть списана">суборд.</span>':''}<small>${esc(r.isin)} · ${KIND_NAME[r.kind]}${r.cur!=='RUB'?' · '+r.cur:''}${r.emName&&!r.ofz?' · '+esc(r.emName.slice(0,40)):''}${!r.ofz?' · '+esc(r.sector):''}</small></td>
       ${csCell(r)}
       <td>${rTag(r.rating)}</td>
       <td class="num">${pc(r.ytm)}</td>
@@ -456,8 +642,8 @@ input[type=range]{width:100%;accent-color:var(--acc)}
       <td class="num hide-m">${nf(r.dur,2)}</td>
       <td class="num">${fmtD(r.end)}${r.off?' <span class="tag">оф.</span>':''}<small class="muted" style="display:block;font-size:11px">${r.days} дн.</small></td>
       <td class="num hide-m">${r.tv?nf(r.tv/1e6,1):'—'}${r.tvAvg?'':'<small class="muted" style="display:block;font-size:10.5px">сегодня</small>'}</td>
-      <td><button class="add ${inPort(r.id)?'on':''}" data-add="${r.id}" title="${inPort(r.id)?'убрать из портфеля':'в портфель'}">${inPort(r.id)?'✓':'+'}</button></td></tr>`; }).join('');
-    return `<div class="card"><h2>Подбор облигаций</h2><div class="sub">все облигации Мосбиржи · рейтинг — сводный со smart-lab · «+» добавляет в портфель · <span class="star">★</span> — можно купить за юани</div>
+      <td><button class="add ${inPort(r.id)?'on':''}" data-add="${r.id}" title="${inPort(r.id)?'убрать из портфеля':'в портфель'}">${inPort(r.id)?'✓':'+'}</button></td></tr>${WHY===r.id?`<tr class="whyrow"><td colspan="12">${whyHtml(r,at)}</td></tr>`:''}`; }).join('');
+    return `<div class="card"><h2>Подбор облигаций</h2><div class="sub">все облигации Мосбиржи · рейтинг — сводный со smart-lab · «+» добавляет в портфель · нажмите на название — почему такая оценка · <span class="star">★</span> — можно купить за юани</div>
       <div class="filters">
         <div class="fld"><label>Поиск</label>${inp('q','название, ISIN, эмитент')}</div>
         <div class="fld"><label>Валюта</label>${sel('cur',[['all','все'],['RUB','₽ рубли'],['CNY','¥ юани'],['USD','$ доллары'],['EUR','€ евро']])}</div>
@@ -471,6 +657,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
         <div class="fld"><label>Срок до, лет</label>${inp('mMax','напр. 1,5')}</div>
         <div class="fld"><label>Оборот от, млн ₽/день</label>${inp('liq','')}</div>
         <div class="fld"><label>Сегмент</label>${sel('seg',[['plain','без суборд. и СФО'],['all','все']])}</div>
+        <div class="fld"><label>Отрасль</label>${sel('sec',[['all','все'],...SECTOR_RULES.map(([n])=>n).filter((n,i,a)=>a.indexOf(n)===i).sort().map(n=>[n,n]),['Прочее','Прочее']])}</div>
         <div class="fld"><label>Выпуски эмитента</label>${sel('one',[['1','лучший по оценке'],['all','все']])}</div>
         <div class="fld"><label>Метка «риск»</label>${sel('risk',[['show','показывать внизу'],['hide','скрыть']])}</div>
         <div class="fld"><label>&nbsp;</label><button class="btn ghost" data-act="reset">Сбросить</button></div>
@@ -511,10 +698,30 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const curShare = Object.fromEntries(CURS.map(([c])=>[c, Math.max(0,num(P.cur[c])||0)]));
     if(!Object.values(curShare).some(v=>v>0)){ curShare.RUB=100; warns.push('доли валют не указаны — портфель собран в рублях'); }
     const tot = Object.values(curShare).reduce((a,b)=>a+b,0);
-    const pos=[], used=new Set(), bandW={}, emW={}; let floatW=0;
-    const sc = r => (r.cs ?? 0) + (P.monthly && r.freq>=12 ? 100 : 0);   // сводная оценка; ежемесячные — вперёд, если цель «выплаты»
+    const pos=[], used=new Set(), bandW={}, emW={}, secW={}; let floatW=0; const secMax=(pp.sectorMax??100)/100;
+    const sc = r => (r.cs ?? 0) + (PAY() && r.freq>=12 ? 100 : 0);   // сводная оценка; ежемесячные — вперёд, если цель «выплаты»
+    // цели клиента: к дате цели должны погаситься бумаги на нужную сумму (cash-flow matching) — подбираются первыми
+    let goalW=0; const Hz=horizonISO(); P.goalPlan=[];
+    for(const g of (P.goals||[]).filter(g=>g.d && g.a>0).sort((a,b)=>a.d<b.d?-1:1)){
+      const gd=g.d+'-28', lo=[addMonths(gd,-9), addDays(SETTLE,30)].sort().pop();
+      if(gd>addDays(Hz,31)){ warns.push(`цель ${fmtD(gd).slice(3)} позже срока портфеля (${termName()}) — увеличьте срок`); continue; }
+      if(lo>gd){ warns.push(`цель ${fmtD(gd).slice(3)} слишком близко — нужны деньги почти сразу`); continue; }
+      const pool=BS.composite(U.filter(r=>r.cur==='RUB' && passBase(r) && !r.mbs && !r.sub && !r.flag && r.kind!=='float' && !used.has(r.id)
+        && !EXCL.has(r.id) && !EXCL.has('em:'+r.em) && (r.ofz || rScore(r.rating)<=rScore(pp.minRating)) && r.end && r.end>=lo && r.end<=gd && (r.ofz||r.price>=70)));
+      const k=Math.max(1, Math.min(3, Math.ceil(g.a/A*100/pp.issuerMax - 1e-9)));
+      const best={}; for(const r of pool){ const key=r.ofz?r.id:r.em; if(!best[key]||sc(r)>sc(best[key])) best[key]=r; }
+      const got=Object.values(best).filter(r=>r.ofz || ((emW[r.em]||0)*100 < pp.issuerMax)).sort((a,b)=>sc(b)-sc(a)).filter(r=>liqOk(r, g.a/k, pp)).slice(0,k);
+      if(!got.length){ warns.push(`цель ${fmtD(gd).slice(3)}: не нашлось бумаг с погашением к этой дате — добавьте вручную`); continue; }
+      const ids=[];
+      for(const r of got){ const w=(g.a/got.length)*((r.price+(r.ai>0?r.ai/r.face*100:0))/100)/A;
+        pos.push({id:r.id, w:w*100, goal:g.d}); used.add(r.id); ids.push(r.id); goalW+=w;
+        emW[r.em]=(emW[r.em]||0)+w; if(!r.ofz) secW[r.sector]=(secW[r.sector]||0)+w; const band=rBand(r.rating); bandW[band]=(bandW[band]||0)+w; }
+      P.goalPlan.push({d:g.d, a:g.a, ids});
+    }
+    if(goalW>=0.999){ warns.push('цели забирают всю сумму — на остальной портфель денег не осталось'); }
+    const freeShare=Math.max(0,1-goalW);
     for(const [c] of CURS){
-      const share = curShare[c]/tot; if(share<=0) continue;
+      const share = curShare[c]/tot*freeShare; if(share<=0) continue;
       if(c!=='RUB' && !FX[c]){ warns.push(`нет курса ${c} — валютная часть пропущена`); continue; }
       const pool = BS.composite(U.filter(r=>eligible(r,pp,c)));
       const ofzShare = c==='RUB' ? share*Math.min(100,pp.ofzMin)/100 : 0;
@@ -529,7 +736,8 @@ input[type=range]{width:100%;accent-color:var(--acc)}
           if(pp.bandCap[band]!=null && ((bandW[band]||0)+per)*100 > pp.bandCap[band]+1e-9) continue;
           if(r.kind==='float' && (floatW+per)*100 > pp.floaterMax+1e-9) continue;
           if(!isOfz && ((emW[r.em]||0)+per)*100 > pp.issuerMax+1e-9) continue;
-          out.push(r); used.add(r.id); bandW[band]=(bandW[band]||0)+per; emW[r.em]=(emW[r.em]||0)+per; if(r.kind==='float') floatW+=per;
+          if(!isOfz && (secW[r.sector]||0)+per > secMax+1e-9) continue;                 // лимит на отрасль
+          out.push(r); used.add(r.id); bandW[band]=(bandW[band]||0)+per; emW[r.em]=(emW[r.em]||0)+per; if(!isOfz) secW[r.sector]=(secW[r.sector]||0)+per; if(r.kind==='float') floatW+=per;
         }
         return out;
       };
@@ -552,11 +760,14 @@ input[type=range]{width:100%;accent-color:var(--acc)}
           const ws=new Map(got.map(r=>[r, w]));
           const capGroup=(f, cap, prev)=>{ const g=got.filter(f); const sum=g.reduce((a,r)=>a+ws.get(r),0)+prev;
             if(g.length && sum*100>cap+1e-9){ const k=Math.max(0,(cap/100-prev))/(sum-prev); g.forEach(r=>ws.set(r, ws.get(r)*k)); } };
-          for(const [b,cap] of Object.entries(pp.bandCap||{})) if(cap!=null) capGroup(r=>rBand(r.rating)===b, cap, (bandW[b]||0)-got.filter(r=>rBand(r.rating)===b).length*(corpShare/n));
-          capGroup(r=>r.kind==='float', pp.floaterMax, floatW-got.filter(r=>r.kind==='float').length*(corpShare/n));
+          // уже распределённое (ОФЗ и другие валюты) — по итоговым долям, а не по предварительным
+          const done=f=>pos.reduce((a,p)=>{ const r=BYID[p.id]; return a+(r&&f(r)?p.w/100:0); },0);
+          for(const [b,cap] of Object.entries(pp.bandCap||{})) if(cap!=null) capGroup(r=>rBand(r.rating)===b, cap, done(r=>rBand(r.rating)===b));
+          capGroup(r=>r.kind==='float', pp.floaterMax, done(r=>r.kind==='float'));
+          for(const sc of new Set(got.map(r=>r.sector))) capGroup(r=>r.sector===sc, (pp.sectorMax??100), done(r=>!r.ofz && r.sector===sc));
           got.forEach(r=>pos.push({id:r.id, w:ws.get(r)*100}));
           const left=corpShare-[...ws.values()].reduce((a,b)=>a+b,0);
-          if(left>0.001) warns.push(`${c}: подошло эмитентов — ${got.length} из ${n}, ${nf(left*100,1)}% не распределено (лимиты профиля: до ${pp.issuerMax}% на эмитента${Object.keys(pp.bandCap||{}).length?', по группам рейтинга':''}${pp.floaterMax>0&&pp.floaterMax<100?', по флоатерам':''}). Добавьте бумаги на шаге 2 («Добавить бумагу») или ослабьте ограничения.`);
+          if(left>0.001) warns.push(`${c}: подошло эмитентов — ${got.length} из ${n}, ${nf(left*100,1)}% не распределено (лимиты профиля: до ${pp.issuerMax}% на эмитента${Object.keys(pp.bandCap||{}).length?', по группам рейтинга':''}${pp.sectorMax<100?', до '+pp.sectorMax+'% на отрасль':''}${pp.floaterMax>0&&pp.floaterMax<100?', по флоатерам':''}). Добавьте бумаги на шаге 2 («Добавить бумагу») или ослабьте ограничения.`);
         }
       }
     }
@@ -634,6 +845,8 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const long=rows.filter(x=>x.r.kind!=='float' && (x.a.macaulay||0)>pp.durMax+0.05);
     if(long.length) v.push(`дюрация больше ${pp.durMax} лет: ${long.map(x=>x.r.name).join(', ')}`);
     for(const [b,cap] of Object.entries(pp.bandCap||{})){ const s=share(x=>rBand(x.r.rating)===b); if(cap!=null && s>cap+0.5) v.push(`группа ${b} ${nf(s,0)}% — лимит ${cap}%`); }
+    if(!riskOnly && pp.sectorMax<100){ const sc={}; rows.forEach(x=>{ if(!x.r.ofz) sc[x.r.sector]=(sc[x.r.sector]||0)+x.cost/total*100; });
+      for(const [k,w] of Object.entries(sc)) if(w>pp.sectorMax+0.5) v.push(`отрасль «${k}» ${nf(w,0)}% — лимит ${pp.sectorMax}%`); }
     const nIss=Object.keys(em).length; const corpW=share(x=>!x.r.ofz);
     if(!riskOnly && corpW>0 && nIss<Math.min(pp.minIssuers, Math.ceil(corpW/pp.issuerMax))) v.push(`эмитентов ${nIss} — для профиля нужно от ${Math.min(pp.minIssuers, Math.ceil(corpW/pp.issuerMax))}`);
     return v;
@@ -702,7 +915,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const reinv = py ? Math.max(0, py.ytm) : 0.15;              // реинвестиция не ниже 0%
     const acc = P.account==='iis3'?'iis3':'std';
     // цель «ежемесячные выплаты»: купоны выводятся клиенту, погашения реинвестируются под доходность портфеля
-    const opt = extra => Object.assign({settle, horizon:H, reinvest:reinv, withdraw:!!P.monthly, reform:P.reform}, extra||{});
+    const opt = extra => Object.assign({settle, horizon:H, reinvest:reinv, withdraw:!!PAY(), reform:P.reform}, extra||{});
     const main = BM.simulate(positions, opt({account:acc}));
     // ежемесячно на руки (если купоны выводятся): купоны за первые 12 мес. (или срок), после НДФЛ
     const mN=Math.min(12,P.term), cut=addMonths(settle,mN);
@@ -715,10 +928,10 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const depPath = BM.depositPath(depRate, curve, P.term/12);
     const nowY = new Date(BM.toMs(settle)).getUTCFullYear(), keyNow = lastS('KEY')||0;
     const exempt = y => { const ky = P.reform && y>=BM.REFORM_YEAR ? y-1 : y; const k=(ky<=nowY?maxKeyOn1st(ky):null) ?? keyNow; return k/100*1e6; };
-    const depR = BM.depositNet(total, {settle, horizon:H, rates:depPath, payout:P.monthly?'monthly':'end', reform:P.reform, exempt});
+    const depR = BM.depositNet(total, {settle, horizon:H, rates:depPath, payout:PAY()?'monthly':'end', reform:P.reform, exempt});
     const dep = depR.profit;
     const ofzY = (curve && BM.parYield(curve, P.term/12, 2)) || (curveAt(P.term/12)||13)/100;   // ОФЗ по номиналу на срок клиента
-    const ofzR = BM.parBondNet(total, ofzY, 2, settle, H, acc, !P.monthly, P.reform), ofz = ofzR.profit;
+    const ofzR = BM.parBondNet(total, ofzY, 2, settle, H, acc, !PAY(), P.reform), ofz = ofzR.profit;
     // запас прочности: сколько крупнейших корпоративных эмитентов могут не заплатить (возврат 25% вложенного, без процентов),
     // чтобы портфель всё ещё обгонял вклад. Отказ — сразу после покупки (худший случай), убыток налог не уменьшает.
     const REC=0.25, credit=rows.filter(x=>!x.r.ofz && x.a.ytm!=null && x.qty>0);
@@ -730,6 +943,18 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     for(let k=1;k<=Math.min(ems.length,20);k++){ const pr=stressRun(k); stress.runs.push({k, profit:pr}); if(pr<0) break; }
     stress.safe=stress.runs.filter(x=>x.profit>=dep).length;       // сколько дефолтов выдерживает, обгоняя вклад
     stress.plus=stress.runs.filter(x=>x.profit>=0).length;         // … оставаясь в плюсе (больше вложенного)
+    // вероятность обогнать вклад: 10 000 симуляций дефолтов эмитентов (вероятности — по рейтингу, Эксперт РА; возврат 25%)
+    { const T=main.years, base=main.profit, n=10000;
+      const emRisk=Object.values(emCost).map(e=>{ const rs=rows.filter(x=>e.ids.includes(x.r.id));
+        const pd=Math.max(...rs.map(x=>pdYear(x.r))); return {cost:e.cost, h:-Math.log(1-Math.min(0.999,pd)), share:e.cost/total}; });
+      let seed=20261016; const rnd=()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+      let beat=0, plus=0, worstK=0; const res=new Float64Array(n);
+      for(let i=0;i<n;i++){ let pr=base, k=0;
+        for(const e of emRisk){ const t=-Math.log(1-rnd())/e.h; if(t<T){ k++; pr -= e.cost*(1-REC) + base*e.share*(1-t/T); } }
+        res[i]=pr; if(pr>=dep) beat++; if(pr>=0) plus++; if(k>worstK) worstK=k; }
+      const sorted=Array.from(res).sort((a,b)=>a-b);
+      stress.mc={n, beat:beat/n, plus:plus/n, p5:sorted[Math.floor(n*0.05)], median:sorted[Math.floor(n/2)],
+        expDefaults:emRisk.reduce((a,e)=>a+(1-Math.exp(-e.h*T)),0)}; }
     const shifts=[-0.02,-0.01,0.01,0.02].map(dy=>{
       let v0=0, v1=0;
       for(const ps of positions){ const w=ps.qty*ps.fx, P0=BM.pv(ps.flows, ps.ytm)*w;
@@ -742,7 +967,10 @@ input[type=range]{width:100%;accent-color:var(--acc)}
       if(x.r.kind==='float'){ const nx=x.a.flows.find(f=>f.kind==='c'); const t=nx?nx.t:0.25; mac+=w*t; mod+=w*t/(1+x.a.ytm); }
       else { mac+=w*x.a.macaulay; mod+=w*x.a.modified; } }
     const by = f => { const o={}; rows.forEach(x=>{ const k=f(x); o[k]=(o[k]||0)+x.cost; }); return o; };
-    const struct = { cur: by(x=>x.r.cur), band: by(x=>rBand(x.r.rating)), kind: by(x=>x.r.ofz?'ОФЗ':(x.r.kind==='float'?'Флоатеры':'Корп. фикс.')) };
+    const yrsTo = x => x.a.end ? BM.days(settle, x.a.end)/365 : 99;
+    const struct = { cur: by(x=>x.r.cur), band: by(x=>rBand(x.r.rating)), kind: by(x=>x.r.ofz?'ОФЗ':(x.r.kind==='float'?'Флоатеры':'Корп. фикс.')),
+      sector: by(x=>x.r.sector||'Прочее'),
+      term: by(x=>{ const y=yrsTo(x); return y<=1?'до 1 года':y<=2?'1–2 года':y<=3?'2–3 года':y<=5?'3–5 лет':'больше 5 лет'; }) };
     const avgR = rows.reduce((s,x)=>s+x.cost*Math.min(20,rScore(x.r.rating)),0)/(total||1);
     // займ в юанях
     let carry=null;
@@ -758,7 +986,18 @@ input[type=range]{width:100%;accent-color:var(--acc)}
         if(gap(lo)<=0) carry.be=null; else if(gap(hi)>0) carry.be=hi; else { for(let i=0;i<50;i++){ const m=(lo+hi)/2; if(gap(m)>0) lo=m; else hi=m; } carry.be=(lo+hi)/2; }
       }
     }
-    ANALYSIS = {rows, positions, total, skipped, py, main, monthly, dep, depR, depPath, depRate, ofz, ofzR, ofzY, shifts, stress, mac, mod, struct, avgR, settle, H, carry,
+    // живой отчёт: портфель по ссылке из PDF — как он живёт с момента расчёта (те же количества бумаг)
+    let track=null;
+    if(TRACK && TRACK.q && TRACK.d && TRACK.d<SETTLE){
+      let now=0, recv=0, gone=0;
+      for(const [id,qty] of TRACK.q){ const r=BYID[id]; let bz=null; try{ bz=await bondization(id); }catch(e){}
+        const fx=r?(FX[r.cur]||1):1, d0=TRACK.d;
+        if(bz){ recv+=((bz.coupons||[]).filter(c=>c.date>d0&&c.date<=SETTLE&&c.value>0).reduce((s_,c)=>s_+c.value,0)
+                     +(bz.amorts||[]).filter(a=>a.date>d0&&a.date<=SETTLE&&a.value>0).reduce((s_,a)=>s_+a.value,0))*qty*fx; }
+        if(r) now+=(r.price/100*r.face+(r.ai||0))*qty*fx; else gone++; }
+      track={d0:TRACK.d, v0:TRACK.v, now, recv, total:now+recv, ret:(now+recv)/TRACK.v-1, gone};
+    }
+    ANALYSIS = {rows, positions, total, skipped, py, main, monthly, dep, track, depR, depPath, depRate, ofz, ofzR, ofzY, shifts, stress, exempt, acc, reinv, keyNow, mac, mod, struct, avgR, settle, H, carry,
                 left: 100 - P.pos.reduce((s,p)=>s+(p.w||0),0), cash: P.amount-total};
   }
 
@@ -777,20 +1016,23 @@ input[type=range]{width:100%;accent-color:var(--acc)}
         <div class="fld"><label>Срок вложения</label><div class="termbtns">${TERMS.map(([m,n])=>`<button data-term="${m}" class="${P.term===m?'on':''}">${n}</button>`).join('')}</div></div>
         <div class="fld"><label>Счёт</label><select id="p_account"><option value="std" ${P.account==='std'?'selected':''}>Брокерский</option><option value="iis3" ${P.account==='iis3'?'selected':''}>ИИС-3</option></select></div>
       </div>
-      <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-weight:700;font-size:14px"><input type="checkbox" id="p_monthly" ${P.monthly?'checked':''}> Клиенту важны ежемесячные выплаты — купоны выводятся, считаю «≈ сколько в месяц на руки»</label>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-weight:700;font-size:14px"><input type="checkbox" id="p_monthly" ${PAY()?'checked':''} ${P.account==='iis3'?'disabled':''}> Клиенту важны ежемесячные выплаты — купоны выводятся, считаю «≈ сколько в месяц на руки»${P.account==='iis3'?' <span class="muted" style="font-weight:600">(на ИИС-3 недоступно: купоны остаются на счёте и реинвестируются без налога)</span>':''}</label>
       <div style="margin-top:14px" class="prof">${Object.entries(PROFILES).map(([k,v])=>`<button data-prof="${k}" class="${P.profile===k?'on':''}"><b>${v.name}</b><span>${v.d}</span></button>`).join('')}</div>
       <details class="params"><summary>Ограничения профиля (можно изменить)</summary>
         <div class="pgrid">
           ${fld('ofzMin','ОФЗ не меньше, %')}
           <div class="fld"><label>Рейтинг не ниже</label><select data-pp="minRating">${RAT.slice(0,13).map(r=>`<option ${pp.minRating===r?'selected':''}>${r}</option>`).join('')}</select></div>
           ${fld('issuerMax','На эмитента до, %')}${fld('durMax','Дюрация бумаги до, лет')}${fld('floaterMax','Флоатеры до, %')}
-          ${fld('minIssuers','Эмитентов не меньше')}${fld('liq','Позиция ≤ дневного оборота ×')}
+          ${fld('minIssuers','Эмитентов не меньше')}${fld('sectorMax','На отрасль до, %')}${fld('liq','Позиция ≤ дневного оборота ×')}
           <div class="fld"><label>Лимит группы A, %</label><input data-band="A" value="${pp.bandCap.A??''}" placeholder="нет"></div>
           <div class="fld"><label>Лимит группы BBB, %</label><input data-band="BBB" value="${pp.bandCap.BBB??''}" placeholder="нет"></div>
           <div class="fld"><label>Лимит группы BB, %</label><input data-band="BB" value="${pp.bandCap.BB??''}" placeholder="нет"></div>
         </div></details>
       <div style="margin-top:16px"><div class="fld"><label>Валюты — какую часть суммы вложить в облигации в этой валюте, %. Покупка за рубли по курсу ЦБ; курс в расчёте неизменный.</label></div>
         <div class="cur">${CURS.map(([c,n])=>`<div class="fld"><label>${n}${c!=='RUB'&&FX[c]?` · курс ${nf(FX[c],2)}`:''}</label><input data-cur="${c}" value="${P.cur[c]||0}" inputmode="decimal"><div class="note" style="margin-top:4px">${(num(P.cur[c])||0)>0?curSum(c):''}</div></div>`).join('')}</div></div>
+      <div style="margin-top:16px"><div class="fld"><label>Цели клиента — когда и сколько нужно забрать (необязательно). Под каждую цель подберутся бумаги, которые погасятся к этой дате.</label></div>
+        <div class="goals">${(P.goals||[]).map((g,i)=>`<div class="goal"><input type="month" data-gd="${i}" value="${esc(g.d||'')}" min="${SETTLE?SETTLE.slice(0,7):''}"><input data-ga="${i}" value="${g.a?Math.round(g.a).toLocaleString('ru-RU'):''}" placeholder="сумма, ₽" inputmode="numeric"><input data-gn="${i}" value="${esc(g.n||'')}" placeholder="на что (необязательно)"><button class="del" data-gdel="${i}" title="убрать">✕</button></div>`).join('')}
+        <button class="btn ghost" data-act="addgoal">+ Добавить цель</button></div></div>
       <details class="params"><summary>Доп. настройки</summary>
         <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-weight:600;color:var(--ink2);font-size:13px"><input type="checkbox" id="p_reform" ${P.reform?'checked':''}> доход с 2027 года — по налоговой реформе 13–22% (законопроект № 617-9)</label>
         <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-weight:600;color:var(--ink2);font-size:13px"><input type="checkbox" id="p_qual" ${P.qual!==false?'checked':''}> клиент — квалифицированный инвестор</label>
@@ -830,45 +1072,175 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const chosen=PROFILES[P.profile]?PROFILES[P.profile].name:'свой';
     h+=`<div class="fitbox ${viol.length?'no':'ok'}">${fit?`По надёжности бумаг портфель — «${PROFILES[fit].name}»`:'По надёжности бумаг портфель рискованнее профиля «Агрессивный»'}${viol.length?` · для «${chosen}» не выполнено:<ul>${viol.map(v=>`<li>${esc(v)}</li>`).join('')}</ul>`:` · выбран «${chosen}» — всё в рамках`}</div>`;
     const flags=x=>[x.r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span>':'', x.r.flag?'<span class="tag d">риск</span>':'', x.r.sub?'<span class="tag w">суборд.</span>':'', x.bz.qual?'<span class="tag w">квал</span>':'', x.bz.def?'<span class="tag d">дефолт</span>':x.bz.tdef?'<span class="tag w" title="Мосбиржа отмечает, что у эмитента был технический дефолт (задержка выплаты, затем исполнена). Это не текущий дефолт — проверьте новости эмитента">техдефолт в истории</span>':'', x.a.est?'<span class="tag w" title="часть купонов неизвестна — по последней ставке">~</span>':''].join('');
-    h+=`<div class="card"><h2>Состав</h2><div class="sub">доли — в % от суммы клиента ${mshort(P.amount)}; количество считается само (целые лоты); − / + меняют долю на 1 п.п.</div>
+    h+=`<div class="card"><h2>Состав</h2><div class="sub">доли — в % от суммы клиента ${mshort(P.amount)}; количество считается само (целые лоты); − / + меняют долю на 1 п.п.; нажмите на название — почему эта бумага</div>
       <div class="addbar"><div class="fld"><label>Добавить бумагу — лучшие по оценке под профиль, валюты и срок, или найдите любую. Если места нет, остальные доли уменьшатся пропорционально</label><input id="add_q" placeholder="название, ISIN или эмитент"></div><div class="chips2" id="sugg">${suggHtml('')}</div></div>
       <div class="tblwrap"><table><thead><tr><th>Выпуск</th><th>Рейтинг</th><th>Доходн.</th><th>Купон</th><th>Погаш./оф.</th><th>Доля, %</th><th class="hide-m">Кол-во</th><th>Сумма</th><th></th></tr></thead><tbody>${A.rows.map(x=>`<tr>
-        <td class="nm">${esc(x.r.name)} ${flags(x)}<small>${esc(x.r.isin)} · ${x.r.ofz?'ОФЗ':esc((x.r.emName||'').slice(0,38))}${x.r.cur!=='RUB'?' · '+x.r.cur:''}</small></td>
+        <td class="nm" data-why="${x.r.id}" title="почему эта бумага — нажмите">${esc(x.r.name)} ${flags(x)}<small>${esc(x.r.isin)} · ${x.r.ofz?'ОФЗ':esc((x.r.emName||'').slice(0,38))}${x.r.cur!=='RUB'?' · '+x.r.cur:''}</small></td>
         <td>${rTag(x.r.rating)}</td><td class="num">${x.a.ytm!=null?pc(x.a.ytm):'<span class="down">нет данных</span>'}</td>
         <td class="num">${x.r.cpn!=null?nf(x.r.cpn,2)+'%':x.r.kind==='float'?'плав.':'—'}<small class="muted" style="display:block;font-size:11px">${freqName(x.r.freq)}</small></td>
         <td class="num">${fmtD(x.a.end||x.r.end)}${x.a.toCall?' <span class="tag" title="цена выше номинала, у эмитента колл-опцион — доходность к дате колл">колл</span>':x.a.toOffer?' <span class="tag">оф.</span>':''}</td>
         <td><div class="wbox"><button class="wb" data-wd="${x.r.id}" data-d="-1">−</button><input class="qty wqty" data-w="${x.r.id}" value="${nf(x.p.w,1)}" inputmode="decimal"><button class="wb" data-wd="${x.r.id}" data-d="1">+</button></div></td>
         <td class="num hide-m">${x.qty?x.qty.toLocaleString('ru-RU'):'<span class="tag w" title="на эту долю не хватает даже на один лот — увеличьте долю">меньше лота</span>'}</td><td class="num">${mshort(x.cost)}</td>
-        <td><button class="del" data-del="${x.r.id}" title="убрать">✕</button></td></tr>`).join('')}</tbody></table></div>
+        <td><button class="del" data-del="${x.r.id}" title="убрать">✕</button></td></tr>${WHY===x.r.id?`<tr class="whyrow"><td colspan="9">${(()=>{ BS.composite(U.filter(u=>passBase(u)&&u.cur===x.r.cur&&!u.sub&&!u.mbs)); return whyHtml(x.r, BS.afterTax(x.r,BM,SETTLE), 'на рынке в '+({RUB:'рублях',CNY:'юанях',USD:'долларах',EUR:'евро'}[x.r.cur]||x.r.cur)); })()}</td></tr>`:''}`).join('')}</tbody></table></div>
       <div class="sumline"><span>Распределено ${nf(100-A.left,1)}% · вложено ${mshort(A.total)}${A.cash>1?` · свободно ${mshort(A.cash)}`:''}</span>
         ${A.left>=0.5?`<button class="btn ghost" data-act="spread">Распределить остаток ${nf(A.left,1)}% поровну</button>`:A.left<-0.05?`<span class="down">перебор ${nf(-A.left,1)}% — уменьшите доли</span>`:''}</div>
       <div class="row-actions" style="margin-top:12px"><button class="btn ghost" data-tab="screen">+ Добавить из подбора</button><button class="btn ghost" data-act="equal">Уравнять доли</button><button class="btn ghost" data-act="save">Сохранить как…</button><button class="btn ghost" data-act="clear">Очистить</button></div></div>`;
+    if(A.total>0) h+=structHtml(A);
     return h+nextBar(1,3);
   }
 
   function heroHtml(A, compact){
     const R=A.main, T=A.total, fin=T+R.profit;
-    const line = P.monthly
+    const line = PAY()
       ? `Вложили ${mshort(T)} → ≈ ${mshort(A.monthly)} в месяц на руки, через ${termName()} вернётся ≈ ${mshort(fin-(R.paidOut||0))}`
       : `Вложили ${mshort(T)} → через ${termName()} получите ${mshort(fin)}`;
     const vs=R.profit-A.dep;
     const chip=`<div class="vs">${vs>=0?'▲ на '+mshort(vs)+' больше, чем во вкладе':'▼ на '+mshort(-vs)+' меньше, чем во вкладе'}</div>`;
     return `<div class="hero"><div class="big">${line}</div>${chip}<div class="sm">после НДФЛ${P.account==='iis3'?(R.iisTax>0?` (ИИС-3: без налога до 30 млн ₽ дохода, с превышения — ${mshort(R.iisTax)})`:' (ИИС-3 — без налога при соблюдении срока, до 30 млн ₽ дохода)'):''} · до ${fmtD(A.H)} · ${P.reform?'с учётом налоговой реформы 2027':'по действующим ставкам НДФЛ'}</div>
       <div class="row3"><div><div class="l">Доход после налога</div><div class="v">${mshort(R.profit)}</div></div>
-      <div><div class="l">Годовых после налога${P.monthly?" (простых)":""}</div><div class="v">${pc(R.annual)}</div></div>
-      <div><div class="l">${P.monthly?'В месяц на руки':'Доходность до налога'}</div><div class="v">${P.monthly?mshort(A.monthly):pc(A.py&&A.py.ytm)}</div></div></div></div>`;
+      <div><div class="l">Годовых после налога${PAY()?" (простых)":""}</div><div class="v">${pc(R.annual)}</div></div>
+      <div><div class="l">${PAY()?'В месяц на руки':'Доходность до налога'}</div><div class="v">${PAY()?mshort(A.monthly):pc(A.py&&A.py.ytm)}</div></div></div></div>`;
   }
+  const infLast = () => { const s_=DATA&&DATA.series&&DATA.series.INFL; return s_&&s_.data.length ? s_.data[s_.data.length-1] : null; };
+  const infDate = () => { const x=infLast(); return x ? new Date(x[0]+'T00:00:00').toLocaleDateString('ru-RU',{month:'long',year:'numeric'}) : ''; };
   function compareHtml(A, compact){
-    const T=A.total, yrs=A.main.years, ann=p=>P.monthly ? p/T/yrs : Math.pow(1+p/T,1/yrs)-1;   // при выводе купонов — простая годовая у всех вариантов
+    const INF = infLast() ? infLast()[1]/100 : null;
+    const T=A.total, yrs=A.main.years, ann=p=>PAY() ? p/T/yrs : Math.pow(1+p/T,1/yrs)-1;   // при выводе купонов — простая годовая у всех вариантов
     const rows=[[P.account==='iis3'?'Портфель на ИИС-3':'Портфель облигаций', A.main.profit, true],
-      [compact ? `Вклад ${nf(A.depRate*100,2)}%${P.monthly?', проценты ежемесячно':''}` : `Вклад (${nf(A.depRate*100,2)}% на год${P.monthly?', проценты ежемесячно':', проценты раз в год'}${A.depPath.length>1?'; дальше переоформление'+(A.depPath.slice(1).some(r=>r<A.depRate-1e-6)?' по ставке, которую ждёт рынок: '+A.depPath.slice(1).map(r=>nf(r*100,1)+'%').join(', '):' по той же ставке'):''})`, A.dep],
+      [compact ? `Вклад ${nf(A.depRate*100,2)}%${PAY()?', проценты ежемесячно':''}` : `Вклад (${nf(A.depRate*100,2)}% на год${PAY()?', проценты ежемесячно':', проценты раз в год'}${A.depPath.length>1?'; дальше переоформление'+(A.depPath.slice(1).some(r=>r<A.depRate-1e-6)?' по ставке, которую ждёт рынок: '+A.depPath.slice(1).map(r=>nf(r*100,1)+'%').join(', '):' по той же ставке'):''})`, A.dep],
       [`ОФЗ на ${termName()} (кривая ${nf(A.ofzY*100,2)}%)`, A.ofz]];
     const best=Math.max(...rows.map(r=>r[1]));
     return `<div class="card"><h2>Сравнение на ${termName()}</h2><div class="sub">на руки после НДФЛ, сумма ${mshort(T)}</div>
-      <div class="tblwrap"><table><thead><tr><th>Вариант</th><th>Получите</th><th>Доход</th><th>Годовых${P.monthly?' (простых)':''}</th></tr></thead><tbody>${rows.map(([n,p,me])=>
-        `<tr><td class="nm">${me?'<b>'+n+'</b>':n}${p===best?' 🏆':''}</td><td class="num">${mshort(T+p)}</td><td class="num">${mshort(p)}</td><td class="num">${pc(ann(p))}</td></tr>`).join('')}</tbody></table></div>
+      <div class="tblwrap"><table><thead><tr><th>Вариант</th><th>Получите</th><th>Доход</th><th>Годовых${PAY()?' (простых)':''}</th>${INF!=null?'<th title="на сколько деньги растут быстрее цен">Сверх инфляции</th>':''}</tr></thead><tbody>${rows.map(([n,p,me])=>
+        `<tr><td class="nm">${me?'<b>'+n+'</b>':n}${p===best?' 🏆':''}</td><td class="num">${mshort(T+p)}</td><td class="num">${mshort(p)}</td><td class="num">${pc(ann(p))}</td>${INF!=null?`<td class="num ${ann(p)>INF?'up':'down'}">${sg(((1+ann(p))/(1+INF)-1)*100,2,'%')}</td>`:''}</tr>`).join('')}</tbody></table></div>
+      ${INF!=null&&!compact?`<div class="note" style="margin-top:6px">Инфляция за последние 12 месяцев — ${nf(INF*100,2)}% (Банк России, ${infDate()}). «Сверх инфляции» — на сколько деньги растут быстрее цен.</div>`:''}
       ${compact?'':(()=>{ const fx=Object.entries(A.struct.cur).filter(([c])=>c!=='RUB').reduce((a,[,v])=>a+v,0)/T; return fx>0.005 ? `<div class="note" style="margin-top:8px">Валютные облигации (${nf(fx*100,0)}% портфеля) приносят меньше рублёвых — это плата за защиту от ослабления рубля. В сравнении курс неизменный; если рубль ослабнет, валютная часть заработает больше.</div>` : ''; })()}
       ${compact?'':`<div class="fld" style="margin-top:10px;max-width:280px"><label>Ставка вклада, % (по умолчанию — макс. топ-10 банков ЦБ)</label><input id="p_dep" value="${P.depRate!=null?nf(P.depRate,2):''}" placeholder="${nf(lastS('DEP')||12,2)}" inputmode="decimal"></div>`}</div>`;
+  }
+  function loadQR(){ if(window.qrcode) return Promise.resolve(); return new Promise(res=>{ const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; sc.onload=()=>res(); sc.onerror=()=>res(); document.head.appendChild(sc); setTimeout(res,4000); }); }
+  // ---------------- режим презентации: полноэкранные слайды для встречи
+  let SLIDE=0;
+  const emWord = n => (n%10===1&&n%100!==11)?'эмитент':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?'эмитента':'эмитентов';
+  function slidesFor(A){
+    const R=A.main, T=A.total, vs=R.profit-A.dep, S=A.stress, M=S&&S.mc;
+    const yrs=R.years, ann=p=>PAY()?p/T/yrs:Math.pow(1+p/T,1/yrs)-1;
+    const out=[];
+    out.push(`<div class="sl-k">Ваш портфель облигаций · ${termName()}</div><div class="sl-h">Вложили ${mshort(T)}<br>→ получите <span class="sl-acc">${mshort(T+R.profit)}</span></div>
+      <div class="sl-s">после налогов · ${pc(R.annual)} годовых${vs>0?` · <b>на ${mshort(vs)} больше, чем во вкладе</b>`:''}</div>`);
+    const cmp=[['Портфель',R.profit,1],['Лучший вклад',A.dep,0],['ОФЗ',A.ofz,0]], mx=Math.max(...cmp.map(c=>c[1]),1);
+    out.push(`<div class="sl-k">Сравнение на ${termName()} — доход на руки</div>${cmp.map(([n,v,me])=>`<div class="sl-bar ${me?'me':''}"><span>${n}</span><i style="width:${Math.max(3,v/mx*100)}%"></i><b>+${mshort(v)}</b><em>${pc(ann(v))}</em></div>`).join('')}
+      <div class="sl-s">вклад — по лучшей ставке топ-10 банков на весь срок; облигации — по цене покупки сегодня</div>`);
+    if(S && S.n) out.push(`<div class="sl-k">Запас прочности</div><div class="sl-h">${M?`<span class="sl-acc">${M.beat>=0.9995?'>99,9':nf(M.beat*100,0)}%</span> — вероятность<br>обогнать вклад`:''}</div>
+      <div class="sl-s">${S.plus>=S.n?`в плюсе, даже если не заплатят все ${S.n} ${emWord(S.n)}`:`в плюсе, даже если ${S.plus} ${S.plus===1?'крупнейший':'крупнейших'} ${emWord(S.plus)} из ${S.n} не ${S.plus===1?'заплатит':'заплатят'} и вернётся лишь 25%`}${M?` · 10 000 сценариев по статистике дефолтов рейтингового агентства`:''}</div>`);
+    const sal=(()=>{ const m={}; for(const c of R.calendar){ if(!c.coupon) continue; const k=c.date.slice(0,7); m[k]=(m[k]||0)+c.coupon*(A.acc==='std'?0.87:1); }
+      const n=Math.min(12,P.term), ks=[...Array(n)].map((_,i)=>addMonths(A.settle,i+1).slice(0,7)), v=ks.map(k=>m[k]||0); return {avg:v.reduce((a,b)=>a+b,0)/n, v}; })();
+    if(sal.avg>0) out.push(`<div class="sl-k">Зарплата от капитала</div><div class="sl-h">≈ <span class="sl-acc">${mshort(sal.avg)}</span> в месяц</div>
+      <div class="sl-cols">${sal.v.map(v=>`<i style="height:${Math.max(3,v/Math.max(...sal.v,1)*100)}%"></i>`).join('')}</div><div class="sl-s">купоны на руки${A.acc==='std'?' после 13% НДФЛ':''} — ближайшие ${sal.v.length} мес.</div>`);
+    const secs=Object.entries(A.struct.sector).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const nIss=new Set(A.rows.filter(x=>!x.r.ofz).map(x=>x.r.em)).size, ofzSh=(A.struct.kind['ОФЗ']||0)/T;
+    out.push(`<div class="sl-k">Из чего состоит</div><div class="sl-h" style="font-size:clamp(26px,4.5vw,46px)">${A.rows.length} выпусков · ${nIss} ${emWord(nIss)}${ofzSh>0.005?` · ОФЗ ${nf(ofzSh*100,0)}%`:''}</div>
+      ${secs.map(([k,v])=>`<div class="sl-bar"><span>${esc(k)}</span><i style="width:${v/T*100/ (secs[0][1]/T) }%"></i><b>${nf(v/T*100,0)}%</b></div>`).join('')}
+      <div class="sl-s">лимиты: до ${P.params.issuerMax}% на эмитента${P.params.sectorMax<100?`, до ${P.params.sectorMax}% на отрасль`:''}; дефолтные, субординированные и рискованные бумаги исключены</div>`);
+    if(A.bt && !A.bt.none && A.bt.dep) out.push(`<div class="sl-k">Проверка на истории</div><div class="sl-h">Год назад эти бумаги дали бы<br><span class="sl-acc">${sg(A.bt.ret*100,1,'%')}</span></div><div class="sl-s">вклад за тот же год — ${sg(A.bt.dep.profit/A.bt.inv*100,1,'%')} после налога · по ценам Мосбиржи</div>`);
+    return out;
+  }
+  function presentHtml(){
+    const sl=slidesFor(ANALYSIS); SLIDE=Math.max(0,Math.min(SLIDE,sl.length-1));
+    return `<div class="pres" id="pres"><button class="pres-x" data-act="pclose" title="закрыть (Esc)">✕</button>
+      <div class="pres-s">${sl[SLIDE]}</div>
+      <div class="pres-nav"><button data-act="pprev" ${SLIDE?'':'disabled'}>‹</button><span>${sl.map((_,i)=>`<i class="${i===SLIDE?'on':''}"></i>`).join('')}</span><button data-act="pnext" ${SLIDE<sl.length-1?'':'disabled'}>›</button></div>
+      <div class="pres-f">${SIGN.name?esc(SIGN.name)+(SIGN.title?' · '+esc(SIGN.title):''):''}</div></div>`;
+  }
+  function presShow(){ let el=$('presroot'); if(!el){ el=document.createElement('div'); el.id='presroot'; document.body.appendChild(el); }
+    el.innerHTML=presentHtml(); }
+  // «если бы год назад»: те же бумаги по ценам годичной давности (история Мосбиржи) — сколько было бы сейчас и что дал бы вклад
+  const asOfS = (k, iso) => { const s_=DATA&&DATA.series&&DATA.series[k]; if(!s_) return null; let v=null; for(const [d,x] of s_.data){ if(d<=iso) v=x; else break; } return v; };
+  let BT_RUN=null;
+  async function runBacktest(A){
+    const D0=addMonths(A.settle,-12), from=addDays(D0,-10);
+    const items=A.rows.filter(x=>x.qty>0 && x.a.ytm!=null);
+    const got=await Promise.all(items.map(async x=>{
+      try{ const j=await fetch(`${ISS}history/engines/stock/markets/bonds/securities/${x.r.id}.json?iss.meta=off&from=${from}&till=${D0}&history.columns=SECID,BOARDID,TRADEDATE,CLOSE,LEGALCLOSEPRICE,WAPRICE,ACCINT,FACEVALUE,CURRENCYID`).then(r=>r.json());
+        const rows=obj(j.history).filter(h=>(h.LEGALCLOSEPRICE||h.CLOSE||h.WAPRICE)>0).sort((a,b)=>a.TRADEDATE<b.TRADEDATE?-1:1);
+        const h=rows.pop(); if(!h) return null;
+        const p0=h.LEGALCLOSEPRICE||h.CLOSE||h.WAPRICE, face0=h.FACEVALUE||x.r.face, ai0=h.ACCINT||0;
+        const fx0 = x.r.cur==='RUB' ? 1 : asOfS(x.r.cur, h.TRADEDATE), fxN = FX[x.r.cur]||1;
+        if(!fx0) return null;
+        // НКД в истории по валютным бумагам на основном режиме — в рублях
+        const ai0c = x.r.cur==='RUB' ? ai0 : ai0/fx0;
+        return {x, d:h.TRADEDATE, unit0:(p0/100*face0+ai0c)*fx0, fx0, fxN};
+      }catch(e){ return null; } }));
+    const ok=got.filter(Boolean); if(!ok.length) return {none:true, D0};
+    const wTot=ok.reduce((s_,g)=>s_+g.x.cost,0), A0=A.total;
+    let inv=0, end=0, gainPos=0;
+    for(const g of ok){
+      const M=A0*g.x.cost/wTot, qty=M/g.unit0, bz=g.x.bz||{coupons:[],amorts:[]};
+      const recv=(bz.coupons||[]).filter(c=>c.date>g.d && c.date<=A.settle && c.value>0).reduce((s_,c)=>s_+c.value,0)
+               + (bz.amorts||[]).filter(a=>a.date>g.d && a.date<=A.settle && a.value>0 && a.date<(g.x.r.mat||'9999')).reduce((s_,a)=>s_+a.value,0);
+      const now=(g.x.r.price/100*g.x.r.face+(g.x.r.ai||0))*g.fxN + recv*g.fxN;
+      inv+=M; end+=now*qty; gainPos+=now*qty-M;
+    }
+    const tax = A.acc==='std' ? 0.13*Math.max(0,gainPos) : 0;
+    const dep0=asOfS('DEP', D0);
+    const exempt0 = y => { const k=(maxKeyOn1st(y) ?? lastS('KEY')??0); return k/100*1e6; };
+    const dep = dep0!=null ? BM.depositNet(A0,{settle:D0,horizon:A.settle,rates:[dep0/100],payout:'end',reform:false,exempt:exempt0}) : null;
+    return {D0, n:ok.length, of:items.length, inv, end:end-tax, ret:(end-tax-inv)/inv, tax, dep, dep0};
+  }
+  function btHtml(A){
+    const B_=A.bt;
+    if(!B_) return `<div class="card bt"><h2>Проверка на истории</h2><div class="sub">считаю, как эти бумаги вели себя за последний год…</div></div>`;
+    if(B_.none) return `<div class="card bt"><h2>Проверка на истории</h2><div class="sub">год назад этих бумаг ещё не было на бирже — проверить на истории нельзя.</div></div>`;
+    const d=new Date(B_.D0+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+    const depP=B_.dep?B_.dep.profit:null, depR=depP!=null?depP/B_.inv:null, mx=Math.max(B_.ret, depR??0, 0.0001);
+    return `<div class="card bt"><h2>Проверка на истории</h2>
+      <div class="sub">Если бы ${d} клиент вложил ${mshort(B_.inv)} в эти же бумаги${B_.n<B_.of?` (${B_.n} из ${B_.of} уже торговались, остальные появились позже)`:''} — по ценам Мосбиржи того дня, с купонами за год${A.acc==='std'?' и после НДФЛ':''}:</div>
+      <div class="kx"><div class="kxr"><span>Портфель</span><i style="width:${Math.max(2,B_.ret/mx*100)}%"></i><b>${sg(B_.ret*100,1,'%')}</b></div>
+      ${depR!=null?`<div class="kxr dep"><span>Вклад ${nf(B_.dep0,1)}%</span><i style="width:${Math.max(2,depR/mx*100)}%"></i><b>${sg(depR*100,1,'%')}</b></div>`:''}</div>
+      <div class="kxd ${depR==null||B_.ret>=depR?'up':'down'}">сегодня было бы ${mshort(B_.end)}${depR!=null?` · ${B_.ret>=depR?'на '+mshort(B_.end-B_.inv-depP)+' больше':'на '+mshort(B_.inv+depP-B_.end)+' меньше'}, чем во вкладе`:''}</div>
+      <div class="note" style="margin-top:6px">Это проверка того, как вели себя на рынке именно эти бумаги за прошедший год: цена покупки тогда, купоны и погашения за год, цена сегодня. Бумаги, которые за год ушли в дефолт, сюда не попали — поэтому это иллюстрация метода, а не гарантия. Вклад — лучшая ставка топ-10 банков на ту дату (ЦБ), с налогом.</div></div>`;
+  }
+  // цели клиента: хватит ли денег к каждой дате (погашения + купоны после налога, нарастающим итогом)
+  function goalsHtml(A){
+    const gs=(P.goals||[]).filter(g=>g.d && g.a>0).sort((a,b)=>a.d<b.d?-1:1); if(!gs.length) return '';
+    const MN=['январю','февралю','марту','апрелю','маю','июню','июлю','августу','сентябрю','октябрю','ноябрю','декабрю'];
+    let used=0;
+    const rows=gs.map(g=>{ const end=g.d+'-31';
+      const avail=A.main.calendar.filter(c=>c.date<=end).reduce((s_,c)=>s_+c.principal+c.coupon*(A.acc==='std'?0.87:1),0)-used;
+      const ok=avail>=g.a*0.995; used+=Math.min(avail,g.a);
+      const plan=(P.goalPlan||[]).find(x=>x.d===g.d), ids=plan?plan.ids.filter(id=>P.pos.some(p=>p.id===id)):[], names=ids.map(id=>BYID[id]&&BYID[id].name).filter(Boolean);
+      const own=A.main.calendar.filter(c=>c.date<=end && ids.includes(c.id)).reduce((s_,c)=>s_+c.principal+c.coupon*(A.acc==='std'?0.87:1),0);
+      return `<div class="gl ${ok?'ok':'no'}"><div class="gd">к ${MN[+g.d.slice(5)-1]} ${g.d.slice(0,4)}${g.n?` · ${esc(g.n)}`:''} — нужно ${mshort(g.a)}</div>
+        <div class="gv">${ids.length?`бумаги под цель вернут <b>${mshort(own)}</b> · `:''}всего к этой дате придёт <b>${mshort(Math.max(0,avail))}</b> ${ok?'✓':'— не хватает '+mshort(g.a-avail)}</div>
+        ${names.length?`<div class="gn">под цель: ${esc(names.join(', '))}</div>`:''}</div>`; }).join('');
+    return `<div class="card goalsc"><h2>Цели клиента</h2><div class="sub">деньги к нужным датам: погашения бумаг и купоны после налога, нарастающим итогом</div>${rows}
+      <div class="note" style="margin-top:6px">Итог портфеля выше посчитан так, будто деньги не забираются; если клиент заберёт их под цели, итог будет меньше на эти суммы и доход на них.</div></div>`;
+  }
+  // «зарплата от капитала»: купоны по месяцам на руки
+  function salaryHtml(A){
+    const months=Math.min(12, P.term), m={}, st=A.settle;
+    for(const c of A.main.calendar){ if(!c.coupon) continue; const k=c.date.slice(0,7); m[k]=(m[k]||0)+c.coupon*(A.acc==='std'?0.87:1); }
+    const ks=[]; for(let i=0;i<months;i++) ks.push(addMonths(st,i+1).slice(0,7));
+    const vals=ks.map(k=>m[k]||0), avg=vals.reduce((a,b)=>a+b,0)/months, mx=Math.max(...vals,1);
+    if(!(avg>0)) return '';
+    const MN=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    return `<div class="card salary"><h2>Зарплата от капитала</h2>
+      <div class="sal-big">≈ ${mshort(avg)} <span>в месяц на руки${A.acc==='std'?' (после 13% НДФЛ)':' — на ИИС-3 остаётся на счёте'}</span></div>
+      <div class="sal-bars" style="grid-template-columns:repeat(${months},1fr)">${vals.map((v,i)=>`<div title="${mshort(v)}"><i style="height:${Math.max(2,v/mx*100)}%"></i><span>${MN[+ks[i].slice(5)-1]}</span></div>`).join('')}</div>
+      <div class="note" style="margin-top:6px">Купоны по месяцам на ближайший ${months===12?'год':months+' мес.'}${PAY()?' — выводятся клиенту':' — в расчёте реинвестируются, но их можно и выводить'}. ${(()=>{ const z=vals.filter(v=>v===0).length; return z?`В ${z} ${z===1?'месяц':z<5?'месяца':'месяцев'} купонов нет — чтобы доход был ровнее, добавьте бумаги с ежемесячным купоном.`:'Выплаты каждый месяц.'; })()}</div></div>`;
+  }
+  // структура портфеля: отрасли, рейтинги, сроки, валюты, тип купона
+  const BAND_ORDER=['ГОС','AAA','AA','A','BBB','BB','B','—'], TERM_ORDER=['до 1 года','1–2 года','2–3 года','3–5 лет','больше 5 лет'];
+  function structHtml(A, compact){
+    const T=A.total||1, pp=P.params;
+    const bars=(title, obj, order, limit, hint)=>{ let e=Object.entries(obj).filter(([,v])=>v>0);
+      e = order ? e.sort((a,b)=>(order.indexOf(a[0])+99*(order.indexOf(a[0])<0))-(order.indexOf(b[0])+99*(order.indexOf(b[0])<0))) : e.sort((a,b)=>b[1]-a[1]);
+      return `<div class="sgrp"><div class="sgt">${title}${hint?` <span class="muted">${hint}</span>`:''}</div>${e.map(([k,v])=>{ const pc_=v/T*100, over=limit!=null && k!=='ОФЗ' && pc_>limit+0.5;
+        return `<div class="sbar ${over?'over':''}"><span class="sk">${esc(k==='ГОС'?'ОФЗ':k)}</span><span class="st"><i style="width:${Math.min(100,pc_)}%"></i>${limit!=null&&k!=='ОФЗ'?`<b style="left:${Math.min(100,limit)}%"></b>`:''}</span><span class="sv">${nf(pc_,0)}%</span></div>`; }).join('')}</div>`; };
+    const curN={RUB:'Рубли',CNY:'Юани',USD:'Доллары',EUR:'Евро'};
+    const cur=Object.fromEntries(Object.entries(A.struct.cur).map(([k,v])=>[curN[k]||k,v]));
+    return `<div class="card"><h2>Структура портфеля</h2><div class="sub">доли от вложенной суммы${pp.sectorMax<100?` · вертикальная черта — лимит профиля ${pp.sectorMax}% на отрасль`:''}</div>
+      <div class="sgrid">${bars('Отрасли', A.struct.sector, null, pp.sectorMax<100?pp.sectorMax:null)}${bars('Рейтинг', A.struct.band, BAND_ORDER)}${bars('Срок до погашения / оферты', A.struct.term, TERM_ORDER)}${bars('Валюта', cur)}${bars('Купон', A.struct.kind)}</div></div>`;
   }
   // «Запас прочности»: сколько крупнейших эмитентов могут не заплатить, а портфель всё равно обгонит вклад
   function shieldHtml(A, compact){
@@ -881,15 +1253,39 @@ input[type=range]{width:100%;accent-color:var(--acc)}
       ? `Портфель останется в плюсе, даже если не заплатят все ${S.n} корпоративных эмитентов и вернётся лишь ${pct}% денег — опора на ОФЗ.`
       : S.plus===0
       ? `Если крупнейший эмитент (${esc(emShort(S.ems[0].name))}, ${nf(S.ems[0].share*100,0)}%) не заплатит, портфель уйдёт в минус — слишком большая доля на одного эмитента.`
-      : `Портфель останется в плюсе, даже если ${S.plus===1?'крупнейший эмитент не заплатит':S.plus+' крупнейших эмитентов из '+S.n+' не заплатят'} и вернётся лишь ${pct}% денег.`;
+      : `Портфель останется в плюсе, даже если ${S.plus===1?'крупнейший эмитент не заплатит':S.plus+' крупнейших '+(S.plus%10>=2&&S.plus%10<=4&&(S.plus<10||S.plus>20)?'эмитента':'эмитентов')+' из '+S.n+' не заплатят'} и вернётся лишь ${pct}% денег.`;
     const vsDep=S.safe>0 ? ` Обгонит вклад — при ${S.safe} ${dfl(S.safe)}.` : (A.main.profit>=A.dep?` Портфель обгоняет вклад, пока платят все; один дефолт съедает преимущество.`:` Вклад уже сейчас выгоднее — повышенной доходности нет, кредитный риск не оплачен.`);
     const bars=compact?'':`<div class="shbars">${S.runs.map(r=>`<span class="${r.profit>=A.dep?'ok':r.profit>=0?'':'no'}" title="итог после налога, если не заплатят ${r.k} крупнейших эмитентов">${r.k} ${dfl(r.k)}: ${r.profit>=0?'+':'−'}${mshort(Math.abs(r.profit))}</span>`).join('')}<span class="ref" title="доход вклада после налога — планка для сравнения">вклад: +${mshort(A.dep)}</span></div>
       <div class="note" style="margin-top:6px">Худший случай: эмитент перестаёт платить сразу после покупки, по итогам банкротства возвращается ${pct}% (обычно 20–40%), убыток налог не уменьшает. Эмитенты — по убыванию доли.</div>`;
-    return `<div class="card shield ${cls}"><div class="shn">${big}</div><div><h2>Запас прочности</h2><div class="sub">${head}${vsDep}</div>${bars}</div></div>`;
+    const M=S.mc, pf=v=>v>=0.9995?'>99,9%':v<0.0005?'<0,1%':nf(v*100,v>0.99?1:0)+'%';
+    const prob=M?`<div class="prob"><div><b>${pf(M.beat)}</b><span>вероятность обогнать вклад</span></div><div><b>${pf(M.plus)}</b><span>остаться в плюсе</span></div>${compact?'':`<div><b>${mshort(M.p5)}</b><span>доход в плохом сценарии (хуже — 1 из 20)</span></div>`}</div>
+      ${compact?'':`<div class="note" style="margin-top:4px">${nf(M.n,0)} симуляций: каждый эмитент может не заплатить с вероятностью по его рейтингу — по статистике дефолтов Эксперт РА 2001–2024; в среднем ожидается ${nf(M.expDefaults,M.expDefaults<1?2:1)} дефолта за срок.</div>`}`:'';
+    return `<div class="card shield ${cls}"><div class="shn">${big}</div><div><h2>Запас прочности</h2><div class="sub">${head}${vsDep}</div>${prob}${bars}</div></div>`;
+  }
+  // сценарий ключевой ставки: средняя ключевая за срок → реинвестиция, флоатеры, цена продажи на горизонте и переоформление вклада
+  let KEYX=null;
+  function keyScen(A, X){
+    const d=(X-A.keyNow)/100;
+    const r=BM.simulate(A.positions,{settle:A.settle,horizon:A.H,reinvest:A.reinv,withdraw:PAY(),reform:P.reform,account:A.acc,shift:d});
+    const path=A.depPath.map((v,i)=>i===0?v:Math.max(0.005,v+d));
+    const dp=BM.depositNet(A.total,{settle:A.settle,horizon:A.H,rates:path,payout:PAY()?'monthly':'end',reform:P.reform,exempt:A.exempt});
+    return {port:r.profit, dep:dp.profit};
+  }
+  function keyOutHtml(A){
+    const X=KEYX??A.keyNow, k=keyScen(A,X), diff=k.port-k.dep, mx=Math.max(k.port,k.dep,1);
+    return `<div class="kx"><div class="kxr"><span>Портфель</span><i style="width:${Math.max(2,k.port/mx*100)}%"></i><b>+${mshort(k.port)}</b></div>
+      <div class="kxr dep"><span>Вклад</span><i style="width:${Math.max(2,k.dep/mx*100)}%"></i><b>+${mshort(k.dep)}</b></div>
+      <div class="kxd ${diff>=0?'up':'down'}">${diff>=0?'Портфель выгоднее на '+mshort(diff):'Вклад выгоднее на '+mshort(-diff)}</div></div>`;
   }
   function ratesHtml(A){
     const name=dy=>dy<0?`ЦБ снижает, ставки −${nf(-dy*100,0)} п.п.`:`ЦБ повышает, ставки +${nf(dy*100,0)} п.п.`;
-    return `<div class="card"><h2>Если ставки изменятся</h2><div class="sub">что будет с портфелем, если рыночные ставки резко сдвинутся сразу после покупки</div>
+    const K=A.keyNow||14, X=KEYX??K;
+    return `<div class="card"><h2>Если ставки изменятся</h2>
+      <div class="fld"><label>Ключевая ставка в среднем за срок: <b id="kx_v">${nf(X,1)}%</b> <span class="muted">(сейчас ${nf(K,2)}%)</span></label>
+        <input type="range" id="kx" min="${Math.max(4,Math.floor(K-8))}" max="${Math.ceil(K+8)}" step="0.5" value="${X}"></div>
+      <div id="kx_out">${keyOutHtml(A)}</div>
+      <div class="note" style="margin:6px 0 12px">Двигайте ползунок. Купоны с фиксированной ставкой уже зафиксированы, а вклад через год переоформится по новой ставке — поэтому при снижении ставок облигации выигрывают сильнее. Меняются реинвестиция купонов, купоны флоатеров и цена бумаг в конце срока.</div>
+      <div class="sub">резкий сдвиг рыночных ставок сразу после покупки</div>
       <div class="tblwrap"><table><thead><tr><th>Сценарий</th><th>Стоимость портфеля сразу</th><th>Итог через ${termName()}</th></tr></thead><tbody>
       <tr><td class="nm">Ставки не меняются</td><td class="num">—</td><td class="num">${mshort(A.total+A.main.profit)}</td></tr>
       ${A.shifts.map(s=>`<tr><td class="nm">${name(s.dy)}</td><td class="num ${s.nowRub>=0?'up':'down'}">${s.nowRub>=0?'+':'−'}${mshort(Math.abs(s.nowRub))} (${sg(s.now*100,1)})</td><td class="num">${mshort(A.total+s.end.profit)}</td></tr>`).join('')}
@@ -905,12 +1301,15 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const cf=cashflowMonths(A,60), sumC=cf.slice(0,12).reduce((s,x)=>s+x.c,0);
     const quick=`<div class="quick"><span>Срок:</span><div class="termbtns">${TERMS.map(([m,n])=>`<button data-term="${m}" class="${P.term===m?'on':''}">${n}</button>`).join('')}</div>
       <span>Счёт:</span><div class="termbtns"><button data-acct="std" class="${P.account!=='iis3'?'on':''}">Брокерский</button><button data-acct="iis3" class="${P.account==='iis3'?'on':''}">ИИС-3</button></div>
-      <div class="termbtns"><button data-mon="1" class="${P.monthly?'on':''}" title="купоны выводятся клиенту каждый месяц">Выплаты на руки</button><button data-act="build" title="подобрать бумаги заново под выбранный срок и профиль">↻ Пересобрать под срок</button></div></div>`;
-    return quick + heroHtml(A) + shieldHtml(A) + `<div class="grid2">${compareHtml(A)}${ratesHtml(A)}</div>
+      <div class="termbtns">${P.account==='iis3'?'':`<button data-mon="1" class="${PAY()?'on':''}" title="купоны выводятся клиенту каждый месяц">Выплаты на руки</button>`}<button data-act="build" title="подобрать бумаги заново под выбранный срок и профиль">↻ Пересобрать под срок</button></div>
+      <button class="btn acc" data-act="present" style="margin-left:auto">▶ Показать клиенту</button></div>`;
+    const tb = A.track ? `<div class="card trackc"><h2>Как живёт портфель с ${fmtD(A.track.d0)}</h2><div class="trk"><div><span>вложено тогда</span><b>${mshort(A.track.v0)}</b></div><div><span>стоят бумаги сейчас</span><b>${mshort(A.track.now)}</b></div><div><span>пришло купонов и погашений</span><b>${mshort(A.track.recv)}</b></div><div class="${A.track.ret>=0?'up':'down'}"><span>итого</span><b>${sg(A.track.ret*100,1,'%')}</b></div></div>
+      <div class="note" style="margin-top:6px">По ценам Мосбиржи сейчас, до налога, без реинвестирования${A.track.gone?`; ${A.track.gone} бумаг уже погашены полностью`:''}. Ниже — расчёт этого же портфеля заново на сегодня.</div></div>` : '';
+    return quick + tb + heroHtml(A) + shieldHtml(A) + `<div class="grid2">${compareHtml(A)}${ratesHtml(A)}</div>${goalsHtml(A)}<div class="grid2">${salaryHtml(A)}<div id="btbox">${btHtml(A)}</div></div>
       <div class="grid3"><div class="card"><h2>Календарь выплат</h2><div class="sub">купоны и погашения по месяцам до конца срока, до налога · за 12 мес. купонов ${mshort(sumC)}</div><div class="cv"><canvas id="cfChart"></canvas></div></div>
       <div class="card"><h2>Лесенка погашений</h2><div class="sub">сколько денег вернётся клиенту в каждом году: погашения, оферты и частичные погашения (амортизация). Показывает, когда деньги придётся вкладывать заново.</div>
       <table><tbody>${ladder(A).map(([k,v])=>`<tr><td>${k}</td><td class="num">${mshort(v)}</td><td class="num">${nf(v/A.total*100,0)}%</td></tr>`).join('')}</tbody></table></div></div>`
-      + `<div class="note" style="margin:0 4px 12px">Как считается: доходность — по графику выплат Мосбиржи и цене покупки с НКД; купоны ${P.monthly?'выводятся клиенту (годовые — простые, без процентов на проценты), погашения до конца срока реинвестируются под доходность портфеля':'и погашения до конца срока реинвестируются под доходность портфеля'}; бумаги, которые гасятся позже конца срока, продаются по рынку при неизменной доходности. Налог: 13% с купонов и дохода от погашения, в конце года — пересчёт по шкале${P.reform?' (с 2027 — 13–22%)':''}; другие доходы клиента не учитываются. Курс валют — неизменный. Расчёт — рабочий инструмент советника, не индивидуальная инвестиционная рекомендация.</div>`
+      + `<div class="note" style="margin:0 4px 12px">Как считается: доходность — по графику выплат Мосбиржи и цене покупки с НКД; купоны ${PAY()?'выводятся клиенту (годовые — простые, без процентов на проценты), погашения до конца срока реинвестируются под доходность портфеля':'и погашения до конца срока реинвестируются под доходность портфеля'}; бумаги, которые гасятся позже конца срока, продаются по рынку при неизменной доходности. Налог: 13% с купонов и дохода от погашения, в конце года — пересчёт по шкале${P.reform?' (с 2027 — 13–22%)':''}; другие доходы клиента не учитываются. Курс валют — неизменный. Расчёт — рабочий инструмент советника, не индивидуальная инвестиционная рекомендация.</div>`
       + nextBar(2,4);
   }
 
@@ -959,7 +1358,13 @@ input[type=range]{width:100%;accent-color:var(--acc)}
         <div class="fld"><label>Должность</label><input data-sign="title" value="${esc(SIGN.title)}" placeholder="инвестиционный советник"></div>
         <div class="fld"><label>Телефон</label><input data-sign="phone" value="${esc(SIGN.phone)}" inputmode="tel"></div>
         <div class="fld"><label>Имя клиента (не сохраняется)</label><input id="r_client" placeholder="необязательно"></div></div>
-      <div class="row-actions" style="margin-top:14px"><button class="btn acc" data-act="print">Отчёт / PDF</button></div></div>`+nextBar(4,null);
+      <div class="row-actions" style="margin-top:14px">${IN_TG
+        ? `<button class="btn acc" data-act="openext">Открыть в браузере → PDF</button>`
+        : `<button class="btn acc" data-act="print">Отчёт / PDF</button>`}<button class="btn ghost" data-act="copylink">Скопировать ссылку на расчёт</button></div>
+      <div class="note" style="margin-top:10px">${IN_TG
+        ? 'Внутри Telegram печать недоступна: кнопка откроет этот же портфель в браузере телефона — там нажмите «Отчёт / PDF» и «Сохранить как PDF» (iPhone: «Поделиться» → «Сохранить в Файлы»).'
+        : 'PDF сохраняется на это устройство (папка «Загрузки» или «Файлы») — дальше отправьте его клиенту в мессенджере или почтой.'}
+        Ссылка на расчёт открывает тот же состав и параметры (без имени клиента); цены — на момент открытия.</div></div>`+nextBar(4,null);
   }
   function portHtml(){
     const body = ({1:step1,2:step2,3:step3,4:step4,5:step5})[P.step]();
@@ -974,7 +1379,9 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const c=A.carry;
     return `<div class="rep">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px"><div><div style="font-size:20px;font-weight:800">Портфель облигаций${client?' · '+esc(client):''}</div>
-        <div class="meta" style="margin:2px 0 0">${today} · ${PROFILES[P.profile]?'профиль «'+PROFILES[P.profile].name+'»':''} · ${P.account==='iis3'?'ИИС-3':'брокерский счёт'} · срок ${termName()}</div></div></div>
+        <div class="meta" style="margin:2px 0 0">${today} · ${PROFILES[P.profile]?'профиль «'+PROFILES[P.profile].name+'»':''} · ${P.account==='iis3'?'ИИС-3':'брокерский счёт'} · срок ${termName()}</div></div>
+        ${(()=>{ try{ if(!window.qrcode) return ''; const q=qrcode(0,'L'); q.addData(portLink(3,true)); q.make();
+          return `<div class="qrbox">${q.createSvgTag({cellSize:2,margin:0,scalable:true})}<span>отсканируйте — портфель с актуальными ценами</span></div>`; }catch(e){ return ''; } })()}</div>
       ${heroHtml(A,true)}
       <div class="card"><h2>Состав</h2><table><thead><tr><th>Выпуск</th><th>Рейтинг</th><th>Доходность</th><th>Купон</th><th>Погашение</th><th>Доля</th><th>Сумма</th></tr></thead><tbody>
       ${A.rows.map(x=>`<tr><td>${esc(x.r.name)}</td><td>${esc(x.r.rating||'н/р')}</td><td>${pc(x.a.ytm)}</td><td>${x.r.cpn!=null?nf(x.r.cpn,2)+'%, '+freqName(x.r.freq):x.r.kind==='float'?'плавающий, '+freqName(x.r.freq):'—'}</td><td>${fmtD(x.a.end)}${x.a.toCall?' (колл)':x.a.toOffer?' (оферта)':''}</td><td>${nf(x.cost/Math.max(A.total,P.amount)*100,1)}%</td><td>${money(x.cost)}</td></tr>`).join('')}
@@ -983,8 +1390,9 @@ input[type=range]{width:100%;accent-color:var(--acc)}
         ${cf.map(x=>`<tr><td>${x.k.slice(5)}.${x.k.slice(0,4)}</td><td>${money(x.c)}</td><td>${x.p?money(x.p):'—'}</td></tr>`).join('')}</tbody></table><div class="note">до налога</div></div>
         ${compareHtml(A,true)}</div>
       ${shieldHtml(A,true)}
+      <div class="note" style="margin:4px 2px 6px"><b>Отрасли:</b> ${Object.entries(A.struct.sector).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+' '+nf(v/(A.total||1)*100,0)+'%').join(' · ')}</div>
       ${c&&c.res?`<div class="card"><b>Вариант с займом в юанях:</b> займ ${mshort(c.total)} под ${nf(c.lr,2)}% → итог ${mshort(A.total+c.res.profit)}, ${pc(c.res.annual)} годовых после налога (без займа ${pc(A.main.annual)}). Займ выгоден, пока RUSFAR CNY ниже ${c.be!=null?nf(c.be-c.spread,2)+'%':'—'}.</div>`:''}
-      <div class="note">Расчёт по ценам Мосбиржи на ${today}, после НДФЛ (13% с купонов и дохода; в конце года пересчёт по шкале${P.reform?', с 2027 — по законопроекту № 617-9':''}). Купоны ${P.monthly?'выплачиваются клиенту':'реинвестируются'}. Вклад — макс. ставка топ-10 банков (ЦБ) без капитализации, с необлагаемой суммой процентов. ${Object.keys(A.struct.cur).some(c=>c!=='RUB')?'Валютные облигации — по неизменному курсу; при ослаблении рубля заработают больше. ':''}Рейтинги — сводные данные агентств. Доходность не гарантирована; расчёт не является индивидуальной инвестиционной рекомендацией.</div>
+      <div class="note">Расчёт по ценам Мосбиржи на ${today}, после НДФЛ (13% с купонов и дохода; в конце года пересчёт по шкале${P.reform?', с 2027 — по законопроекту № 617-9':''}). Купоны ${PAY()?'выплачиваются клиенту':'реинвестируются'}. Вклад — макс. ставка топ-10 банков (ЦБ) без капитализации, с необлагаемой суммой процентов. ${Object.keys(A.struct.cur).some(c=>c!=='RUB')?'Валютные облигации — по неизменному курсу; при ослаблении рубля заработают больше. ':''}Рейтинги — сводные данные агентств. Доходность не гарантирована; расчёт не является индивидуальной инвестиционной рекомендацией.</div>
       ${SIGN.name?`<div class="sign">${esc(SIGN.name)}${SIGN.title?', '+esc(SIGN.title):''}${SIGN.phone?' · '+esc(SIGN.phone):''}</div>`:''}
     </div>`;
   }
@@ -1018,13 +1426,14 @@ input[type=range]{width:100%;accent-color:var(--acc)}
       scales:{x:{type:'linear',min:0,title:{display:true,text:'лет до погашения / оферты',color:ink2,font},grid:{color:grid},ticks:{color:ink2,font}},
               y:{min:Math.max(0,Math.floor((ys[0]||0)-1)),max:Math.ceil(yHi),title:{display:true,text:'доходность, %',color:ink2,font},grid:{color:grid},border:{display:false},ticks:{color:ink2,font}}}}}));
   }
-  const TABS=[['screen','Подбор'],['port','Портфель']];
+  const TABS=[['screen','Подбор'],['port','Портфель'],['xray','Разбор портфеля']];
   function render(){
     kill();
     $('tabs').innerHTML=TABS.map(([k,n])=>`<button class="tab ${TAB===k?'on':''}" data-tab="${k}">${n}${k==='port'&&P.pos.length?`<span class="cnt">${P.pos.length}</span>`:''}</button>`).join('');
     if(!U.length) return;
-    $('app').innerHTML = TAB==='screen' ? screenHtml() : portHtml();
-    if(TAB==='port' && P.step===3) drawCf();
+    $('app').innerHTML = TAB==='screen' ? screenHtml() : TAB==='xray' ? xrayHtml() : portHtml();
+    if(TAB==='port' && P.step===3){ drawCf();
+      const A=ANALYSIS; if(A && !A.empty && !A.bt && BT_RUN!==A){ BT_RUN=A; runBacktest(A).then(r=>{ A.bt=r; const el=$('btbox'); if(el && ANALYSIS===A) el.innerHTML=btHtml(A); }).catch(e=>console.error(e)); } }
     if(TAB==='screen') drawMap();
   }
   let anlToken=0;
@@ -1041,6 +1450,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
   document.addEventListener('input',ev=>{
     const t=ev.target;
     if(t.dataset.f){ F[t.dataset.f]=t.value; saveF(); clearTimeout(tmr); tmr=setTimeout(()=>{ const pos=t.selectionStart; render(); const el=document.querySelector(`[data-f="${t.dataset.f}"]`); if(el&&el.tagName==='INPUT'){ el.focus(); try{el.setSelectionRange(pos,pos)}catch(e){} } }, t.tagName==='SELECT'?0:350); }
+    if(t.id==='kx' && ANALYSIS){ KEYX=+t.value; const v=$('kx_v'); if(v) v.textContent=nf(KEYX,1)+'%'; const o=$('kx_out'); if(o) o.innerHTML=keyOutHtml(ANALYSIS); }
     if(t.id==='c_ltv'){ const lab=t.previousElementSibling; P.carry.ltv=+t.value; if(lab){ const L=loanAmount(); lab.innerHTML=`Размер займа: <b>${mshort(L)}</b>${FX.CNY?` (¥${nf(L/FX.CNY/1e6,2)} млн)`:''} — ${P.carry.ltv}% от лимита`; } }
     if(t.dataset.sign){ SIGN[t.dataset.sign]=t.value; store.set('b_sign', JSON.stringify(SIGN)); }
     if(t.id==='add_q'){ clearTimeout(tmr); tmr=setTimeout(()=>{ const el=$('sugg'); if(el) el.innerHTML=suggHtml(t.value.trim()); }, 200); }
@@ -1049,7 +1459,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const t=ev.target;
     if(t.dataset.f && t.tagName==='SELECT'){ F[t.dataset.f]=t.value; saveF(); render(); return; }
     if(t.id==='p_amount'){ P.amount=Number(t.value.replace(/[^0-9]/g,''))||0; ANALYSIS=null; savePort(); render(); return; }
-    if(t.id==='p_account'){ P.account=t.value; ANALYSIS=null; savePort(); return; }
+    if(t.id==='p_account'){ P.account=t.value; ANALYSIS=null; savePort(); render(); return; }
     if(t.id==='p_monthly'){ P.monthly=t.checked; ANALYSIS=null; savePort(); return; }
     if(t.id==='p_reform'){ P.reform=t.checked; ANALYSIS=null; savePort(); return; }
     if(t.id==='p_qual'){ P.qual=t.checked; savePort(); return; }
@@ -1058,6 +1468,9 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     if(t.dataset.pp){ const k=t.dataset.pp; P.params[k]= k==='minRating'? t.value : (num(t.value)||0); P.profile='custom'; savePort(); render(); return; }
     if(t.dataset.band){ const v=num(t.value); if(v==null) delete P.params.bandCap[t.dataset.band]; else P.params.bandCap[t.dataset.band]=v; P.profile='custom'; savePort(); render(); return; }
     if(t.dataset.cur){ P.cur[t.dataset.cur]=num(t.value)||0; savePort(); render(); return; }
+    if(t.dataset.gd!=null){ P.goals[+t.dataset.gd].d=t.value; ANALYSIS=null; savePort(); return; }
+    if(t.dataset.ga!=null){ P.goals[+t.dataset.ga].a=Number(t.value.replace(/[^0-9]/g,''))||0; ANALYSIS=null; savePort(); render(); return; }
+    if(t.dataset.gn!=null){ P.goals[+t.dataset.gn].n=t.value.slice(0,40); savePort(); return; }
     if(t.dataset.w){ const p=P.pos.find(x=>x.id===t.dataset.w); if(p){ p.w=Math.max(0,num(t.value)||0); savePort(); await analyze(); render(); } return; }
     if(t.dataset.cw){ const p=P.carry.pos.find(x=>x.id===t.dataset.cw); if(p){ p.w=Math.max(0,num(t.value)||0); savePort(); await analyze(); render(); } return; }
     if(t.id==='c_on'){ P.carry.on=t.checked; savePort(); if(P.carry.on && !P.carry.pos.length){ render(); await carryBuild(); } ANALYSIS=null; render(); await analyze(); render(); return; }
@@ -1071,40 +1484,85 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     const ac=ev.target.closest('[data-acct]'); if(ac){ P.account=ac.dataset.acct; savePort(); recompute(); return; }
     const mo=ev.target.closest('[data-mon]'); if(mo){ P.monthly=!P.monthly; savePort(); recompute(); return; }
     const th=ev.target.closest('th[data-s]'); if(th){ const s=th.dataset.s; if(F.sort===s) F.asc=!F.asc; else {F.sort=s; F.asc=(s==='name');} saveF(); render(); return; }
+    const wy=ev.target.closest('[data-why]'); if(wy){ WHY = WHY===wy.dataset.why ? null : wy.dataset.why; render(); return; }
     const ad=ev.target.closest('[data-add]'); if(ad){ const id=ad.dataset.add;
       if(inPort(id)) P.pos=P.pos.filter(p=>p.id!==id);
       else addToPort(id);
       ANALYSIS=null; savePort(); render(); return; }
     const aq=ev.target.closest('[data-addq]'); if(aq){ addToPort(aq.dataset.addq); await analyze(); render(); return; }
     const wd=ev.target.closest('[data-wd]'); if(wd){ const p=P.pos.find(x=>x.id===wd.dataset.wd); if(p){ p.w=Math.max(0, Math.round((p.w+ +wd.dataset.d)*10)/10); if(p.w===0) P.pos=P.pos.filter(x=>x!==p); savePort(); await analyze(); render(); } return; }
+    const gdl=ev.target.closest('[data-gdel]'); if(gdl){ P.goals.splice(+gdl.dataset.gdel,1); ANALYSIS=null; savePort(); render(); return; }
     const dl=ev.target.closest('[data-del]'); if(dl){ P.pos=P.pos.filter(p=>p.id!==dl.dataset.del); savePort(); recompute(); return; }
     const cd=ev.target.closest('[data-cdel]'); if(cd){ P.carry.pos=P.carry.pos.filter(p=>p.id!==cd.dataset.cdel); savePort(); await analyze(); render(); return; }
     const pf=ev.target.closest('[data-prof]'); if(pf){ P.profile=pf.dataset.prof; P.params=JSON.parse(JSON.stringify(PROFILES[P.profile])); savePort(); render(); return; }
     const a=ev.target.closest('[data-act]'); if(!a) return;
     const act=a.dataset.act;
     if(act==='reset'){ Object.assign(F,F_DEF); saveF(); render(); }
-    if(act==='build'){ a.disabled=true; a.textContent='Собираю…'; try{ await autoBuildChecked(); if(P.carry.on) await carryBuild(); }catch(e){ console.error(e); } P.step=2; savePort(); recompute(); }
+    if(act==='build'){ TRACK=null; a.disabled=true; a.textContent='Собираю…'; try{ await autoBuildChecked(); if(P.carry.on) await carryBuild(); }catch(e){ console.error(e); } P.step=2; savePort(); recompute(); }
     if(act==='carrybuild'){ a.disabled=true; a.textContent='Подбираю…'; try{ await carryBuild(); }catch(e){ console.error(e); } await analyze(); render(); }
     if(act==='spread'){ const left=Math.round((100-P.pos.reduce((s,p)=>s+p.w,0))*10); const n=P.pos.length; if(n&&left>0){ const base=Math.floor(left/n), extra=left-base*n; P.pos.forEach((p,i)=>p.w=Math.round(p.w*10+base+(i<extra?1:0))/10); savePort(); await analyze(); render(); } }
     if(act==='equal'){ const n=P.pos.length; if(n){ const base=Math.floor(1000/n), extra=1000-base*n; P.pos.forEach((p,i)=>p.w=(base+(i<extra?1:0))/10); savePort(); await analyze(); render(); } }
+    if(act==='xrun'){ XR.text=($('xr_text')||{}).value||''; XR.acc=($('xr_acc')||{}).value||'std'; xrRun(); render(); }
+    if(act==='xtoport'||act==='xtoport2'){ const R_=XR.res; if(R_&&R_.items.length){ const T=R_.T;
+        const m={}; for(const x of R_.items){ const id=(act==='xtoport2'&&x.rep)?x.rep.id:x.r.id; m[id]=(m[id]||0)+x.amt/T*100; }
+        P.pos=Object.entries(m).map(([id,w])=>({id,w:Math.floor(w*10)/10})); P.amount=Math.round(T); P.account=XR.acc; P.warns=[]; P.goals=[];
+        P.step=2; TAB='port'; store.set('b_tab',TAB); savePort(); recompute(); } }
+    if(act==='present'){ if(!ANALYSIS) return; SLIDE=0; presShow(); try{ const e=document.documentElement; if(e.requestFullscreen && !IN_TG) await e.requestFullscreen(); }catch(e){} }
+    if(act==='pnext'){ SLIDE++; presShow(); }
+    if(act==='pprev'){ SLIDE--; presShow(); }
+    if(act==='pclose'){ const el=$('presroot'); if(el) el.innerHTML=''; try{ if(document.fullscreenElement) await document.exitFullscreen(); }catch(e){} }
+    if(act==='addgoal'){ P.goals=P.goals||[]; P.goals.push({d:addMonths(SETTLE, Math.min(P.term,24)).slice(0,7), a:Math.round(P.amount*0.3/1e5)*1e5, n:''}); savePort(); render(); }
     if(act==='clear'){ P.pos=[]; P.warns=[]; savePort(); ANALYSIS=null; render(); }
     if(act==='save'){ const n=prompt('Название портфеля (без данных клиента):', 'Портфель'); if(n){ const s=jget('b_saved2',{}); s[n]=JSON.parse(JSON.stringify(P)); store.set('b_saved2',JSON.stringify(s)); render(); } }
-    if(act==='print'){ const R=$('report'); R.innerHTML=reportHtml();
+    if(act==='copylink'){ const u=portLink(3); try{ await navigator.clipboard.writeText(u); a.textContent='Ссылка скопирована ✓'; }catch(e){ prompt('Скопируйте ссылку:', u); } }
+    if(act==='openext'){ const u=portLink(5); try{ TG.openLink(u); }catch(e){ window.open(u,'_blank'); } }
+    if(act==='print'){ await loadQR(); const R=$('report'); R.innerHTML=reportHtml();
       // одна страница A4: меряем отчёт в ширину листа и при необходимости уменьшаем масштаб
       R.style.cssText='display:block;position:absolute;left:-10000px;top:0;width:720px'; const h=R.scrollHeight; R.style.cssText='';
       R.style.setProperty('--rz', String(Math.max(0.6, Math.min(1, 940/h))));
       setTimeout(()=>window.print(),50); }
   });
+  document.addEventListener('keydown',ev=>{ if(!$('pres')) return; if(ev.key==='ArrowRight'||ev.key===' '){ SLIDE++; presShow(); } else if(ev.key==='ArrowLeft'){ SLIDE--; presShow(); } else if(ev.key==='Escape'){ $('presroot').innerHTML=''; } });
+  let tx0=null; document.addEventListener('touchstart',ev=>{ if($('pres')) tx0=ev.touches[0].clientX; },{passive:true});
+  document.addEventListener('touchend',ev=>{ if(!$('pres')||tx0==null) return; const dx=ev.changedTouches[0].clientX-tx0; tx0=null; if(Math.abs(dx)>50){ SLIDE+=dx<0?1:-1; presShow(); } },{passive:true});
   $('themeBtn').addEventListener('click',()=>{ const dark=tok('--bg')==='#0c111d'; const t=dark?'light':'dark'; document.documentElement.dataset.theme=t; store.set('theme',t); render(); });
-  const TG = window.Telegram && window.Telegram.WebApp;
   if(TG && TG.platform && TG.platform!=='unknown'){ try{ TG.ready(); TG.expand(); if(!store.get('theme','') && TG.colorScheme==='dark') document.documentElement.dataset.theme='dark'; }catch(e){} }
 
   // для автоматических проверок (ничего не меняет в работе страницы)
   window.__BONDS = { P, F, get A(){ return ANALYSIS; }, get U(){ return U; }, get FX(){ return FX; }, get RF(){ return RF; }, get SETTLE(){ return SETTLE; },
-    analyze, autoBuildChecked, carryBuild, screen, render, profileCheck, fitProfile, horizonISO, loanAmount, collateralRub, suggestions, PROFILES };
+    analyze, autoBuildChecked, carryBuild, screen, render, profileCheck, fitProfile, horizonISO, loanAmount, collateralRub, suggestions, PROFILES,
+    portLink, readPortLink, setSettle: d => { SETTLE=d; } };
 
+  // ---------------- портфель в ссылке (?p=…): состав и параметры, без данных клиента
+  const b64e = str => btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const b64d = str => decodeURIComponent(escape(atob(str.replace(/-/g,'+').replace(/_/g,'/'))));
+  function portLink(step, track){
+    const o={a:P.amount,t:P.term,pr:P.profile,c:P.cur,ac:P.account,m:P.monthly?1:0,r:P.reform?1:0,q:P.qual===false?0:1,d:P.depRate,
+      ps:P.pos.map(p=>[p.id,p.w]), gl:(P.goals||[]).filter(g=>g.d&&g.a>0).map(g=>[g.d,g.a]), cy:P.carry&&P.carry.on?{l:P.carry.ltv,ps:P.carry.pos.map(p=>[p.id,p.w])}:null};
+    if(P.profile==='custom') o.pp=P.params;
+    if(track && ANALYSIS && !ANALYSIS.empty) o.tr={d:SETTLE, v:Math.round(ANALYSIS.total), q:ANALYSIS.rows.filter(x=>x.qty>0&&x.a.ytm!=null).map(x=>[x.r.id,x.qty])};
+    const u=new URL(location.href); u.hash=''; u.search=''; u.searchParams.set('p', b64e(JSON.stringify(o))); if(step) u.searchParams.set('s', step);
+    return u.toString();
+  }
+  let TRACK=null;
+  function readPortLink(qs){
+    const raw=qs.get('p'); if(!raw) return false;
+    try{ const o=JSON.parse(b64d(raw));
+      Object.assign(P,{amount:+o.a||P.amount, term:+o.t||P.term, profile:o.pr||'mod', cur:o.c||P.cur, account:o.ac==='iis3'?'iis3':'std', monthly:!!o.m, reform:o.r!==0, qual:o.q!==0,
+        depRate:o.d??null, pos:(o.ps||[]).map(([id,w])=>({id,w:+w})), goals:(o.gl||[]).map(([d,a])=>({d,a:+a,n:''})), warns:[], step:+qs.get('s')||3,
+        carry:o.cy?{on:true,ltv:+o.cy.l||100,pos:(o.cy.ps||[]).map(([id,w])=>({id,w:+w})),warns:[]}:{on:false,ltv:100,pos:[],warns:[]}});
+      P.params=o.pp||JSON.parse(JSON.stringify(PROFILES[P.profile]||PROFILES.mod));
+      TRACK=o.tr||null;
+      savePort(); TAB='port'; return true; }catch(e){ console.error(e); return false; }
+  }
+  // переходы: ?v=port | ?q=SECID | ?p=… (Telegram дописывает свои данные после «#», поэтому параметры — в «?»); #PORT и #q= — для старых ссылок
   function applyHash(){
+    const qs=new URLSearchParams(location.search);
+    if(readPortLink(qs)) return;
+    const v=(qs.get('v')||'').toLowerCase(); if(v==='port'){ TAB='port'; return; } if(v==='xray'){ TAB='xray'; return; }
+    if(qs.get('q')){ TAB='screen'; F.q=qs.get('q'); return; }
     const h=decodeURIComponent((location.hash||'').slice(1));
+    if(h.startsWith('tgWebApp')) return;
     if(h==='PORT'){ TAB='port'; return; }
     const m=h.match(/^q=(.+)$/); if(m){ TAB='screen'; F.q=m[1]; }
   }

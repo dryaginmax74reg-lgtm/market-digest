@@ -101,10 +101,49 @@ tr:last-child td{border:0}
 .grp td{background:none!important;color:var(--ink3);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding-top:16px;cursor:default}
 .note{font-size:12px;color:var(--ink3);margin-top:22px;text-align:center}
 .bnav{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));background:var(--nav);color:var(--navink);border-radius:20px;display:none;justify-content:space-around;padding:9px 4px;z-index:10;box-shadow:0 8px 30px rgba(16,24,40,.25)}
-.bnav button{border:0;background:none;color:inherit;font:inherit;font-size:11px;font-weight:700;opacity:.55;text-align:center;cursor:pointer;padding:2px 6px}
+.bnav button{border:0;background:none;color:inherit;font:inherit;font-size:10.5px;font-weight:700;opacity:.55;text-align:center;cursor:pointer;padding:2px 1px;flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bnav button.on{opacity:1}.bnav i{display:block;font-style:normal;font-size:18px;line-height:1.3}
 .empty{padding:40px;text-align:center;color:var(--ink2)}
+/* сегодня: выпуск дайджеста */
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.seg button{border:0;background:var(--card);color:var(--ink2);font:inherit;font-weight:800;font-size:14px;padding:10px 14px;border-radius:14px;cursor:pointer;box-shadow:var(--shadow)}
+.seg button.on{background:var(--ink);color:var(--card)}
+.dg{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;align-items:start}
+.dg .card{font-size:14.5px;line-height:1.55}
+.dg .card pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;background:var(--soft);border-radius:12px;padding:10px 12px;margin:10px 0 0;overflow-x:auto;white-space:pre}
+.dg .card blockquote{margin:10px 0 0;padding:0;border:0}
+.dg .card a{color:var(--acc);text-decoration:none;font-weight:600}
+.dg .card i{color:var(--ink2)}
+.dhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:0 2px 12px;color:var(--ink2);font-size:13px;font-weight:600}
+.stale{background:color-mix(in srgb,var(--s2) 14%,var(--card));border-radius:14px;padding:10px 14px;margin-bottom:12px;font-weight:700;font-size:13.5px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.stale button,.btnx{border:0;background:var(--ink);color:var(--card);font:inherit;font-weight:800;font-size:13px;padding:8px 12px;border-radius:10px;cursor:pointer}
+.plc{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.plc .card{display:flex;flex-direction:column;gap:6px}
+.plc .nm{font-weight:800;font-size:16px}
+.plc .rt{display:flex;gap:5px;flex-wrap:wrap}.plc .rt span{font-size:11.5px;font-weight:800;background:var(--soft);border-radius:8px;padding:3px 7px;color:var(--ink2)}
+.plc .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13.5px}.plc .kv b{color:var(--ink2);font-weight:600}
+.plc .when{font-weight:800;font-size:13px;color:var(--acc)}.plc .when.past{color:var(--ink3)}
+.plc .nt{font-size:12.5px;color:var(--ink2)}
 /* калькулятор */
+.cmodes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 16px}
+.cmodes button{border:0;text-align:left;background:var(--soft);color:var(--ink);font:inherit;padding:12px 14px;border-radius:16px;cursor:pointer}
+.cmodes button b{display:block;font-size:15px;font-weight:800}.cmodes button span{display:block;font-size:12px;color:var(--ink2);font-weight:600;margin-top:2px}
+.cmodes button.on{background:var(--ink);color:var(--card)}.cmodes button.on span{color:var(--card);opacity:.75}
+.cset{margin-top:14px}.cset summary{cursor:pointer;font-weight:700;font-size:13.5px;color:var(--ink2)}
+.rates-ed{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.rates-ed label{font-size:12px;color:var(--ink2);font-weight:700}.rates-ed input{width:100%;margin-top:4px;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:10px;padding:8px 10px;font:inherit;font-weight:800;font-size:15px}
+.cres .clead{font-size:16px;font-weight:700;margin-bottom:10px}.cres .clead2{font-size:15px;font-weight:600;margin-top:12px}
+.lose-big{font-size:34px;font-weight:800;color:var(--down);margin:2px 0 10px}.lose-big span{display:block;font-size:13px;font-weight:600;color:var(--ink2)}
+.cbar{display:grid;grid-template-columns:minmax(150px,1.1fr) 2fr minmax(120px,auto);gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.cbar:last-of-type{border-bottom:0}
+.cbar .cn{font-weight:800}.cbar .cn small,.beat .cn small{display:block;font-weight:600;color:var(--ink3);font-size:12px}
+.cbar .ct{height:12px;border-radius:7px;background:var(--soft);overflow:hidden}.cbar .ct i{display:block;height:100%;border-radius:7px;background:var(--ink3)}
+.cbar.best .ct i{background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.cbar .cv{text-align:right;font-weight:800;font-size:18px}.cbar .cv small{display:block;font-size:12px;font-weight:600;color:var(--ink2)}
+.cbar .win{font-size:11px;font-weight:800;color:var(--card);background:var(--up);border-radius:6px;padding:2px 6px;margin-left:4px;vertical-align:middle}
+.beat{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.beat .cn{font-weight:800}.beat .bv{text-align:right;font-weight:800;font-size:22px}.beat .bv small{display:block;font-size:12px;font-weight:600;color:var(--ink2);max-width:260px}
+@media (max-width:640px){.cmodes{grid-template-columns:1fr}.rates-ed{grid-template-columns:1fr 1fr}.cbar{grid-template-columns:1fr auto;gap:6px 10px}.cbar .ct{grid-column:1/-1;order:3}.cbar .cv{font-size:16px}.beat .bv{font-size:19px}}
 .calc-in{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:end}
 .fld label{display:block;font-size:12.5px;color:var(--ink2);font-weight:600;margin-bottom:6px}
 .fld input{width:100%;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:14px;padding:12px 14px;font:inherit;font-size:22px;font-weight:800}
@@ -169,6 +208,7 @@ tr:last-child td{border:0}
 (function(){
   const USER_NAME = 'Максим';           // имя в приветствии; можно оставить пустым ''
   const TABS = [
+    {id:'today', name:'Сегодня', icon:'☀'},
     {id:'overview', name:'Обзор', icon:'◎'},
     {id:'rates', name:'Ставки', icon:'%'},
     {id:'bonds', name:'Облигации', icon:'◫'},
@@ -201,7 +241,7 @@ tr:last-child td{border:0}
   const store = {get(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
   let DATA=null, TAB=store.get('tab','overview'), RANGE=store.get('range','ytd'), SEL=store.get('sel','IMOEX');
-  let charts=[], sortKey='group', sortAsc=false, FOCUS=null;
+  let charts=[], sortKey='group', sortAsc=false, FOCUS=null, DIG=null, DSEG=store.get('dseg','details');
   const t0 = store.get('theme',''); if(t0) document.documentElement.dataset.theme=t0;
 
   const hr=new Date().getHours();
@@ -365,6 +405,7 @@ tr:last-child td{border:0}
     if(kind==='mmf') return yearTax(endYear, inc, reform);                    // фонд: налог при продаже
     return parts.reduce((s,[y,f])=>s+yearTax(y, inc*f-(kind==='dep'?depExempt(y,reform):0), reform),0);
   }
+  function defaultRatesFor(months){ const keep=CALC.months; CALC.months=months; const r=defaultRates(); CALC.months=keep; return r; }
   function defaultRates(){
     const t=CALC.months/12;
     const cv=(DATA.curves||{})['сегодня'], par=cv&&window.BondMath&&BondMath.parYield ? BondMath.parYield(cv.points, t, 2) : null;
@@ -393,8 +434,9 @@ tr:last-child td{border:0}
   }
   const money = v => (Math.round(v)).toLocaleString('ru-RU')+' ₽';
   const moneyShort = v => Math.abs(v)>=1e6 ? nf(v/1e6, Math.abs(v)>=1e8?0:2)+' млн ₽' : money(v);
-  function calcResults(){
-    const A=CALC.amount, m=CALC.months, t=m/12, R=CALC.rates, mode=CALC.reinv, iis=mode==='iis';
+  function calcResults(){ return calcFor(CALC.amount, CALC.months, CALC.rates, CALC.reinv); }
+  function calcFor(A, m, R, mode){
+    const t=m/12, iis=mode==='iis';
     const sub = {pay:'купоны выплачиваются', reinv:'купоны реинвестируются после 13% НДФЛ', iis:'на ИИС-3: купоны реинвестируются целиком, без НДФЛ (до 30 млн ₽ дохода)'}[mode];
     const rows=[
       ['dep','Вклад', 'макс. ставка топ-10 банков (ЦБ, без капитализации); '+(mode==='pay'?'проценты ежемесячно':'проценты раз в год')+(t>1?', дальше переоформление: если кривая ОФЗ ждёт снижения ставок — ниже, рост не закладывается':''), null],
@@ -421,58 +463,144 @@ tr:last-child td{border:0}
     rows.forEach(r=>r.vs=r.net-rows[0].net);
     return {rows,t};
   }
+  // ---------- калькулятор для встречи: три вопроса клиента
+  const CMODES=[['get','Сколько получу','на руки с суммы за срок'],['lose','Сколько теряет на вкладе','вклад клиента против облигаций'],['need','Сколько вложить','чтобы получать доход каждый месяц'],['beat','Какой вклад догонит','при какой ставке вклад сравняется с облигациями']];
+  if(CALC.myDep==null) CALC.myDep=Number(store.get('calc_mydep','')) || null;
+  if(!CALC.mode) CALC.mode=store.get('calc_mode','get');
+  if(!CALC.target) CALC.target=Number(store.get('calc_target','500000'));
+  const NAMES={dep:'Вклад',mmf:'Фонд денежного рынка',ofz:'ОФЗ',corp:'Корп. облигации'};
+  const ICON={dep:'🏦',mmf:'💧',ofz:'🇷🇺',corp:'🏢'};
+  function bisect(f, lo, hi, it=60){ for(let i=0;i<it;i++){ const m=(lo+hi)/2; if(f(m)) hi=m; else lo=m; } return (lo+hi)/2; }
   function calcHtml(){
     if(!CALC.rates) CALC.rates=defaultRates();
+    const M=CALC.mode;
+    const myDep = M==='lose' ? `<div class="fld"><label>Ставка вклада клиента, %</label><input id="c_mydep" inputmode="decimal" value="${CALC.myDep!=null?nf(CALC.myDep,2):''}" placeholder="${nf(CALC.rates.dep,2)}"></div>` : '';
+    const amt = M==='need'
+      ? `<div class="fld"><label>Сколько клиент хочет получать на руки в месяц, ₽</label><input id="c_target" inputmode="numeric" value="${CALC.target.toLocaleString('ru-RU')}"></div>`
+      : `<div class="fld"><label>Сумма, ₽</label><input id="c_amount" inputmode="numeric" value="${CALC.amount.toLocaleString('ru-RU')}"></div>`;
+    const term = M==='need' ? `<div class="fld"><label>Срок</label><div class="muted" style="font-weight:700;padding:12px 0">1 год, доход выплачивается ежемесячно</div></div>`
+      : `<div class="fld"><label>Срок</label><div class="chips">${TERMS.map(([m,n])=>`<button data-m="${m}" class="${m===CALC.months?'on':''}">${n}</button>`).join('')}</div></div>`;
     return `<div class="card" id="card_CALC" style="margin-bottom:14px"><h2>Калькулятор для встречи</h2>
-      <div class="sub">сколько клиент получит на руки с этой суммы: вклад, фонд денежного рынка, ОФЗ, корп. облигации</div>
-      <div class="calc-in">
-        <div class="fld"><label>Сумма, ₽</label><input id="c_amount" inputmode="numeric" value="${CALC.amount.toLocaleString('ru-RU')}"></div>
-        <div class="fld"><label>Срок</label><div class="chips">${TERMS.map(([m,n])=>`<button data-m="${m}" class="${m===CALC.months?'on':''}">${n}</button>`).join('')}</div></div>
-      </div>
-      <div class="fld" style="margin-top:14px"><label>Купоны по облигациям</label><div class="chips" id="c_reinv">${REINV.map(([k,n])=>`<button data-reinv="${k}" class="${k===CALC.reinv?'on':''}">${n}</button>`).join('')}</div></div>
-      <label class="tax"><input type="checkbox" id="c_tax" ${CALC.tax?'checked':''}> учитывать НДФЛ</label>
-      <label class="tax"><input type="checkbox" id="c_reform" ${CALC.reform?'checked':''}> доход с 2027 года — по налоговой реформе (законопроект № 617-9, ещё не принят)</label>
-      </div><div class="calc-sum" id="c_sum"></div>
-      <div class="card"><div class="res" id="c_res"></div><div class="calc-note" id="c_note"></div></div>`;
+      <div class="sub">быстрые ответы на три частых вопроса клиента — всё после НДФЛ, по сегодняшним ставкам</div>
+      <div class="cmodes">${CMODES.map(([k,n,d])=>`<button data-cmode="${k}" class="${M===k?'on':''}"><b>${n}</b><span>${d}</span></button>`).join('')}</div>
+      <div class="calc-in">${amt}${term}</div>${myDep?`<div class="calc-in" style="margin-top:12px">${myDep}<div></div></div>`:''}
+      ${M==='get'?`<div class="fld" style="margin-top:14px"><label>Доход по облигациям</label><div class="chips" id="c_reinv">${REINV.map(([k,n])=>`<button data-reinv="${k}" class="${k===CALC.reinv?'on':''}">${n}</button>`).join('')}</div></div>`:''}
+      <details class="cset"><summary>Ставки и налоги (можно изменить)</summary>
+        <div class="rates-ed">${['dep','mmf','ofz','corp'].map(k=>`<label>${NAMES[k]}, %<input data-rate="${k}" value="${nf(CALC.rates[k],2)}" inputmode="decimal"></label>`).join('')}</div>
+        <label class="tax"><input type="checkbox" id="c_tax" ${CALC.tax?'checked':''}> учитывать НДФЛ</label>
+        <label class="tax"><input type="checkbox" id="c_reform" ${CALC.reform?'checked':''}> доход с 2027 года — по налоговой реформе (13–22%, законопроект № 617-9)</label>
+        <div class="calc-note">Вклад — максимальная ставка топ-10 банков (ЦБ), ОФЗ — доходность по кривой на этот срок, корп. облигации — доходность индекса Мосбиржи, фонд денежного рынка — RUONIA минус 0,4% комиссии.</div>
+      </details></div>
+      <div id="c_out"></div>`;
   }
   function calcUpdate(){
-    const {rows,t}=calcResults();
-    const best=rows.reduce((a,b)=>b.net>a.net?b:a);
-    const reformMatters = splitYears(CALC.months).endYear>=REFORM_YEAR || splitYears(CALC.months).parts.some(([y])=>y>=REFORM_YEAR);
-    $('c_sum').innerHTML=rows.map(r=>`<div class="card"><div class="l">${r.n}</div><div class="v num">${moneyShort(r.net)}</div>`+
-      `<div class="c num">${nf(r.ann,2)}% годовых чистыми${r.k!=='dep'?` · <span class="${cls(r.vs)}">${r.vs>=0?'+':'−'}${moneyShort(Math.abs(r.vs))}</span> к вкладу`:''}</div></div>`).join('');
-    const refCol = CALC.tax && reformMatters;
-    $('c_res').innerHTML=`<div class="rrow head${refCol?' wide':''}"><div>Инструмент</div><div class="r">Ставка, %</div><div class="r">Доход до налога</div><div class="r">НДФЛ</div><div class="r">На руки</div><div class="r">К вкладу</div>${refCol?'<div class="r">Реформа: налог</div>':''}</div>`+
-      rows.map(r=>`<div class="rrow${refCol?' wide':''}"><div class="nm">${r.n}${r===best?' 🏆':''}<small>${r.s}</small></div>`+
-        `<div class="r" data-l="Ставка, %"><input data-rate="${r.k}" value="${nf(CALC.rates[r.k],2)}" inputmode="decimal"></div>`+
-        `<div class="r num" data-l="Доход до налога">${money(r.inc)}</div><div class="r num" data-l="НДФЛ">${money(r.tax)}</div>`+
-        `<div class="r num ${r===best?'best':''}" data-l="На руки">${money(r.net)}</div>`+
-        `<div class="r num ${cls(r.vs)}" data-l="К вкладу">${r.k==='dep'?'—':(r.vs>=0?'+':'−')+money(Math.abs(r.vs))}</div>`+
-        (refCol?`<div class="r num" data-l="Реформа: налог">${r.taxRef-r.taxNow>0.5?'<span class="down">+'+money(r.taxRef-r.taxNow)+'</span>':'без изменений'}</div>`:'')+`</div>`).join('');
-    const y0=new Date(lastDate()).getFullYear();
-    const exNow=depExempt(y0,false), exNext=depExempt(y0+1,CALC.reform);
-    $('c_note').innerHTML=
-      `<b>Как считается.</b> Налог — только с дохода по этой сумме, другие доходы клиента не учитываются. `+
-      `Доход за ${y0} г.: 13% до 2,4 млн ₽, 15% сверху. `+
-      (CALC.reform?`Доход с ${REFORM_YEAR} г. — по законопроекту № 617-9: 13% до 2,4 млн, 15% до 5 млн, 18% до 20 млн, 20% до 50 млн, 22% сверху (рассмотрение в Госдуме 29.10.2026, текст может измениться). `
-                  :`Доход с ${REFORM_YEAR} г. — тоже по действующим правилам (реформа выключена). `)+
-      `Необлагаемый процент по вкладам: ${money(exNow)} за ${y0} г.`+(CALC.reform?`, ${money(exNext)} за ${y0+1} г. (1 млн × макс. ключевая прошлого года)`:'')+`. `+
-      `Облигации — до погашения по номиналу. Купоны: «выплачивать» — деньги лежат без дохода; «реинвестировать» — брокер удерживает 13% с каждого купона, остаток вкладывается под ту же доходность, `+
-      `а в конце года налог пересчитывается по шкале (доплата 15%/18%… с суммы сверх порогов); «ИИС-3» — купон реинвестируется целиком, НДФЛ не удерживается (при соблюдении срока ИИС). Комиссии и колебания цены не учтены. `+
-      `<br><b>ИИС-3:</b> при сроке от 5 лет доход до 30 млн ₽ освобождается от НДФЛ, плюс вычет до 400 тыс. ₽ в год на взносы — реформа его не затрагивает. `+
-      `<br>Расчёт ориентировочный и не является индивидуальной рекомендацией.`;
+    const M=CALC.mode, out=$('c_out'); if(!out) return;
+    if(M==='get') out.innerHTML=calcGet();
+    else if(M==='lose') out.innerHTML=calcLose();
+    else if(M==='need') out.innerHTML=calcNeed();
+    else out.innerHTML=calcBeat();
+  }
+  // 1) сколько получит с суммы
+  function calcGet(){
+    const {rows}=calcResults(), dep=rows[0], best=rows.reduce((a,b)=>b.net>a.net?b:a), mx=Math.max(...rows.map(r=>r.net),1);
+    const term=(TERMS.find(t=>t[0]===CALC.months)||[0,''])[1];
+    const lead = best.k==='dep' ? `Сейчас выгоднее всего вклад.` :
+      `${NAMES[best.k]} дадут на <b>${moneyShort(best.net-dep.net)}</b> больше вклада за ${term}.`;
+    return `<div class="card cres"><div class="clead">С ${moneyShort(CALC.amount)} за ${term} клиент получит на руки:</div>
+      ${rows.map(r=>`<div class="cbar ${r===best?'best':''}"><div class="cn">${ICON[r.k]} ${NAMES[r.k]}${r===best?' <span class="win">выгоднее всего</span>':''}<small>${nf(CALC.rates[r.k],2)}% до налога · ${nf(r.ann,2)}% годовых на руки</small></div>
+        <div class="ct"><i style="width:${Math.max(2,r.net/mx*100)}%"></i></div><div class="cv num">${moneyShort(r.net)}<small>${r.k==='dep'?'налог '+moneyShort(r.tax):(r.vs>=0?'+':'−')+moneyShort(Math.abs(r.vs))+' к вкладу'}</small></div></div>`).join('')}
+      <div class="clead2">${lead}</div>
+      <div class="calc-note">${({pay:'Купоны выплачиваются клиенту, проценты по вкладу — ежемесячно.',reinv:'Купоны реинвестируются (брокер удерживает 13%, в конце года — пересчёт по шкале); вклад переоформляется с процентами раз в год.',iis:'ИИС-3: купоны реинвестируются целиком без налога (до 30 млн ₽ дохода, при сроке ИИС от 5 лет); вклад — с налогом.'})[CALC.reinv]}
+        Налог по вкладу — с суммы сверх необлагаемой (1 млн × макс. ключевая ставка). Облигации — держим до погашения; колебания цены, комиссии и другие доходы клиента не учтены.</div></div>`;
+  }
+  // 1б) сколько клиент недополучает на своём вкладе
+  function calcLose(){
+    const A=CALC.amount, m=CALC.months, my=CALC.myDep!=null?CALC.myDep:CALC.rates.dep, term=(TERMS.find(t=>t[0]===m)||[0,''])[1], yrs=m/12;
+    const rows=calcFor(A,m,{...CALC.rates, dep:my},'reinv').rows, dep=rows.find(r=>r.k==='dep');
+    const alt=rows.filter(r=>r.k!=='dep'&&r.k!=='mmf'), best=alt.reduce((a,b)=>b.net>a.net?b:a);
+    const lose=best.net-dep.net;
+    if(lose<=0) return `<div class="card cres"><div class="clead">Вклад клиента под ${nf(my,2)}% сейчас не уступает облигациям за ${term} — хорошая ставка.</div></div>`;
+    return `<div class="card cres lose"><div class="clead">Вклад ${moneyShort(A)} под ${nf(my,2)}% за ${term}:</div>
+      <div class="lose-big">−${moneyShort(lose)}<span>клиент недополучает по сравнению с ${best.k==='ofz'?'ОФЗ':'корп. облигациями'}${yrs>1?` — это ${moneyShort(lose/yrs)} в год`:''}, ≈ ${moneyShort(lose/m)} в месяц</span></div>
+      ${[dep,...alt].map(r=>`<div class="cbar ${r===best?'best':''}"><div class="cn">${ICON[r.k]} ${r.k==='dep'?'Вклад клиента':NAMES[r.k]}<small>${nf(r.k==='dep'?my:CALC.rates[r.k],2)}% до налога</small></div>
+        <div class="ct"><i style="width:${Math.max(2,r.net/Math.max(...[dep,...alt].map(x=>x.net))*100)}%"></i></div><div class="cv num">${moneyShort(r.net)}<small>${r.k==='dep'?'на руки':'+'+moneyShort(r.net-dep.net)+' к вкладу'}</small></div></div>`).join('')}
+      <div class="calc-note">Всё после НДФЛ; купоны реинвестируются, проценты по вкладу — раз в год без капитализации, с необлагаемой суммой. Ставки облигаций — сегодняшние (ОФЗ — по кривой на этот срок, корп. — индекс Мосбиржи).</div></div>`;
+  }
+  // 2) сколько вложить, чтобы получать X в месяц на руки (1 год, выплаты ежемесячно)
+  function calcNeed(){
+    const T=CALC.target; if(!(T>0)) return `<div class="card empty">Укажите желаемый доход в месяц.</div>`;
+    const need=k=>{ const f=A=>calcFor(A,12,CALC.rates,'pay').rows.find(r=>r.k===k).net/12>=T; return bisect(f,0,T*12/0.005); };
+    const ks=['dep','ofz','corp'], res=ks.map(k=>({k,A:need(k)})), dep=res[0], mx=Math.max(...res.map(r=>r.A));
+    const best=res.reduce((a,b)=>b.A<a.A?b:a);
+    return `<div class="card cres"><div class="clead">Чтобы получать <b>${moneyShort(T)}</b> в месяц на руки (после НДФЛ), нужно вложить:</div>
+      ${res.map(r=>`<div class="cbar ${r===best?'best':''}"><div class="cn">${ICON[r.k]} ${NAMES[r.k]}${r===best?' <span class="win">меньше всего денег</span>':''}<small>${nf(CALC.rates[r.k],2)}% до налога</small></div>
+        <div class="ct"><i style="width:${r.A/mx*100}%"></i></div><div class="cv num">${moneyShort(r.A)}<small>${r.k==='dep'?'база':((dep.A-r.A)>=0?'на '+moneyShort(dep.A-r.A)+' меньше вклада':'на '+moneyShort(r.A-dep.A)+' больше вклада')}</small></div></div>`).join('')}
+      <div class="clead2">${best.k==='dep'?'Сейчас вклад требует меньше всего денег.':`В ${best.k==='ofz'?'ОФЗ':'корп. облигациях'} нужно на <b>${moneyShort(dep.A-best.A)}</b> меньше, чем во вкладе — и доход тот же.`}</div>
+      <div class="calc-note">Срок — год, купоны и проценты выплачиваются клиенту (ОФЗ платят купон раз в полгода — сумма в месяц здесь средняя), налог — по шкале с учётом необлагаемой суммы по вкладам. Чем больше сумма, тем выше ставка НДФЛ (15% с дохода больше 2,4 млн ₽ в год${CALC.reform?', по реформе — до 22%':''}), поэтому зависимость не линейная.</div></div>`;
+  }
+  // 3) при какой ставке вклад догонит облигации
+  function calcBeat(){
+    const A=CALC.amount, m=CALC.months, term=(TERMS.find(t=>t[0]===m)||[0,''])[1];
+    const net=(R,k)=>calcFor(A,m,R,CALC.reinv==='iis'?'iis':CALC.reinv).rows.find(r=>r.k===k).net;
+    const be=k=>{ const goal=net(CALC.rates,k); return bisect(r=>net({...CALC.rates,dep:r},'dep')>=goal, 0, 80); };
+    const rows=['ofz','corp','mmf'].map(k=>({k,r:be(k)}));
+    const cur=CALC.rates.dep;
+    return `<div class="card cres"><div class="clead">Клиент говорит «у меня вклад лучше»? Вклад на ${moneyShort(A)} и ${term} должен давать, чтобы сравняться:</div>
+      ${rows.map(x=>`<div class="beat"><div class="cn">${ICON[x.k]} ${({ofz:'чтобы догнать ОФЗ',corp:'чтобы догнать корп. облигации',mmf:'чтобы догнать фонд денежного рынка'})[x.k]} <small>${nf(CALC.rates[x.k],2)}% до налога</small></div>
+        <div class="bv num ${x.r>cur?'up':''}">${nf(x.r,2)}%<small>${x.r>cur?`на ${nf(x.r-cur,2)} п.п. выше лучших ставок (${nf(cur,2)}%)`:`ниже лучших ставок (${nf(cur,2)}%) — здесь вклад выигрывает`}</small></div></div>`).join('')}
+      <div class="calc-note">Ставка вклада — без капитализации, как в индикаторе ЦБ; учитывает необлагаемую сумму процентов по вкладам. Облигации — ${({pay:'купоны выплачиваются',reinv:'купоны реинвестируются',iis:'на ИИС-3, без налога до 30 млн ₽ дохода'})[CALC.reinv]}.</div></div>`;
   }
   function calcBind(){
-    $('c_amount').addEventListener('input',ev=>{ const v=Number(ev.target.value.replace(/[^0-9]/g,''))||0; CALC.amount=v; store.set('calc_amount',String(v)); calcUpdate(); });
-    $('c_amount').addEventListener('blur',ev=>{ ev.target.value=CALC.amount.toLocaleString('ru-RU'); });
+    const amt=$('c_amount'), tg=$('c_target');
+    if(amt){ amt.addEventListener('input',ev=>{ const v=Number(ev.target.value.replace(/[^0-9]/g,''))||0; CALC.amount=v; store.set('calc_amount',String(v)); calcUpdate(); });
+      amt.addEventListener('blur',ev=>{ ev.target.value=CALC.amount.toLocaleString('ru-RU'); }); }
+    const md=$('c_mydep'); if(md) md.addEventListener('input',ev=>{ const v=parseFloat(ev.target.value.replace(',','.')); CALC.myDep=isNaN(v)?null:v; store.set('calc_mydep',isNaN(v)?'':String(v)); calcUpdate(); });
+    if(tg){ tg.addEventListener('input',ev=>{ const v=Number(ev.target.value.replace(/[^0-9]/g,''))||0; CALC.target=v; store.set('calc_target',String(v)); calcUpdate(); });
+      tg.addEventListener('blur',ev=>{ ev.target.value=CALC.target.toLocaleString('ru-RU'); }); }
     $('c_tax').addEventListener('change',ev=>{ CALC.tax=ev.target.checked; calcUpdate(); });
     $('c_reform').addEventListener('change',ev=>{ CALC.reform=ev.target.checked; store.set('calc_reform',CALC.reform?'1':'0'); calcUpdate(); });
-    $('c_reinv').addEventListener('click',ev=>{ const b=ev.target.closest('button[data-reinv]'); if(!b) return; ev.stopPropagation();
-      CALC.reinv=b.dataset.reinv; store.set('calc_reinv',CALC.reinv); render(); });
-    $('card_CALC').addEventListener('click',ev=>{ const b=ev.target.closest('.chips button[data-m]'); if(!b) return;
-      CALC.months=Number(b.dataset.m); store.set('calc_months',String(CALC.months)); CALC.rates.ofz=curveAt(CALC.months/12)??CALC.rates.ofz; render(); });
-    $('c_res').addEventListener('change',ev=>{ const i=ev.target.closest('input[data-rate]'); if(!i) return;
+    $('card_CALC').addEventListener('click',ev=>{
+      const md=ev.target.closest('[data-cmode]'); if(md){ CALC.mode=md.dataset.cmode; store.set('calc_mode',CALC.mode); render(); return; }
+      const rv=ev.target.closest('button[data-reinv]'); if(rv){ CALC.reinv=rv.dataset.reinv; store.set('calc_reinv',CALC.reinv); render(); return; }
+      const b=ev.target.closest('.chips button[data-m]'); if(!b) return;
+      CALC.months=Number(b.dataset.m); store.set('calc_months',String(CALC.months)); CALC.rates.ofz=defaultRatesFor(CALC.months).ofz; render(); });
+    $('card_CALC').addEventListener('change',ev=>{ const i=ev.target.closest('input[data-rate]'); if(!i) return;
       const v=parseFloat(i.value.replace(',','.')); if(!isNaN(v)) CALC.rates[i.dataset.rate]=v; calcUpdate(); });
+  }
+
+  // ---------- «Сегодня»: то, что раньше приходило текстом под карточкой (docs/digest.json)
+  const SEGS=[['details','📋 Подробно'],['news','📰 Новости'],['money','💰 Денежные события'],['placements','🆕 Размещения']];
+  function mskToday(){ return new Date(Date.now()+3*3600e3).toISOString().slice(0,10); }
+  async function loadDigest(force){
+    try{ DIG=await fetch('digest.json?'+Date.now()).then(r=>{ if(!r.ok) throw 0; return r.json(); }); }catch(e){ DIG={missing:true}; }
+    if(TAB==='today') render();
+  }
+  const ddmmIso = iso => iso ? iso.slice(8,10)+'.'+iso.slice(5,7) : '';
+  function placementsHtml(P){
+    if(!P) return `<div class="card empty">Источник размещений (bonds-lab.ru) сегодня не ответил.</div>`;
+    const t=mskToday();
+    if(!P.items.length) return `<div class="card empty">На ближайшие ${P.days} дней новых размещений нет${P.source_last?` — последние данные источника: сбор до ${ddmmIso(P.source_last)}`:''}.</div>`;
+    const esc=x=>String(x||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    return `<div class="plc">${P.items.map(p=>{ const past=p.book && p.book<t;
+      return `<div class="card"><div class="when ${past?'past':''}">${p.book?(past?'сбор заявок прошёл '+ddmmIso(p.book):'сбор заявок до '+ddmmIso(p.book)):''}${p.place?' · размещение '+ddmmIso(p.place):''}</div>
+        <div class="nm">${esc(p.name)}</div><div class="rt">${(p.ratings||[]).slice(0,3).map(r=>`<span>${esc(r)}</span>`).join('')||'<span>без рейтинга</span>'}</div>
+        <div class="kv"><b>Купон</b><span>${esc(p.coupon&&!/позднее/i.test(p.coupon)?p.coupon:'уточняется')}${p.period?' · выплата раз в '+esc(p.period):''}</span><b>Объём</b><span>${esc(p.volume||'—')}</span>${p.maturity?`<b>Погашение</b><span>${esc(p.maturity)}</span>`:''}</div>
+        ${p.note?`<div class="nt">${esc(p.note.slice(0,160))}</div>`:''}<a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--acc);font-weight:700;font-size:13px;text-decoration:none">подробнее на bonds-lab ↗</a></div>`; }).join('')}</div>
+      <div class="note">Первичные размещения на ${P.days} дней вперёд — сбор заявок или дата размещения · источник bonds-lab.ru</div>`;
+  }
+  function todayHtml(){
+    const seg=`<div class="seg">${SEGS.map(([k,n])=>`<button data-dseg="${k}" class="${DSEG===k?'on':''}">${n}</button>`).join('')}</div>`;
+    if(!DIG) return seg+`<div class="card empty">Загружаю выпуск…</div>`;
+    if(DIG.missing) return seg+`<div class="card empty">Выпуск появится после следующего утреннего дайджеста.</div>`;
+    const d=new Date(DIG.date+'T00:00:00');
+    const head=`<div class="dhead"><span>Выпуск ${d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}, ${DIG.updated.slice(11)} МСК</span><button class="btnx" data-act="dreload">Обновить</button></div>`;
+    const stale = DIG.date<mskToday() && new Date(Date.now()+3*3600e3).getUTCHours()<12
+      ? `<div class="stale"><span>Свежий выпуск ещё публикуется — обычно это занимает 1–2 минуты после дайджеста.</span><button data-act="dreload">Обновить</button></div>` : '';
+    let body;
+    if(DSEG==='placements') body=placementsHtml(DIG.placements);
+    else if(DSEG==='details') body=`<div class="dg">${DIG.details.map(b=>`<div class="card">${b.replace(/\n/g,'<br>').replace(/<pre>([\s\S]*?)<\/pre>/g,(m,x)=>'<pre>'+x.replace(/<br>/g,'\n')+'</pre>')}</div>`).join('')}</div>`;
+    else { const h=DIG[DSEG]||''; body=`<div class="dg"><div class="card">${h.replace(/\n/g,'<br>')}</div></div>`; }
+    return seg+stale+head+body;
   }
 
   // ---------- вкладки
@@ -483,6 +611,7 @@ tr:last-child td{border:0}
     if(TAB==='calc'){
       $('app').innerHTML=calcHtml(); calcUpdate(); calcBind(); return;
     }
+    if(TAB==='today'){ $('app').innerHTML=todayHtml(); if(!DIG) loadDigest(); return; }
     if(TAB==='overview'){
       html = tilesRow(['KEY','DEP','USD','IMOEX'],true)
         + `<div class="grid2">${bigCard()}${perfCard()}</div>`
@@ -508,6 +637,8 @@ tr:last-child td{border:0}
 
   // ---------- события
   document.addEventListener('click',e=>{
+    const ds=e.target.closest('[data-dseg]'); if(ds){ DSEG=ds.dataset.dseg; store.set('dseg',DSEG); render(); window.scrollTo({top:0}); return; }
+    const dr=e.target.closest('[data-act="dreload"]'); if(dr){ DIG=null; render(); loadDigest(); return; }
     const tabBtn=e.target.closest('[data-tab]'); if(tabBtn){ TAB=tabBtn.dataset.tab; FOCUS=null; store.set('tab',TAB); render(); window.scrollTo({top:0}); return; }
     const r=e.target.closest('.rng button'); if(r){ RANGE=r.dataset.r; store.set('range',RANGE); render(); return; }
     const th=e.target.closest('th[data-s]'); if(th){ const s=th.dataset.s; if(sortKey===s && s!=='group') sortAsc=!sortAsc; else {sortKey=s; sortAsc=false;} render(); return; }
@@ -523,8 +654,15 @@ tr:last-child td{border:0}
   $('bnav').innerHTML=TABS.map(t=>`<button data-tab="${t.id}"><i>${t.icon}</i>${t.name}</button>`).join('');
 
   // ---------- переход по кнопке из Telegram: #IMOEX, #USD, #CURVE, #RATES, #PERF ...
+  // кнопки из Telegram: ?v=details|news|money|placements|overview|calc|rates|CNY|CURVE… (якорь «#» Telegram затирает своими данными)
   function applyHash(){
-    const h=(location.hash||'').replace('#','').toUpperCase(); if(!h||!DATA) return false;
+    const qv=(new URLSearchParams(location.search).get('v')||'');
+    const hv=(location.hash||'').replace('#',''); 
+    let h=(qv || (hv.startsWith('tgWebApp')?'':hv)); if(!h||!DATA) return false;
+    const lv=h.toLowerCase();
+    if(SEGS.some(([k])=>k===lv)){ TAB='today'; DSEG=lv; render(); return true; }
+    if(TABS.some(t=>t.id===lv) && !TAB_SERIES[lv]?.includes?.(h.toUpperCase())){ TAB=lv; render(); return true; }
+    h=h.toUpperCase();
     const special={CURVE:['bonds','card_CURVE'],RATES:['rates','card_RATES'],PERF:['overview','card_PERF'],CALC:['calc','card_CALC']};
     let target;
     if(special[h]){ TAB=special[h][0]; FOCUS=h; target=special[h][1]; }

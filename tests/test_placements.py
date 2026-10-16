@@ -10,3 +10,9 @@ assert a["coupon"] == "ΣКС + 3.5%" and a["place"] == "2026-10-06" and a["volu
 assert b["ratings"] == [] and b["note"].startswith("Амортизация") and b["coupon"] == "Будет определен позднее", b
 assert c["ratings"] == ["AA+(RU)", "ruAAA", "AA+.ru"] and "Субординированный" in c["note"], c
 print("placements: OK", [(x["name"], x["book"], x["coupon"]) for x in p])
+
+# инфляция ЦБ (таблица hd_base/infl)
+from common import parse_inflation  # noqa: E402
+_inf = parse_inflation(open(os.path.join(os.path.dirname(__file__), "fixtures", "cbr_infl.html"), encoding="utf-8").read())
+assert _inf == [("2026-08-31", 6.33), ("2026-09-30", 6.35)], _inf
+print("инфляция: OK", _inf[-1])

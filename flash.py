@@ -122,8 +122,8 @@ def keyboard():
     if not dash:
         return None
     base = dash if dash.endswith("/") else dash + "/"
-    return {"inline_keyboard": [[{"text": "🏦 Ставки на дашборде", "url": base + "#RATES"},
-                                 {"text": "🧮 Калькулятор", "url": base + "#CALC"}]]}
+    return {"inline_keyboard": [[{"text": "🏦 Ставки на дашборде", "url": base + "?v=rates"},
+                                 {"text": "🧮 Калькулятор", "url": base + "?v=calc"}]]}
 
 
 def main():

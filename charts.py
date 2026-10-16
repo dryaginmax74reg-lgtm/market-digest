@@ -12,7 +12,7 @@ import random
 import sys
 from datetime import date, datetime, timedelta
 
-from common import (MONTHS, MSK, cbr_deposit_series, cbr_fx_series, cbr_key_series, cbr_ruonia_series, deliver,
+from common import (MONTHS, MSK, cbr_deposit_series, cbr_fx_series, cbr_inflation_series, cbr_key_series, cbr_ruonia_series, deliver,
                     fnum, log, moex_index_hist, moex_zcyc, moex_zcyc_back, parallel, yahoo_series)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -29,6 +29,7 @@ META = {
     "RGBI_Y": ("Доходность ОФЗ (RGBI)", "%", "Доходности"),
     "DEP": ("Депозит: макс. ставка топ-10 банков", "%", "Доходности"),
     "KEY": ("Ключевая ставка", "%", "Ставки"),
+    "INFL": ("Инфляция, % г/г (ЦБ)", "%", "Ставки"),
     "RUONIA": ("RUONIA", "%", "Ставки"),
     "RUSFARCNY": ("RUSFAR CNY O/N", "%", "Ставки"),
     "USD": ("USD/RUB (ЦБ)", "₽", "Валюты"),
@@ -58,6 +59,7 @@ def fetch_history(today, years=YEARS):
         "KEY": (cbr_key_series, d1, today),
         "RUONIA": (cbr_ruonia_series, d1, today),
         "DEP": (cbr_deposit_series,),
+        "INFL": (cbr_inflation_series, d1, today),
         "BRENT": (yahoo_series, "BZ=F", rng),
         "GOLD": (yahoo_series, "GC=F", rng),
         "UST10": (yahoo_series, "^TNX", rng),
@@ -75,7 +77,7 @@ def fetch_history(today, years=YEARS):
         s["CORP_Y"] = [(x[0], float(x[2])) for x in r["RUCBTRNS"] if x[2]]
     if r.get("RGBI"):
         s["RGBI_Y"] = [(x[0], float(x[2])) for x in r["RGBI"] if x[2]]
-    for k in ("USD", "EUR", "CNY", "KEY", "RUONIA", "DEP"):
+    for k in ("USD", "EUR", "CNY", "KEY", "RUONIA", "DEP", "INFL"):
         if r.get(k):
             s[k] = r[k]
     cut = d1.isoformat()
@@ -115,6 +117,7 @@ def demo_history(today):
         "BRENT": walk(80, 0.018), "GOLD": walk(2400, 0.009, 0.0007), "BTC": walk(60000, 0.03, 0.0005),
         "KEY": steps([16, 18, 19, 21, 21, 21, 20, 18, 17, 16, 15, 14]),
         "DEP": steps([15, 17, 18.5, 21, 22, 21, 19.5, 17, 16, 15, 14, 13.05]),
+        "INFL": steps([7.4, 8.6, 9.1, 8.5, 9.5, 10.3, 9.4, 8.1, 6.6, 6.0, 5.6, 6.35]),
     }
     s["RUONIA"] = [(d, v - 0.3 + rnd.gauss(0, 0.1)) for d, v in s["KEY"]]
     s["RUSFARCNY"] = [(d, max(0.1, 3 + rnd.gauss(0, 1.2))) for d, _ in s["KEY"]]

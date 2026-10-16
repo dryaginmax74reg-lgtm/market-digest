@@ -115,16 +115,16 @@ async function handle(upd, env) {
     case "/start": case "/help":
       return reply(env, chat, "<b>Команды</b>\n" + COMMANDS.map(([c, d]) => `/${c} — ${esc(d)}`).join("\n"), kb("", "📊 Дашборд"));
     case "/now": return reply(env, chat, await cmdNow(D), kb("", "📊 Дашборд"));
-    case "/rates": return reply(env, chat, await cmdRates(D), kb("#RATES", "🏦 Ставки на дашборде"));
-    case "/fx": return reply(env, chat, await cmdFx(D), kb("#CNY", "🇨🇳 Юань на дашборде"));
-    case "/curve": return reply(env, chat, await cmdCurve(D), kb("#CURVE", "📉 Кривая на дашборде"));
-    case "/calc": return reply(env, chat, cmdCalc(D, args), kb("#CALC", "🧮 Открыть калькулятор"));
+    case "/rates": return reply(env, chat, await cmdRates(D), kb("?v=RATES", "🏦 Ставки на дашборде"));
+    case "/fx": return reply(env, chat, await cmdFx(D), kb("?v=CNY", "🇨🇳 Юань на дашборде"));
+    case "/curve": return reply(env, chat, await cmdCurve(D), kb("?v=CURVE", "📉 Кривая на дашборде"));
+    case "/calc": return reply(env, chat, cmdCalc(D, args), kb("?v=calc", "🧮 Открыть калькулятор"));
     case "/divs": return reply(env, chat, await cmdDivs(), undefined);
     case "/dash": return reply(env, chat, "Дашборд:", kb("", "📊 Открыть"));
     case "/bonds": return reply(env, chat, "Подбор облигаций: фильтры по рейтингу, сроку, доходности, валюте; сборка портфеля по профилю риска, налоги, сценарии ставок, отчёт клиенту.",
-      dash ? { inline_keyboard: [[{ text: "🧾 Подбор", web_app: { url: dash + "bonds.html" } }, { text: "💼 Портфель", web_app: { url: dash + "bonds.html#PORT" } }]] } : undefined);
+      dash ? { inline_keyboard: [[{ text: "🧾 Подбор", web_app: { url: dash + "bonds.html" } }, { text: "💼 Портфель", web_app: { url: dash + "bonds.html?v=port" } }]] } : undefined);
     default:
-      if (/^\d/.test(cmdRaw)) return reply(env, chat, cmdCalc(D, [cmdRaw, ...args]), kb("#CALC", "🧮 Открыть калькулятор"));
+      if (/^\d/.test(cmdRaw)) return reply(env, chat, cmdCalc(D, [cmdRaw, ...args]), kb("?v=calc", "🧮 Открыть калькулятор"));
       return reply(env, chat, "Не понял. /help — список команд. Можно просто написать сумму и срок: «50млн 6м».");
   }
 }

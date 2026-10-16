@@ -305,6 +305,24 @@ def cbr_ruonia_series(d1, d2):
     return rows
 
 
+def cbr_inflation_series(d1, d2):
+    """Годовая инфляция (ЦБ, % г/г по месяцам): [(iso последнего дня месяца, %)]."""
+    url = ("https://www.cbr.ru/hd_base/infl/?UniDbQuery.Posted=True"
+           f"&UniDbQuery.From={d1:%d.%m.%Y}&UniDbQuery.To={d2:%d.%m.%Y}")
+    return parse_inflation(http_get(url).decode("utf-8", "replace"))
+
+
+def parse_inflation(raw):
+    import calendar
+    out = []
+    for mm, yy, _key, infl in re.findall(r"<td>\s*(\d\d)\.(\d{4})\s*</td>\s*<td>\s*([\d,]+)\s*</td>\s*<td>\s*(-?[\d,]+)\s*</td>", raw):
+        y, m = int(yy), int(mm)
+        out.append((f"{y}-{m:02d}-{calendar.monthrange(y, m)[1]:02d}", float(infl.replace(",", "."))))
+    if not out:
+        raise ValueError("инфляция: пусто")
+    return sorted(out)
+
+
 def cbr_deposit_series():
     """Максимальная ставка по вкладам топ-10 банков (ЦБ, по декадам): [(iso_начала_декады, %)] ~2 года."""
     raw = http_get("https://www.cbr.ru/statistics/avgprocstav/").decode("utf-8", "replace")
