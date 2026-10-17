@@ -22,6 +22,8 @@ jobs:
       TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
       DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
       SEND_CHARTS: ${{ vars.SEND_CHARTS }}
+      WATCHLIST: ${{ secrets.WATCHLIST }}
+      BONDS_WEEK: ${{ vars.BONDS_WEEK }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,15 +31,34 @@ jobs:
           python-version: "3.12"
       - name: Install matplotlib
         run: pip install --quiet matplotlib
-      - name: Send digest (card + text + dashboard data)
-        run: python digest.py
-      - name: Save dashboard data
+      - name: Bond ratings, issuers, turnover (for bonds page and Monday block)
+        continue-on-error: true
+        timeout-minutes: 6
+        run: python bonds_meta.py
+      - name: Build digest (card, dashboard data, digest.json)
+        run: python digest.py --build
+      - name: Publish dashboard data
         if: always()
         run: |
           git config user.name "market-digest-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add docs/data.json 2>/dev/null || true
+          for f in docs/data.json docs/digest.json docs/bonds_meta.json bonds_state.json; do if [ -f "$f" ]; then git add "$f"; fi; done   # по одному: если файла нет, остальные всё равно публикуются
           git diff --cached --quiet && exit 0
           git commit -m "Данные дашборда $(date -u +%F)"
           git pull --rebase --autostash
           git push
+      - name: Wait for the site to update (up to 4 min)
+        if: ${{ vars.DASHBOARD_URL != '' }}
+        continue-on-error: true
+        run: |
+          want=$(python -c "import json;print(json.load(open('docs/digest.json'))['updated'])" 2>/dev/null || echo "")
+          [ -z "$want" ] && exit 0
+          url="${DASHBOARD_URL%/}/digest.json"
+          for i in $(seq 1 24); do
+            got=$(curl -fsSL "$url?nocache=$RANDOM$i" 2>/dev/null | python -c "import json,sys;print(json.load(sys.stdin)['updated'])" 2>/dev/null || echo "")
+            [ "$got" = "$want" ] && echo "сайт обновлён" && exit 0
+            sleep 10
+          done
+          echo "сайт не успел обновиться — отправляю всё равно (страница покажет «обновите через минуту»)"
+      - name: Send digest (card + buttons)
+        run: python digest.py --send
