@@ -68,25 +68,27 @@ def block(d, today):
     pl = d.get("placements")
     if pl is not None:
         t0 = today.isoformat()
-        soon = [p for p in pl if p["book"] and t0 <= p["book"] <= (today + timedelta(days=13)).isoformat()]
-        past = [p for p in pl if p["book"] and (today - timedelta(days=7)).isoformat() <= p["book"] < t0]
+        dt = lambda p: p.get("book") or p.get("place")      # у smart-lab без «кн.» известна только дата размещения
+        soon = [p for p in pl if dt(p) and t0 <= dt(p) <= (today + timedelta(days=13)).isoformat()]
+        past = [p for p in pl if dt(p) and (today - timedelta(days=7)).isoformat() <= dt(p) < t0]
         lines.append("")
-        lines.append('<b>Размещения</b> <i>— <a href="https://bonds-lab.ru/placements">bonds-lab</a></i>')
-        for title, items in (("сбор заявок впереди", sorted(soon, key=lambda p: p["book"])),
-                             ("прошли за неделю", sorted(past, key=lambda p: p["book"]))):
+        lines.append('<b>Размещения</b> <i>— <a href="https://smart-lab.ru/calendar/bonds/bonds_placement/country_0/">smart-lab</a>, <a href="https://bonds-lab.ru/placements">bonds-lab</a></i>')
+        for title, items in (("сбор заявок впереди", sorted(soon, key=dt)),
+                             ("прошли за неделю", sorted(past, key=dt))):
             if not items:
                 continue
             lines.append(f"<i>{title}:</i>")
             for p in items[:8]:
-                rt = ", ".join(p["ratings"][:2]) or "без рейтинга"
+                rt = ", ".join(p["ratings"][:2]) or ("" if p.get("src") == "smart-lab" else "без рейтинга")
                 cp = p["coupon"] if p["coupon"] and "позднее" not in p["coupon"].lower() else "купон уточняется"
                 extra = " · " + e(p["note"][:70]) if p["note"] and ("оферт" in p["note"].lower() or "суборд" in p["note"].lower()
                                                                    or "квал" in p["note"].lower()) else ""
-                lines.append(f'• <a href="{e(p["url"])}">{e(p["name"])}</a> · {e(rt)} · {e(cp)} · сбор до {_ddmm(p["book"])}'
-                             f'{", размещение " + _ddmm(p["place"]) if p["place"] else ""} · {e(p["volume"])}{extra}')
+                when = (("сбор заявок " if p.get("src") == "smart-lab" else "сбор до ") + _ddmm(p["book"]) + (", размещение " + _ddmm(p["place"]) if p.get("place") else "")) if p.get("book") else "размещение " + _ddmm(p["place"])
+                lines.append(f'• <a href="{e(p["url"])}">{e(p["name"])}</a>{" · " + e(rt) if rt else ""} · {e(cp)} · {when}'
+                             f'{" · " + e(p["volume"]) if p.get("volume") else ""}{extra}')
         if not soon and not past:
-            last = max((p["book"] for p in pl if p["book"]), default=None)
-            lines.append(f"новых нет{'; последние данные источника — сбор до ' + _ddmm(last) if last else ''}")
+            last = max((dt(p) for p in pl if dt(p)), default=None)
+            lines.append(f"новых в ближайшие две недели нет{' (источники не обновлялись с ' + _ddmm(last) + ')' if last and last < t0 else ''}")
     st = d.get("state") or {}
     ch = [c for c in st.get("rating_changes") or []
           if 1 <= (today - date.fromisoformat(c["date"])).days <= 7 or (today - date.fromisoformat(c["date"])).days == 0]

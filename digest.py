@@ -481,7 +481,7 @@ def keyboard():
     rows = [
         [("📈 IMOEX", "https://www.moex.com/ru/index/IMOEX"), ("📉 Кривая ОФЗ", "https://www.moex.com/s2532"),
          ("🏦 Ключевая", "https://www.cbr.ru/hd_base/KeyRate/")],
-        [("💰 Депозиты", "https://www.cbr.ru/statistics/avgprocstav/"), ("🆕 Размещения", "https://bonds-lab.ru/placements"),
+        [("💰 Депозиты", "https://www.cbr.ru/statistics/avgprocstav/"), ("🆕 Размещения", "https://smart-lab.ru/calendar/bonds/bonds_placement/country_0/"),
          ("🗓 Дивиденды", "https://smart-lab.ru/dividends/")],
     ]
     return {"inline_keyboard": [[{"text": t, "url": u} for t, u in r] for r in rows]}
@@ -494,7 +494,7 @@ def placements_soon(pl, today, days=14):
     t0, t1 = today.isoformat(), (today + timedelta(days=days)).isoformat()
     soon = [p for p in pl if (p.get("book") and t0 <= p["book"] <= t1) or (p.get("place") and t0 <= p["place"] <= t1)]
     soon.sort(key=lambda p: p.get("book") or p.get("place") or "")
-    last = max((p.get("book") or "" for p in pl), default="") or None
+    last = max((p.get("book") or p.get("place") or "" for p in pl), default="") or None
     return {"items": soon, "days": days, "source_last": last, "total": len(pl)}
 
 

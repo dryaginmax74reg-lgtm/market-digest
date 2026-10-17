@@ -400,7 +400,7 @@ body.hasbbar #toast{bottom:calc(84px + env(safe-area-inset-bottom))}
 .vst td,.vst th{text-align:right}.vst td:first-child,.vst th:first-child{text-align:left}
 .vst th{font-size:13px;color:var(--ink);font-weight:800}
 .vst td.best{color:var(--up);font-weight:800}
-@media(max-width:759px){.vst{font-size:12.5px}.vst td,.vst th{white-space:normal;padding:8px 5px}.vst td:first-child{width:34%}.vst .btn{padding:9px 10px;font-size:13px}}
+@media(max-width:759px){.vst{font-size:12.5px;table-layout:fixed;width:100%}.vst td,.vst th{white-space:normal;padding:8px 4px;overflow-wrap:anywhere}.vst td:first-child,.vst th:first-child{width:34%}.vst .btn{padding:9px 10px;font-size:13px}}
 .lad{display:grid;gap:8px;margin-top:10px}.ladr{display:grid;grid-template-columns:48px 1fr 104px 40px;gap:10px;align-items:center;font-weight:700;font-size:13px}
 .ladr i{display:block;height:12px;border-radius:7px;background:linear-gradient(90deg,var(--s2),#fdb022)}.ladr b,.ladr em{text-align:right;font-style:normal;font-variant-numeric:tabular-nums}.ladr em{color:var(--ink2)}
 .howl{display:flex;align-items:center;gap:6px;margin:4px 4px 14px;font-size:12px;color:var(--ink3);font-weight:600}
@@ -483,6 +483,21 @@ body.client header{display:none}
   .scens{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px 12px;padding:2px 12px}.scens::-webkit-scrollbar{display:none}.scens button{flex:none}
   .altg{grid-template-columns:1fr}
 }
+
+.tsub{font-weight:800;font-size:15px;margin:4px 2px 10px}.tsub span{font-weight:600;font-size:12.5px;color:var(--ink2)}
+.manualc{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:2px dashed color-mix(in srgb,var(--acc) 55%,transparent);background:color-mix(in srgb,var(--acc) 6%,var(--card));color:var(--ink);font:inherit;cursor:pointer;padding:16px 18px}
+.manualc:hover{border-style:solid}.manualc i{font-style:normal;font-size:30px}.manualc b{display:block;font-size:16.5px}.manualc span{display:block;font-size:12.5px;color:var(--ink2);font-weight:600;margin-top:3px;line-height:1.4}.manualc em{font-style:normal;margin-left:auto;font-size:22px;color:var(--acc);font-weight:800}
+.ccsel{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--ink2);display:inline-flex;gap:4px;align-items:center;cursor:pointer;background:var(--soft);padding:3px 8px;border-radius:999px}
+.ccsel input{accent-color:var(--acc);margin:0}
+.cc.sel{border-color:var(--acc)}
+.ccloan{color:var(--acc)!important;font-weight:700}
+.selbar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom));z-index:35;display:flex;gap:8px;align-items:center;background:var(--card);border-radius:16px;padding:8px;box-shadow:0 10px 34px rgba(16,24,40,.22);margin:6px 0 14px}
+.selbar .btn.acc{flex:1}.selbar span{flex:1;font-weight:700;font-size:13.5px;padding:0 8px;color:var(--ink2)}
+.tag.loan{background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
+.loanc{border:1.5px solid color-mix(in srgb,var(--acc) 30%,transparent)}
+.loanr{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.loanr>div{background:var(--soft);border-radius:14px;padding:10px 12px}
+.loanr span{display:block;font-size:12px;color:var(--ink2);font-weight:700}.loanr b{display:block;font-size:20px;margin:2px 0}.loanr em{font-style:normal;font-size:12px;font-weight:700;color:var(--ink2)}
+.manualw .addbar{margin-top:6px}
 @media print{#sheetroot,#toast,#bbarroot,.foot{display:none!important}}
 </style>
 </head>
@@ -1435,6 +1450,8 @@ body.client header{display:none}
   const CC_TAG = {ofz:'государство', cons:'надёжный', vdo:'повышенный доход', mod:'баланс', inc:'доходный'};
   // сценарий встречи: dep — деньги на вкладе; inc — нужен доход в месяц; sum — разместить сумму (вклад — по переключателю)
   const DEPMODE = () => UI.scen==='dep' || !!UI.cdep;
+  let CSEL = [];             // варианты, отмеченные для сравнения
+  let MANUAL = false;        // «собрать вручную»: пустой портфель с поиском бумаг
   function cmpCardsHtml(){
     const list=[...CMP_MAIN, ...(UI.cmore?CMP_MORE:[])], need=UI.scen==='inc', T=UI.cinc, withDep=DEPMODE();
     const got=list.map(k=>[k,CMP.res[k]]).filter(([,v])=>v&&v.A&&!v.A.empty);
@@ -1466,12 +1483,14 @@ body.client header{display:none}
         : k==='vdo' ? `<span>в среднем <b>≈ ${nf(M.expDefaults,1)}</b> ${defWord(M.expDefaults)} за срок</span><span>плохой сценарий (1 из 20): <b>${M.p5>=0?'+':'−'}${mshort(Math.abs(M.p5))}</b></span>`
         : withDep ? (M.beat<0.05 ? '<span>вклад сейчас выгоднее — премии нет</span>' : `<span><b>${pfP(M.beat)}</b> шанс обогнать вклад</span>`)
         : `<span>плохой сценарий (1 из 20): <b>${M.p5>=0?'+':'−'}${mshort(Math.abs(M.p5))}</b></span>`;
-      return `<div class="cc ${k==='ofz'?'gov':''}" data-cmpopen="${k}"><div class="cc-h">${nm} <span class="cc-tag">${CC_TAG[k]||''}</span></div>
+      const coll=A.rows.filter(x=>x.r.ofz||x.r.cur!=='RUB').reduce((s_,x)=>s_+x.cost,0)*0.8;
+      return `<div class="cc ${k==='ofz'?'gov':''} ${CSEL.includes(k)?'sel':''}" data-cmpopen="${k}"><div class="cc-h">${nm} <span class="cc-tag">${CC_TAG[k]||''}</span><label class="ccsel" title="выбрать для сравнения"><input type="checkbox" data-csel="${k}" ${CSEL.includes(k)?'checked':''}> сравнить</label></div>
         <div class="cc-big">${big}</div><div class="cc-vs">${sub}</div>
-        <div class="cc-m"><span><b>${pc(R.annual)}</b> годовых после налога</span>${risk}<span><b>≈ ${mshort(A.monthly)}</b> в месяц купонами</span><span>${nB} ${plw(nB,'выпуск','выпуска','выпусков')}${nEm?` · ${nEm} ${emWord(nEm)}`:''} · ${avg==='ГОС'?'госбумаги':'средний '+avg}</span></div>
+        <div class="cc-m"><span><b>${pc(R.annual)}</b> годовых после налога</span>${risk}<span><b>≈ ${mshort(A.monthly)}</b> в месяц купонами</span><span>${nB} ${plw(nB,'выпуск','выпуска','выпусков')}${nEm?` · ${nEm} ${emWord(nEm)}`:''} · ${avg==='ГОС'?'госбумаги':'средний '+avg}</span>${coll>0&&FX.CNY?`<span class="ccloan">💴 можно добавить займ в юанях до ${mshort(coll)}</span>`:''}</div>
         <button class="btn acc" data-cmpopen="${k}">Открыть →</button></div>`; };
-    return lead + `<div class="ccs">${depCard}${list.map(card).join('')}</div>`
-      + `<div class="row-actions" style="margin:2px 0 14px">${UI.cmore?'':`<button class="btn ghost" data-act="cmore">+ Умеренный и Доходный</button>`}${CMP.busy?'<span class="muted" style="font-weight:700">собираю варианты из бумаг Мосбиржи…</span>':''}</div>`;
+    const selbar = CSEL.length ? `<div class="selbar">${CSEL.length===2?`<button class="btn acc" data-act="cmpvs">⚖ Сравнить: ${esc(profName(CSEL[0]))} и ${esc(profName(CSEL[1]))} →</button>`:`<span>⚖ Выберите ещё один вариант для сравнения</span>`}<button class="btn ghost" data-act="cselclear">✕</button></div>` : '';
+    return lead + `<div class="tsub">Типовые портфели <span>— собраны автоматически по правилам профиля · отметьте два, чтобы сравнить</span></div><div class="ccs">${depCard}${list.map(card).join('')}</div>`
+      + `<div class="row-actions" style="margin:2px 0 14px">${UI.cmore?'':`<button class="btn ghost" data-act="cmore">+ Умеренный и Доходный</button>`}${CMP.busy?'<span class="muted" style="font-weight:700">собираю варианты из бумаг Мосбиржи…</span>':''}</div>` + selbar;
   }
   function cmpPaint(){ const el=$('cmpcards'); if(el && TAB==='compare') el.innerHTML=cmpCardsHtml(); }
   const SCENS = [['dep','🏦','Деньги на вкладе','сравним с его ставкой — сколько недополучает'],['inc','💸','Нужен доход в месяц','сколько вложить, чтобы получать нужную сумму'],
@@ -1486,6 +1505,7 @@ body.client header{display:none}
       <div class="scens">${SCENS.map(([k,ic,t])=>`<button data-scen="${k}" class="${UI.scen===k?'on':''}">${ic} ${t}</button>`).join('')}${UI.scen==='dep'?cmpInfo:''}</div>
       ${UI.scen==='inc'?`<div class="card incbox"><div class="fld big"><label>Сколько клиент хочет получать на руки в месяц, ₽</label><input id="c_inc" value="${Math.round(UI.cinc).toLocaleString('ru-RU')}" inputmode="decimal"></div></div>`:''}
       ${UI.scen!=='dep'?`<div class="exs"><button class="xchip ${UI.cdep?'on':''}" data-act="cdep">${UI.cdep?'✓ ':''}🏦 Сравнить с вкладом${UI.cdep?' '+nf(depNow(),2)+'%':''}</button>${cmpInfo}</div>`:''}
+      <button class="card manualc" data-act="manual"><i>✍️</i><div><b>Собрать портфель вручную</b><span>выбираете бумаги сами: поиск по эмитенту или ISIN, лучшие по оценке, подсказка «есть лучше»; доходность, налоги и сравнение с вкладом считаются сразу</span></div><em>→</em></button>
       <div id="cmpcards">${cmpCardsHtml()}</div>`;
   }
   // ---------------- «Портфель» — один экран
@@ -1518,7 +1538,7 @@ body.client header{display:none}
     const best=Math.max(...rows.map(r=>r[1]));
     const fxSh=Object.entries(A.struct.cur).filter(([c])=>c!=='RUB').reduce((a,[,v])=>a+v,0)/T;
     const note=`<p>На руки после НДФЛ, сумма ${mshort(T)}. Вклад — ${nf(A.depRate*100,2)}% на год${PAY()?', проценты ежемесячно':', проценты раз в год без капитализации'}${A.depPath.length>1?'; дальше переоформление'+(A.depPath.slice(1).some(r=>r<A.depRate-1e-6)?' по ставке, которую ждёт рынок: '+A.depPath.slice(1).map(r=>nf(r*100,1)+'%').join(', '):' по той же ставке'):''}; с необлагаемой суммой процентов (1 млн ₽ × ключевая ставка).</p><p>ОФЗ — бумага по номиналу с доходностью кривой ОФЗ на срок клиента.</p>${INF!=null?`<p>Инфляция за последние 12 месяцев — ${nf(INF*100,2)}% (Банк России, ${infDate()}). «Сверх инфляции» — на сколько деньги растут быстрее цен.</p>`:''}${fxSh>0.005?`<p>Валютные облигации (${nf(fxSh*100,0)}% портфеля) приносят меньше рублёвых — это плата за защиту от ослабления рубля. В сравнении курс неизменный; если рубль ослабнет, валютная часть заработает больше.</p>`:''}`;
-    return `<div class="card ${!compact&&DELTA?'flash':''}"><div class="h2row"><h2>Сравнение на ${termName()}</h2>${compact?'':info('cmpn','Как считается сравнение',note)}</div><div class="sub">на руки после НДФЛ, сумма ${mshort(T)}${compact||CLIENT?'':` · <button class="lnk" data-pill="dep">ставка вклада ${nf(A.depRate*100,2)}% ✎</button>`}</div>
+    return `<div class="card ${!compact&&DELTA?'flash':''}"><div class="h2row"><h2>Сравнение на ${termName()}</h2>${compact?'':info('cmpn','Как считается сравнение',note)}</div><div class="sub">на руки после НДФЛ, сумма ${mshort(T)}${compact||CLIENT?'':` · <button class="lnk" data-pill="dep">ставка вклада ${nf(A.depRate*100,2)}% ✎</button> · <button class="lnk" data-act="vssheet">⚖ сравнить с другим портфелем</button>`}</div>
       <div class="tblwrap ${compact?'':'only-d'}"><table><thead><tr><th>Вариант</th><th>Получите</th><th>Доход</th><th>Годовых${PAY()?' (простых)':''}</th>${INF!=null?'<th title="на сколько деньги растут быстрее цен">Сверх инфляции</th>':''}</tr></thead><tbody>${rows.map(([n,p,me])=>
         `<tr><td class="nm">${me?'<b>'+n+'</b>':n}${p===best?' 🏆':''}</td><td class="num">${mshort(T+p)}</td><td class="num">${mshort(p)}</td><td class="num">${pc(ann(p))}</td>${INF!=null?`<td class="num ${ann(p)>INF?'up':'down'}">${sg(((1+ann(p))/(1+INF)-1)*100,2,'%')}</td>`:''}</tr>`).join('')}</tbody></table></div>
       ${compact?'':`<div class="only-m cml">${rows.map(([n,p,me])=>`<div class="cmr ${me?'me':''}"><div class="cmn">${n}${p===best?' 🏆':''}</div><div class="cmv"><b>${mshort(T+p)}</b><span>доход ${mshort(p)} · ${pc(ann(p))} годовых${INF!=null?` · <i class="${ann(p)>INF?'up':'down'}">${sg(((1+ann(p))/(1+INF)-1)*100,1,'%')} к инфляции</i>`:''}</span></div></div>`).join('')}</div>`}</div>`;
@@ -1695,7 +1715,7 @@ body.client header{display:none}
     if(left < w-0.05 && sum>0){ const k=Math.max(0,100-w)/sum; P.pos.forEach(p=>p.w=Math.floor(p.w*k*10+1e-6)/10); }
     P.pos.push({id, w}); savePort();
   }
-  const posFlags = x => [x.r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span>':'', x.r.flag?'<span class="tag d">риск</span>':'', x.r.sub?'<span class="tag w">суборд.</span>':'', x.bz&&x.bz.qual?'<span class="tag w">квал</span>':'', x.bz&&x.bz.def?'<span class="tag d">дефолт</span>':x.bz&&x.bz.tdef?'<span class="tag w" title="Мосбиржа отмечает, что у эмитента был технический дефолт (задержка выплаты, затем исполнена). Это не текущий дефолт — проверьте новости эмитента">техдефолт в истории</span>':'', x.a.est?'<span class="tag w" title="часть купонов неизвестна — по последней ставке">~</span>':''].join('');
+  const posFlags = x => [x.r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span>':'', x.r.flag?'<span class="tag d">риск</span>':'', x.r.sub?'<span class="tag w">суборд.</span>':'', x.bz&&x.bz.qual?'<span class="tag w">квал</span>':'', x.bz&&x.bz.def?'<span class="tag d">дефолт</span>':x.bz&&x.bz.tdef?'<span class="tag w" title="Мосбиржа отмечает, что у эмитента был технический дефолт (задержка выплаты, затем исполнена). Это не текущий дефолт — проверьте новости эмитента">техдефолт в истории</span>':'', x.a.est?'<span class="tag w" title="часть купонов неизвестна — по последней ставке">~</span>':'', (x.r.ofz||x.r.cur!=='RUB')&&FX.CNY?'<span class="tag loan" title="под эту бумагу брокер даёт займ в юанях (дисконт 20%)">💴 залог</span>':''].join('');
   function posRows(A, ro){
     return `<div class="pl ${ro?'ro':''}">${ro?'':`<div class="pr ph"><span>Выпуск</span><span>Рейтинг</span><span>Доходность</span><span>Погаш.</span><span>Доля, %</span><span>Сумма</span><span></span></div>`}
       ${A.rows.map(x=>{ const pin=!!x.p.pin; return `<div class="pr ${pin?'pin':''}">
@@ -1734,14 +1754,33 @@ body.client header{display:none}
   function trackHtml(A){ if(!A.track) return '';
     return `<div class="card trackc"><h2>Как живёт портфель с ${fmtD(A.track.d0)}</h2><div class="trk"><div><span>вложено тогда</span><b>${mshort(A.track.v0)}</b></div><div><span>стоят бумаги сейчас</span><b>${mshort(A.track.now)}</b></div><div><span>пришло купонов и погашений</span><b>${mshort(A.track.recv)}</b></div><div class="${A.track.ret>=0?'up':'down'}"><span>итого</span><b>${sg(A.track.ret*100,1,'%')}</b></div></div>
       <div class="note" style="margin-top:6px">По ценам Мосбиржи сейчас, до налога, без реинвестирования${A.track.gone?`; ${A.track.gone} бумаг уже погашены полностью`:''}. Ниже — расчёт этого же портфеля заново на сегодня.</div></div>`; }
+  function manualHtml(){
+    return `<div class="card manualw"><div class="h2row"><h2>✍️ Собираем портфель вручную</h2></div>
+      <div class="sub">найдите бумагу по эмитенту, названию или ISIN — или возьмите из лучших по оценке под ${esc(profName())} и срок ${termName()}. Доли и количество посчитаются сами; если есть бумага лучше — подскажу.</div>
+      <div class="addbar">${acBox('add','эмитент, название или ISIN')}<div class="chips2" id="sugg">${suggHtml('')}</div></div>
+      <div class="row-actions"><button class="btn ghost" data-tab="screen">Весь рынок — Подбор</button><button class="btn ghost" data-act="manualoff">Вместо этого — типовой портфель</button></div></div>`;
+  }
+  // займ в юанях — на виду, если в портфеле есть бумаги, под которые его дают (ОФЗ и валютные облигации)
+  function carryTeaserHtml(A){
+    if(CLIENT || !FX.CNY) return '';
+    const col=collateralRub(); if(!(col>0)) return '';
+    const lim=0.8*col, lr=loanRateSimple(), c=A.carry;
+    if(P.carry.on && c && c.res){ const add=c.res.profit-A.main.profit;
+      return `<div class="card loanc"><div class="h2row"><h2>💴 С займом в юанях</h2></div>
+        <div class="loanr"><div><span>итог с займом</span><b>${mshort(A.total+c.res.profit)}</b><em class="${add>=0?'up':'down'}">${add>=0?'+':'−'}${mshort(Math.abs(add))} к портфелю без займа</em></div><div><span>годовых на свои деньги</span><b>${pc(c.res.annual)}</b><em>без займа ${pc(A.main.annual)}</em></div></div>
+        <div class="row-actions" style="margin-top:10px"><button class="btn acc" data-act="present" data-deck="carry">▶ Показать с займом</button><button class="btn ghost" data-act="pv" data-pv="carry">Настроить займ</button></div></div>`; }
+    return `<div class="card loanc"><div class="h2row"><h2>💴 Займ в юанях</h2></div>
+      <div class="sub">под ОФЗ и валютные облигации в портфеле (${mshort(col)}) брокер даёт займ до <b>${mshort(lim)}</b>${lr!=null?` под ${nf(lr,2)}% годовых (RUSFAR CNY + ${carrySpread()}%)`:''}. Займ вкладывается в юаневые облигации — клиент зарабатывает разницу ставок.</div>
+      <div class="row-actions"><button class="btn acc" data-act="carryon">Посчитать с займом →</button></div></div>`;
+  }
   function portMainHtml(){
     const A=ANALYSIS;
-    if(!P.pos.length) return (CLIENT?'':barHtml('port'))+emptyPortHtml();
+    if(!P.pos.length) return (CLIENT?'':barHtml('port'))+(MANUAL?manualHtml():emptyPortHtml());
     if(!A) return (CLIENT?'':barHtml('port'))+`<div class="card skel" id="anl"><div></div><div></div><div></div></div><div class="card skel"><div></div><div></div></div>`;
     if(A.empty) return barHtml('port')+`<div class="card empty">Нет бумаг с рассчитанной доходностью.</div>${sostavHtml({...A, rows:A.rows||[], struct:{sector:{}}, avgR:0, left:0, cash:0})}`;
     if(CLIENT) return clientHtml(A);
     const how=`<div class="howl">${info('how','Как считается',HOW())} <span>Как считается · расчёт — рабочий инструмент советника, не индивидуальная инвестиционная рекомендация</span></div>`;
-    const R=[trackHtml(A), heroHtml(A), compareHtml(A)];
+    const R=[trackHtml(A), heroHtml(A), compareHtml(A), carryTeaserHtml(A)];
     const rest=[moneyHtml(A), shieldHtml(A), ladderHtml(A), ratesHtml(A), how];
     if(WIDE()) return barHtml('port')+`<div class="pwide"><div class="pcol">${sostavHtml(A)}</div><div class="pcol">${R.join('')}${rest.join('')}</div></div>`;
     return barHtml('port')+R.join('')+sostavHtml(A)+rest.join('');
@@ -1879,6 +1918,9 @@ body.client header{display:none}
     const cmp=[['Портфель',R.profit,1],['Лучший вклад',A.dep,0],['ОФЗ',A.ofz,0]], mx=Math.max(...cmp.map(c=>c[1]),1);
     out.push(`<div class="sl-k">Сравнение на ${termName()} — доход на руки</div>${cmp.map(([n,v,me])=>`<div class="sl-bar ${me?'me':''}"><span>${n}</span><i style="width:${Math.max(3,v/mx*100)}%"></i><b>+${mshort(v)}</b><em>${pc(ann(v))}</em></div>`).join('')}
       <div class="sl-s">вклад — по лучшей ставке топ-10 банков на весь срок; облигации — по цене покупки сегодня</div>`);
+    if(A.carry && A.carry.res){ const c=A.carry, add=c.res.profit-R.profit;
+      out.push(`<div class="sl-k">А если добавить займ в юанях</div><div class="sl-h">${add>=0?'+':'−'}<span class="sl-acc">${mshort(Math.abs(add))}</span> к доходу</div>
+        <div class="sl-s">итог ${mshort(T+c.res.profit)} вместо ${mshort(T+R.profit)} · ${pc(c.res.annual)} годовых на свои деньги вместо ${pc(R.annual)} · займ ${mshort(c.total||c.L)} под ${nf(c.lr,2)}% под ваши ОФЗ и валютные облигации</div>`); }
     if(XRSNAP && XRSNAP.ids===P.pos.map(p=>p.id).sort().join()){
       const now=issuesOf(A.rows.filter(x=>x.qty>0).map(x=>({r:x.r, amt:x.cost})));
       out.push(`<div class="sl-k">Ваш портфель → наш</div><div class="sl-two"><div><span>было</span><b>${XRSNAP.n} ${XRSNAP.n===1?'проблема':XRSNAP.n>=2&&XRSNAP.n<=4?'проблемы':'проблем'}</b><em>${pc(XRSNAP.wy)} доходность</em></div><div class="arr">→</div><div class="me"><span>стало</span><b>${now||'0'} ${now===1?'проблема':now>=2&&now<=4?'проблемы':'проблем'}</b><em>${pc(A.py&&A.py.ytm)} доходность</em></div></div>
@@ -2026,6 +2068,7 @@ body.client header{display:none}
   }
   // пересборка с сохранением 📌 и возможностью «Вернуть»
   async function rebuild(msg, snap){
+    MANUAL=false;
     UNDO=snap||snapP(); TRACK=null; XRSNAP=null;
     try{ await autoBuildChecked(); if(P.carry.on) await carryBuild(); }catch(e){ console.error(e); }
     savePort(); pushRecent(); hap('ok'); if(msg) toast(msg, true); await recompute();
@@ -2056,6 +2099,7 @@ body.client header{display:none}
   document.addEventListener('change',async ev=>{
     const t=ev.target;
     if(t.dataset.f && t.tagName==='SELECT'){ F[t.dataset.f]=t.value; saveF(); render(); return; }
+    if(t.dataset.csel){ const k=t.dataset.csel; CSEL = t.checked ? [...CSEL.filter(x=>x!==k), k].slice(-2) : CSEL.filter(x=>x!==k); hap('sel'); cmpPaint(); return; }
     if(t.id==='p_amount'){ if(applyAmount(t.value)){ t.value=Math.round(P.amount).toLocaleString('ru-RU'); document.querySelectorAll('[data-amt]').forEach(b=>b.classList.toggle('on',Math.abs(+b.dataset.amt-P.amount)<1)); AMT_DIRTY=true; } else t.value=Math.round(P.amount).toLocaleString('ru-RU'); return; }
     if(t.id==='p_monthly'){ P.monthly=t.checked; savePort(); closeSheet(); await afterParams(false); return; }
     if(t.id==='p_reform'){ P.reform=t.checked; savePort(); PARAMS_DIRTY=true; return; }
@@ -2119,7 +2163,8 @@ body.client header{display:none}
       const snap=snapP(); P.profile=k; P.params=JSON.parse(JSON.stringify(PROFILES[k])); savePort();
       if(TAB!=='port'){ TAB='port'; store.set('b_tab2',TAB); }
       await rebuild(snap.pos.length?`Собран «${profName(k)}»`:null, snap); return; }
-    const cmo=ev.target.closest('[data-cmpopen]'); if(cmo){ const k=cmo.dataset.cmpopen, v=CMP.res[k]; if(!v||!v.pos||!v.pos.length) return;
+    if(ev.target.closest('.ccsel')) return;           // галочка «сравнить» на карточке — не открывать портфель
+    const cmo=ev.target.closest('[data-cmpopen]'); if(cmo){ MANUAL=false; const k=cmo.dataset.cmpopen, v=CMP.res[k]; if(!v||!v.pos||!v.pos.length) return;
       remember(); P.profile=k; P.params=JSON.parse(JSON.stringify(PROFILES[k])); P.cur={RUB:100,CNY:0,USD:0,EUR:0}; P.pos=v.pos.map(p=>({id:p.id,w:p.w})); P.warns=v.warns||[]; P.carry={on:false,ltv:100,pos:[],warns:[]};
       TRACK=null; XRSNAP=null; TAB='port'; PV='main'; store.set('b_tab2',TAB); savePort(); pushRecent(); hap('ok'); window.scrollTo({top:0}); await recompute(); return; }
     const rc=ev.target.closest('[data-recent]'); if(rc){ const s=jget('b_recent',[])[+rc.dataset.recent]; if(s){ remember(); Object.assign(P, JSON.parse(JSON.stringify(s.p))); TRACK=null; XRSNAP=null; TAB='port'; PV='main'; store.set('b_tab2',TAB); savePort(); window.scrollTo({top:0}); await recompute(); } return; }
@@ -2165,7 +2210,14 @@ body.client header{display:none}
     if(act==='qclear'){ F.q=''; saveF(); render(); }
     if(act==='amtok'||act==='depok'){ const i=$('p_amount'); if(i) applyAmount(i.value)&&(AMT_DIRTY=true); const d=$('p_dep'); if(d && act==='depok'){ P.depRate=num(d.value); savePort(); PARAMS_DIRTY=true; } closeSheet(); }
     if(act==='depreset'){ P.depRate=null; savePort(); PARAMS_DIRTY=true; closeSheet(); }
-    if(act==='newclient'){ newClient(false); return; }
+    if(act==='newclient'){ MANUAL=false; CSEL=[]; newClient(false); return; }
+    if(act==='manual'){ remember(); P.pos=[]; P.warns=[]; P.carry={on:false,ltv:100,pos:[],warns:[]}; TRACK=null; XRSNAP=null; MANUAL=true; ANALYSIS=null; PREV=null;
+      TAB='port'; PV='main'; store.set('b_tab2',TAB); savePort(); render(); window.scrollTo({top:0}); setTimeout(()=>{ const i=document.querySelector('[data-ac="add"]'); if(i&&DESK()) i.focus(); },50); return; }
+    if(act==='manualoff'){ MANUAL=false; TAB='compare'; store.set('b_tab2',TAB); render(); window.scrollTo({top:0}); return; }
+    if(act==='cselclear'){ CSEL=[]; cmpPaint(); return; }
+    if(act==='cmpvs'){ if(CSEL.length<2) return; const mk=k=>{ const v=CMP.res[k]; return v&&v.A ? {label:profName(k), pos:v.pos.map(p=>({id:p.id,w:p.w})), A:v.A, prof:k} : null; };
+      VS.a=mk(CSEL[0]); VS.b=mk(CSEL[1]); VS.bk=CSEL[1]; if(!VS.a||!VS.b) return; CSEL=[]; TAB='port'; PV='vs'; store.set('b_tab2',TAB); render(); window.scrollTo({top:0}); return; }
+    if(act==='carryon'){ P.carry.on=true; savePort(); a.disabled=true; a.textContent='Подбираю юаневые облигации…'; try{ if(!P.carry.pos.length) await carryBuild(); await analyze(); }catch(e){ console.error(e); } render(); return; }
     if(act==='contprev'){ await contPrev(); return; }
     if(act==='cdep'){ UI.cdep=!UI.cdep; saveUI(); render(); if(UI.cdep && P.depRate==null){ SHEET_KIND='dep'; openSheet(pillSheet('dep')); } return; }
     if(act==='cmore'){ UI.cmore=true; saveUI(); CMP.key=null; render(); }

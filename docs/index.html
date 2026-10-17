@@ -376,14 +376,14 @@ tr:last-child td{border:0}
   function placementsHtml(P){
     if(!P) return `<div class="card empty">Источник размещений (bonds-lab.ru) сегодня не ответил.</div>`;
     const t=mskToday();
-    if(!P.items.length) return `<div class="card empty">На ближайшие ${P.days} дней новых размещений нет${P.source_last?` — последние данные источника: сбор до ${ddmmIso(P.source_last)}`:''}.</div>`;
+    if(!P.items.length) return `<div class="card empty">На ближайшие ${P.days} дней новых размещений в источниках нет${P.source_last && P.source_last<t?` (источники не обновлялись с ${ddmmIso(P.source_last)})`:''}.</div>`;
     const esc=x=>String(x||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    return `<div class="plc">${P.items.map(p=>{ const past=p.book && p.book<t;
-      return `<div class="card"><div class="when ${past?'past':''}">${p.book?(past?'сбор заявок прошёл '+ddmmIso(p.book):'сбор заявок до '+ddmmIso(p.book)):''}${p.place?' · размещение '+ddmmIso(p.place):''}</div>
-        <div class="nm">${esc(p.name)}</div><div class="rt">${(p.ratings||[]).slice(0,3).map(r=>`<span>${esc(r)}</span>`).join('')||'<span>без рейтинга</span>'}</div>
-        <div class="kv"><b>Купон</b><span>${esc(p.coupon&&!/позднее/i.test(p.coupon)?p.coupon:'уточняется')}${p.period?' · выплата раз в '+esc(p.period):''}</span><b>Объём</b><span>${esc(p.volume||'—')}</span>${p.maturity?`<b>Погашение</b><span>${esc(p.maturity)}</span>`:''}</div>
-        ${p.note?`<div class="nt">${esc(p.note.slice(0,160))}</div>`:''}<a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--acc);font-weight:700;font-size:13px;text-decoration:none">подробнее на bonds-lab ↗</a></div>`; }).join('')}</div>
-      <div class="note">Первичные размещения на ${P.days} дней вперёд — сбор заявок или дата размещения · источник bonds-lab.ru</div>`;
+    return `<div class="plc">${P.items.map(p=>{ const past=(p.book||p.place) && (p.book||p.place)<t, sl=p.src==='smart-lab';
+      return `<div class="card"><div class="when ${past?'past':''}">${p.book?(past?'сбор заявок прошёл '+ddmmIso(p.book):'сбор заявок '+ddmmIso(p.book)):''}${p.place?(p.book?' · ':'')+'размещение '+ddmmIso(p.place):''}</div>
+        <div class="nm">${esc(p.name)}</div>${(p.ratings||[]).length?`<div class="rt">${p.ratings.slice(0,3).map(r=>`<span>${esc(r)}</span>`).join('')}</div>`:(sl?'':'<div class="rt"><span>без рейтинга</span></div>')}
+        <div class="kv"><b>Купон</b><span>${esc(p.coupon&&!/позднее/i.test(p.coupon)?p.coupon:'уточняется')}${p.period?' · выплата раз в '+esc(p.period):''}</span><b>Объём</b><span>${esc(p.volume||'—')}</span>${p.maturity?`<b>${sl?'Срок':'Погашение'}</b><span>${esc(p.maturity)}</span>`:''}</div>
+        ${p.note?`<div class="nt">${esc(p.note.slice(0,160))}</div>`:''}<a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--acc);font-weight:700;font-size:13px;text-decoration:none">${sl?'календарь smart-lab ↗':'подробнее на bonds-lab ↗'}</a></div>`; }).join('')}</div>
+      <div class="note">Первичные размещения на ${P.days} дней вперёд — сбор заявок (книга) или дата размещения · источники: календарь smart-lab, bonds-lab.ru</div>`;
   }
   // «Графики за год» — спрятаны в раскрывающийся блок внизу «Подробно» (раньше приходили отдельной картинкой)
   const YC = ['KEY','DEP','RGBI_Y','CORP_Y','USD','CNY','IMOEX','BRENT','GOLD'];
