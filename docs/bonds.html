@@ -308,7 +308,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
   #sheetroot.on .sheet{transform:translate(-50%,-50%);opacity:1}.sh-grip{display:none}.sh-b{padding-top:18px}}
 body.noscroll{overflow:hidden}
 #toast{position:fixed;left:12px;right:12px;margin:0 auto;width:fit-content;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateY(160%);z-index:950;background:var(--ink);color:var(--card);border-radius:14px;padding:10px 10px 10px 16px;display:flex;gap:12px;align-items:center;font-weight:700;font-size:13.5px;box-shadow:0 10px 30px rgba(16,24,40,.3);transition:transform .25s;max-width:calc(100vw - 24px)}
-#toast.on{transform:none}
+#toast{opacity:0;visibility:hidden;pointer-events:none;transition:transform .25s,opacity .2s,visibility .25s}#toast.on{transform:none;opacity:1;visibility:visible;pointer-events:auto}
 #toast button{border:0;background:var(--acc);color:#fff;font:inherit;font-weight:800;border-radius:10px;padding:7px 12px;cursor:pointer;white-space:nowrap}
 body.hasbbar #toast{bottom:calc(84px + env(safe-area-inset-bottom))}
 .bbar{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:40;display:none;gap:8px;background:var(--card);border-radius:18px;padding:8px;box-shadow:0 10px 34px rgba(16,24,40,.22)}
@@ -440,17 +440,58 @@ body.client header{display:none}
   .sec>summary h2{font-size:15.5px}.sec>summary .aside{font-size:12px;max-width:52%}
   .lead b{font-size:26px}.cc-big{font-size:26px}
 }
+
+/* ---------- шапка, старт, «новый клиент», чистый экран ---------- */
+.hdr{align-items:center;margin-bottom:12px}
+.hl{display:flex;align-items:baseline;gap:14px;min-width:0}
+.back{font-size:13px;font-weight:700;color:var(--acc);text-decoration:none;white-space:nowrap}
+.hdr h1{font-size:22px;margin:0}
+.btn.newc{background:var(--card);color:var(--ink);box-shadow:var(--shadow);padding:9px 14px;font-size:13.5px}
+.btn.newc:hover{color:var(--acc)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:6px}
+.tile{border:2px solid transparent;background:var(--soft);color:var(--ink);font:inherit;text-align:left;padding:16px;border-radius:18px;cursor:pointer;display:flex;flex-direction:column;gap:4px;transition:border-color .15s,transform .15s}
+.tile:hover{border-color:var(--acc)}.tile:active{transform:scale(.98)}
+.tile i{font-style:normal;font-size:28px;line-height:1}.tile b{font-size:16px;margin-top:6px}.tile span{font-size:12.5px;color:var(--ink2);font-weight:600;line-height:1.35}
+.scens{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.scens button{border:0;background:var(--card);color:var(--ink2);font:inherit;font-weight:700;font-size:13px;padding:8px 12px;border-radius:12px;cursor:pointer;box-shadow:var(--shadow)}
+.scens button.on{background:var(--ink);color:var(--card)}
+.incbox{padding:12px 16px}.incbox .fld{max-width:380px}
+.contchip{display:block;width:100%;text-align:left;border:1px dashed var(--acc);background:color-mix(in srgb,var(--acc) 7%,var(--card));color:var(--ink);font:inherit;font-size:13.5px;font-weight:600;padding:10px 14px;border-radius:14px;margin:0 0 12px;cursor:pointer}
+.contchip span{color:var(--ink2)}
+.fitline{display:block;width:100%;text-align:left;border:0;font:inherit;font-weight:700;font-size:13px;padding:9px 12px;border-radius:12px;margin:0 0 12px;cursor:pointer}
+.fitline.ok{background:rgba(18,183,106,.1);color:var(--up)}.fitline.no{background:rgba(247,144,9,.13);color:var(--warn)}
+.fitline span{float:right;color:var(--ink3);font-weight:600}
+.infob ul{margin:0 0 10px 18px;padding:0;font-size:13.5px;line-height:1.5}
+.only-m{display:none}
+.cml{gap:8px;margin-top:4px}
+.cmr{display:grid;gap:2px;background:var(--soft);border-radius:14px;padding:10px 12px}
+.cmr.me{background:color-mix(in srgb,var(--acc) 10%,var(--card));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--acc) 40%,transparent)}
+.cmn{font-weight:700;font-size:13.5px;min-width:0}.cmr.me .cmn{font-weight:800}
+.cmv b{display:block;font-size:18px;font-variant-numeric:tabular-nums}.cmv span{display:block;font-size:12px;color:var(--ink2);font-weight:600}.cmv i{font-style:normal}
+.altb{border:0;cursor:pointer;font:inherit;font-size:10.5px;font-weight:800}
+.altg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.altc{background:var(--soft);border-radius:16px;padding:12px 14px;min-width:0}.altc.best{background:color-mix(in srgb,var(--up) 10%,var(--card));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--up) 45%,transparent)}
+.altl{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin-bottom:4px}.altc.best .altl{color:var(--up)}
+.altc b{font-size:15px}.altc small{display:block;color:var(--ink2);font-weight:600;font-size:12px;margin-top:2px}
+.altc dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:10px 0 0;font-size:13px}.altc dt{color:var(--ink2);font-weight:600}.altc dd{margin:0;text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+.altnote{display:block;width:100%;text-align:left;border:0;background:rgba(18,183,106,.1);color:var(--ink);font:inherit;font-size:13.5px;font-weight:600;padding:10px 12px;border-radius:12px;margin:0 0 12px;cursor:pointer}.altnote span{color:var(--up);font-weight:800}
+@media(max-width:759px){
+  .only-d{display:none}.only-m{display:grid}
+  .hdr h1{display:none}.hdr{margin-bottom:10px}.btn.newc{padding:8px 12px;font-size:13px}
+  .tiles{grid-template-columns:1fr 1fr;gap:10px}.tile{padding:14px}.tile b{font-size:15px}
+  .pbar{flex-wrap:wrap;overflow:visible;gap:5px}.pill{padding:5px 8px 6px;font-size:13px}.pill small{font-size:10px}.pill i{margin-left:3px;font-size:9px}.pill.gear{padding:5px 10px;font-size:16px}
+  .scens{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px 12px;padding:2px 12px}.scens::-webkit-scrollbar{display:none}.scens button{flex:none}
+  .altg{grid-template-columns:1fr}
+}
 @media print{#sheetroot,#toast,#bbarroot,.foot{display:none!important}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div>
-      <div class="hello"><a href="./">← Дашборд</a></div>
-      <h1>Облигации: подбор и портфель</h1>
-    </div>
+  <header class="hdr">
+    <div class="hl"><a class="back" href="./">← Дашборд</a><h1>Облигации</h1></div>
     <div class="top-right">
+      <button class="btn newc" data-act="newclient" title="начать расчёт с нуля">＋ Новый клиент</button>
       <button class="icon-btn" id="themeBtn" title="Тема">◐</button>
     </div>
   </header>
@@ -848,7 +889,7 @@ body.client header{display:none}
     const premCell = r => r.prem==null ? '<td class="num muted">—</td>' :
       `<td class="num ${r.flag?'down':r.prem>0.002?'up':r.prem<-0.01?'muted':''}" title="норма для ${esc(r.rating)} и такого срока: ${pc(r.fair)} (соседей: ${r.peers}${r.width?', рейтинг ±'+r.width:''})">${sg(r.prem*100,2,'')}</td>`;
     const rows = list.slice(0,250).map(r=>{ const at=BS.afterTax(r, BM, SETTLE); return `<tr>
-      <td class="nm" data-why="${r.id}" title="почему такая оценка — нажмите">${r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span> ':''}${esc(r.name)}${r.flag?'<span class="tag d" title="рынок требует заметно больше, чем за такой же рейтинг и срок — видит риск, которого нет в рейтинге">риск</span>':''}${r.est?'<span class="tag w" title="доходность флоатера — оценка при неизменном купоне">~</span>':''}${r.call?'<span class="tag" title="колл-опцион эмитента">колл</span>':''}<small>${esc(r.isin)} · ${KIND_NAME[r.kind]}${r.cur!=='RUB'?' · '+r.cur:''}${r.emName&&!r.ofz?' · '+esc(r.emName.slice(0,40)):''}${!r.ofz?' · '+esc(r.sector):''}</small></td>
+      <td class="nm" data-why="${r.id}" title="почему такая оценка — нажмите">${r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span> ':''}${esc(r.name)}${r.flag?'<span class="tag d" title="рынок требует заметно больше, чем за такой же рейтинг и срок — видит риск, которого нет в рейтинге">риск</span>':''}${r.est?'<span class="tag w" title="доходность флоатера — оценка при неизменном купоне">~</span>':''}${r.call?'<span class="tag" title="колл-опцион эмитента">колл</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}" title="есть бумага с той же или выше надёжностью и доходностью выше">есть лучше</button>`:''}<small>${esc(r.isin)} · ${KIND_NAME[r.kind]}${r.cur!=='RUB'?' · '+r.cur:''}${r.emName&&!r.ofz?' · '+esc(r.emName.slice(0,40)):''}${!r.ofz?' · '+esc(r.sector):''}</small></td>
       ${csCell(r)}
       <td>${rTag(r.rating)}</td>
       <td class="num">${pc(r.ytm)}</td>
@@ -1291,6 +1332,24 @@ body.client header{display:none}
     const s=jget('b_recent',[]); const label=`${mshort(P.amount).replace(' ₽','')} · ${termName()} · ${profName()}${P.account==='iis3'?' · ИИС-3':''}`;
     store.set('b_recent', JSON.stringify([{t:Date.now(), label, p:snapP()}, ...s.filter(x=>x.label!==label)].slice(0,5)));
   }
+  // ---------------- «Новый клиент»: всё с нуля; прошлый расчёт можно продолжить одной кнопкой
+  const curLabel = () => `${amtShort(P.amount)} ₽ · ${termName()}${P.pos.length?' · '+profName()+' · '+P.pos.length+' '+plw(P.pos.length,'бумага','бумаги','бумаг'):''}`;
+  function newClient(auto){
+    if(P.pos.length || UI.scen) store.set('b_prev', JSON.stringify({t:Date.now(), label:curLabel(), p:snapP(), ui:{scen:UI.scen, cdep:UI.cdep, cinc:UI.cinc}}));
+    if(!auto) remember();
+    Object.assign(P,{amount:30e6, term:12, profile:'mod', params:JSON.parse(JSON.stringify(PROFILES.mod)), cur:{RUB:100,CNY:0,USD:0,EUR:0}, account:'std', monthly:false, reform:true,
+      depRate:null, pos:[], carry:{on:false,ltv:100,pos:[],warns:[]}, warns:[], exSec:[]});
+    UI.scen=null; UI.cdep=false; UI.cmore=false; saveUI();
+    XR.text=''; XR.res=null; TRACK=null; XRSNAP=null; ANALYSIS=null; PREV=null; DELTA=null; KEYX=null; CMP.key=null; PV='main';
+    if(!auto){ TAB='compare'; store.set('b_tab2',TAB); } savePort(); closeSheet(); render(); window.scrollTo({top:0});
+    if(!auto){ hap('ok'); toast('Новый клиент — всё с нуля', true); }
+  }
+  async function contPrev(){
+    const p=jget('b_prev',null); if(!p||!p.p) return;
+    Object.assign(P, JSON.parse(JSON.stringify(p.p))); if(p.ui) Object.assign(UI, p.ui); saveUI(); store.set('b_prev','');
+    TAB=P.pos.length?'port':'compare'; PV='main'; store.set('b_tab2',TAB); savePort(); window.scrollTo({top:0}); await recompute();
+  }
+  const touch = () => store.set('b_last', String(Date.now()));
   const whenStr = t => { const d=new Date(t), n=new Date(), y=new Date(n); y.setDate(n.getDate()-1);
     const hm=d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
     return d.toDateString()===n.toDateString() ? 'сегодня '+hm : d.toDateString()===y.toDateString() ? 'вчера '+hm : d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'}); };
@@ -1311,7 +1370,8 @@ body.client header{display:none}
   const depNow = () => P.depRate!=null ? P.depRate : (lastS('DEP')||12);
   function barHtml(where){
     const pill=(k,lab,val)=>`<button class="pill" data-pill="${k}"><small>${lab}</small>${val}<i>▾</i></button>`;
-    return `<div class="pbar" id="pbar">${pill('amount','Сумма',amtShort(P.amount)+' ₽')}${pill('term','Срок',termName())}${where==='port'?pill('profile','Портфель',profName()):''}${pill('account','Счёт',(P.account==='iis3'?'ИИС-3':'Брокерский')+(PAY()?' · выплаты':''))}${where==='compare'?pill('dep','Вклад клиента',nf(depNow(),2)+'%'):''}${where==='port'?`<button class="pill gear" data-pill="more" title="все параметры">⚙</button>`:''}</div>`;
+    const PSHORT={cons:'Консерв.',mod:'Умеренный',inc:'Доходный',ofz:'Только ОФЗ',vdo:'Короткие ВДО',custom:'Свой'};
+    return `<div class="pbar" id="pbar">${pill('amount','Сумма',amtShort(P.amount)+' ₽')}${pill('term','Срок',termName())}${where==='port'?pill('profile','Портфель',PSHORT[P.profile]||profName()):''}${pill('account','Счёт',(P.account==='iis3'?'ИИС-3':'Брок.')+(PAY()?' · выпл.':''))}${where==='compare'&&DEPMODE()?pill('dep','Вклад',nf(depNow(),2)+'%'):''}${where==='port'?`<button class="pill gear" data-pill="more" title="все параметры">⚙</button>`:''}</div>`;
   }
   function pillSheet(k){
     if(k==='amount') return `<h3>Сумма</h3><div class="fld big"><label>в рублях; можно коротко: 50 = 50 млн, «1,5 млрд», «300 тыс»</label><input id="p_amount" value="${Math.round(P.amount).toLocaleString('ru-RU')}" inputmode="decimal" enterkeyhint="done"></div>
@@ -1323,7 +1383,7 @@ body.client header{display:none}
       <label class="chk"><input type="checkbox" id="p_monthly" ${PAY()?'checked':''} ${P.account==='iis3'?'disabled':''}> Клиенту важны ежемесячные выплаты — купоны выводятся на руки</label>
       ${P.account==='iis3'?'<div class="note">На ИИС-3 купоны остаются на счёте и реинвестируются без налога — вывести их нельзя.</div>':''}`;
     if(k==='dep') return `<h3>Ставка вклада клиента</h3><div class="fld big"><label>% годовых; по умолчанию — максимальная ставка топ-10 банков (ЦБ): ${nf(lastS('DEP')||12,2)}%</label><input id="p_dep" value="${P.depRate!=null?nf(P.depRate,2):''}" placeholder="${nf(lastS('DEP')||12,2)}" inputmode="decimal" enterkeyhint="done"></div>
-      <div class="row-actions"><button class="btn acc" data-act="depok">Готово</button>${P.depRate!=null?'<button class="btn ghost" data-act="depreset">Лучшая ставка топ-10</button>':''}</div>`;
+      <div class="row-actions"><button class="btn acc" data-act="depok">Готово</button><button class="btn ghost" data-act="depreset">Не знаю — лучшая ставка топ-10 (${nf(lastS('DEP')||12,2)}%)</button></div>`;
     if(k==='more') return moreParamsHtml();
     return '';
   }
@@ -1373,18 +1433,20 @@ body.client header{display:none}
   const PROF_INS = {cons:'«Консервативным»', mod:'«Умеренным»', inc:'«Доходным»', ofz:'портфелем «Только ОФЗ»', vdo:'«Короткими ВДО»'};
   const plw = (n,a,b,c) => (n%10===1&&n%100!==11)?a:(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?b:c;
   const CC_TAG = {ofz:'государство', cons:'надёжный', vdo:'повышенный доход', mod:'баланс', inc:'доходный'};
+  // сценарий встречи: dep — деньги на вкладе; inc — нужен доход в месяц; sum — разместить сумму (вклад — по переключателю)
+  const DEPMODE = () => UI.scen==='dep' || !!UI.cdep;
   function cmpCardsHtml(){
-    const list=[...CMP_MAIN, ...(UI.cmore?CMP_MORE:[])], need=UI.cmode==='inc', T=UI.cinc;
+    const list=[...CMP_MAIN, ...(UI.cmore?CMP_MORE:[])], need=UI.scen==='inc', T=UI.cinc, withDep=DEPMODE();
     const got=list.map(k=>[k,CMP.res[k]]).filter(([,v])=>v&&v.A&&!v.A.empty);
     const any=got[0]&&got[0][1].A, yrs=P.term/12;
     let lead='';
     // база для сравнения — «Консервативный» (ОФЗ от 50% и AA и выше): цифру нельзя упрекнуть в погоне за риском
     const anchor = got.find(([k])=>k==='cons') || got.find(([k])=>k==='ofz') || got[0];
-    if(any && !need){ const best=anchor, d=(best[1].A.main.profit-any.dep)/yrs;
+    if(any && !need && UI.scen==='dep'){ const best=anchor, d=(best[1].A.main.profit-any.dep)/yrs;
       lead = d>0 ? `<div class="lead"><span>Вклад под ${nf(depNow(),2)}% недополучает</span><b>${mshort(d)} в год</b><small>≈ ${mshort(d/12)} в месяц — даже по сравнению с ${PROF_INS[best[0]]||'«'+esc(profName(best[0]))+'»'}${best[0]==='cons'?' (ОФЗ от 50%, остальное — AA и выше)':''}, всё после НДФЛ</small></div>`
         : `<div class="lead ok"><span>Вклад под ${nf(depNow(),2)}% сейчас не хуже облигаций</span><small>на этом сроке доходность облигаций после налога не выше вклада</small></div>`; }
-    if(need) lead=`<div class="lead inc"><span>Чтобы получать на руки в месяц</span><b>${mshort(T)}</b><small>столько нужно вложить в каждый вариант — средний доход в месяц после НДФЛ (у облигаций — купоны и доход при погашении, у вклада — проценты)</small></div>`;
-    const depCard = (()=>{ if(!any) return `<div class="cc dep sk"><div class="cc-h">Вклад</div><div class="cc-big">…</div></div>`;
+    if(need) lead=`<div class="lead inc"><span>Чтобы получать на руки в месяц</span><b>${mshort(T)}</b><small>столько нужно вложить в каждый вариант — средний доход в месяц после НДФЛ за весь срок</small></div>`;
+    const depCard = !withDep ? '' : (()=>{ if(!any) return `<div class="cc dep sk"><div class="cc-h">Вклад</div><div class="cc-big">…</div></div>`;
       if(need){ const nd=bisect(a=>depMonthly(a)>=T, 0, T*12/0.01*2);
         return `<div class="cc dep"><div class="cc-h">🏦 Вклад <span class="cc-tag">${nf(depNow(),2)}%</span></div><div class="cc-big">${mshort(nd)}</div><div class="cc-vs">база для сравнения</div><div class="cc-m"><span>средний доход в месяц после налога</span><span>налог с процентов сверх необлагаемой суммы</span></div></div>`; }
       const top=anchor, be=depBreakEven(any.total, top[1].A.main.profit);
@@ -1393,25 +1455,37 @@ body.client header{display:none}
         <div class="cc-be">Чтобы сравняться с ${PROF_INS[top[0]]||'«'+esc(profName(top[0]))+'»'}, банк должен платить <b>${nf(be*100,2)}%</b></div></div>`; })();
     const card = k => { const v=CMP.res[k], nm=profName(k);
       if(!v) return `<div class="cc sk"><div class="cc-h">${nm}</div><div class="cc-big">считаю…</div><div class="cc-m"><span>&nbsp;</span></div></div>`;
-      if(v.err||!v.A||v.A.empty) return `<div class="cc"><div class="cc-h">${nm}</div><div class="cc-vs muted">не удалось собрать под срок ${termName()}${v.warns&&v.warns[0]?': '+esc(v.warns[0]):''}</div></div>`;
+      if(v.err||!v.A||v.A.empty) return `<div class="cc"><div class="cc-h">${nm}</div><div class="cc-vs muted">не удалось собрать под срок ${termName()}</div></div>`;
       const A=v.A, R=A.main, vs=R.profit-A.dep, M=A.stress&&A.stress.mc, nB=A.rows.filter(x=>x.qty>0).length;
       const nEm=new Set(A.rows.filter(x=>!x.r.ofz).map(x=>x.r.em)).size, avg=rFromScore(A.avgR);
       const mInc=R.profit/P.term, big = need ? mshort(T/(mInc/A.total)) : '+'+mshort(R.profit);
-      const sub = need ? (()=>{ const nd=bisect(a=>depMonthly(a)>=T, 0, T*12/0.01*2), x=T/(mInc/A.total); return x<nd?`<span class="up">на ${mshort(nd-x)} меньше, чем для вклада</span>`:`<span class="down">на ${mshort(x-nd)} больше, чем для вклада</span>`; })()
-        : `<span class="${vs>=0?'up':'down'}">${vs>=0?'+':'−'}${mshort(Math.abs(vs))} к вкладу</span>`;
+      const sub = need
+        ? (withDep ? (()=>{ const nd=bisect(a=>depMonthly(a)>=T, 0, T*12/0.01*2), x=T/(mInc/A.total); return x<nd?`<span class="up">на ${mshort(nd-x)} меньше, чем для вклада</span>`:`<span class="down">на ${mshort(x-nd)} больше, чем для вклада</span>`; })() : `<span>нужно вложить</span>`)
+        : withDep ? `<span class="${vs>=0?'up':'down'}">${vs>=0?'+':'−'}${mshort(Math.abs(vs))} к вкладу</span>` : `<span>на руки за ${termName()}</span>`;
+      const risk = !(M&&A.stress.n) ? '<span><b>нет риска</b> дефолта эмитентов</span>'
+        : k==='vdo' ? `<span>в среднем <b>≈ ${nf(M.expDefaults,1)}</b> ${defWord(M.expDefaults)} за срок</span><span>плохой сценарий (1 из 20): <b>${M.p5>=0?'+':'−'}${mshort(Math.abs(M.p5))}</b></span>`
+        : withDep ? (M.beat<0.05 ? '<span>вклад сейчас выгоднее — премии нет</span>' : `<span><b>${pfP(M.beat)}</b> шанс обогнать вклад</span>`)
+        : `<span>плохой сценарий (1 из 20): <b>${M.p5>=0?'+':'−'}${mshort(Math.abs(M.p5))}</b></span>`;
       return `<div class="cc ${k==='ofz'?'gov':''}" data-cmpopen="${k}"><div class="cc-h">${nm} <span class="cc-tag">${CC_TAG[k]||''}</span></div>
         <div class="cc-big">${big}</div><div class="cc-vs">${sub}</div>
-        <div class="cc-m"><span><b>${pc(R.annual)}</b> годовых после налога</span>${!(M&&A.stress.n)?'<span><b>нет риска</b> дефолта эмитентов</span>':k==='vdo'?`<span>в среднем <b>≈ ${nf(M.expDefaults,1)}</b> ${defWord(M.expDefaults)} за срок</span><span>плохой сценарий (1 из 20): <b>${M.p5>=0?'+':'−'}${mshort(Math.abs(M.p5))}</b></span>`:`<span><b>${pfP(M.beat)}</b> шанс обогнать вклад</span>`}<span><b>≈ ${mshort(A.monthly)}</b> в месяц купонами</span><span>${nB} ${plw(nB,'выпуск','выпуска','выпусков')}${nEm?` · ${nEm} ${emWord(nEm)}`:''} · ${avg==='ГОС'?'госбумаги':'средний '+avg}</span></div>
+        <div class="cc-m"><span><b>${pc(R.annual)}</b> годовых после налога</span>${risk}<span><b>≈ ${mshort(A.monthly)}</b> в месяц купонами</span><span>${nB} ${plw(nB,'выпуск','выпуска','выпусков')}${nEm?` · ${nEm} ${emWord(nEm)}`:''} · ${avg==='ГОС'?'госбумаги':'средний '+avg}</span></div>
         <button class="btn acc" data-cmpopen="${k}">Открыть →</button></div>`; };
     return lead + `<div class="ccs">${depCard}${list.map(card).join('')}</div>`
       + `<div class="row-actions" style="margin:2px 0 14px">${UI.cmore?'':`<button class="btn ghost" data-act="cmore">+ Умеренный и Доходный</button>`}${CMP.busy?'<span class="muted" style="font-weight:700">собираю варианты из бумаг Мосбиржи…</span>':''}</div>`;
   }
   function cmpPaint(){ const el=$('cmpcards'); if(el && TAB==='compare') el.innerHTML=cmpCardsHtml(); }
+  const SCENS = [['dep','🏦','Деньги на вкладе','сравним с его ставкой — сколько недополучает'],['inc','💸','Нужен доход в месяц','сколько вложить, чтобы получать нужную сумму'],
+    ['xray','📂','Уже есть облигации','разберём портфель и найдём замены лучше'],['sum','💼','Разместить сумму','готовые портфели из реальных бумаг']];
+  function prevChip(){ const p=jget('b_prev',null); if(!p||!p.p) return '';
+    return `<button class="contchip" data-act="contprev">↩ Продолжить прошлый расчёт: <b>${esc(p.label)}</b> <span>· ${whenStr(p.t)}</span></button>`; }
   function compareTabHtml(){
-    return `${barHtml('compare')}${recentHtml()}
-      <div class="card cmphead"><div class="h2row"><h2>Быстрое сравнение</h2>${info('cmp','Как считается сравнение','<p>Каждый вариант — настоящий портфель из бумаг Мосбиржи, собранный тем же движком, что и в «Портфеле»: по правилам профиля, на срок клиента, по ценам покупки сейчас. Варианты — в рублях.</p><p>Всё после НДФЛ: купоны облагаются 13% (с 2027 года — по шкале 13–22%, если включена реформа), вклад — с необлагаемой суммой процентов. «Шанс обогнать вклад» — 10 000 симуляций дефолтов эмитентов по статистике рейтингового агентства (Эксперт РА, 2001–2024), при дефолте возвращается 25%.</p><p>«Сколько нужно вложить» — по среднему доходу в месяц после налога за весь срок: у облигаций — купоны и доход при погашении, у вклада — проценты.</p><p>«Открыть» — переносит этот портфель в «Портфель»: там можно поменять бумаги, показать клиенту, сделать отчёт.</p>')}</div>
-        <div class="seg2"><button data-cmode="sum" class="${UI.cmode!=='inc'?'on':''}">Знаю сумму</button><button data-cmode="inc" class="${UI.cmode==='inc'?'on':''}">Знаю нужный доход в месяц</button></div>
-        ${UI.cmode==='inc'?`<div class="fld big" style="margin-top:10px;max-width:360px"><label>Сколько клиент хочет получать на руки в месяц, ₽</label><input id="c_inc" value="${Math.round(UI.cinc).toLocaleString('ru-RU')}" inputmode="decimal"></div>`:''}</div>
+    const cmpInfo = info('cmp','Как считаются варианты','<p>Каждый вариант — настоящий портфель из бумаг Мосбиржи, собранный тем же движком, что и в «Портфеле»: по правилам профиля, на срок клиента, по ценам покупки сейчас. Варианты — в рублях.</p><p>Всё после НДФЛ: купоны облагаются 13% (с 2027 года — по шкале 13–22%, если включена реформа), вклад — с необлагаемой суммой процентов. «Шанс обогнать вклад» и «плохой сценарий» — 10 000 симуляций дефолтов эмитентов по статистике рейтингового агентства (Эксперт РА, 2001–2024), при дефолте возвращается 25%.</p><p>«Сколько нужно вложить» — по среднему доходу в месяц после налога за весь срок: у облигаций — купоны и доход при погашении, у вклада — проценты.</p><p>«Открыть» — переносит портфель в «Портфель»: там можно поменять бумаги, показать презентацию, сделать отчёт.</p>');
+    if(!UI.scen) return `${barHtml('compare')}${prevChip()}<div class="card starth"><div class="h2row"><h2>С чего начнём?</h2>${cmpInfo}</div><div class="sub">выберите ситуацию клиента — сумму и срок можно поменять сверху в любой момент</div>
+      <div class="tiles">${SCENS.map(([k,ic,t,d])=>`<button class="tile" data-scen="${k}"><i>${ic}</i><b>${t}</b><span>${d}</span></button>`).join('')}</div></div>`;
+    return `${barHtml('compare')}
+      <div class="scens">${SCENS.map(([k,ic,t])=>`<button data-scen="${k}" class="${UI.scen===k?'on':''}">${ic} ${t}</button>`).join('')}${UI.scen==='dep'?cmpInfo:''}</div>
+      ${UI.scen==='inc'?`<div class="card incbox"><div class="fld big"><label>Сколько клиент хочет получать на руки в месяц, ₽</label><input id="c_inc" value="${Math.round(UI.cinc).toLocaleString('ru-RU')}" inputmode="decimal"></div></div>`:''}
+      ${UI.scen!=='dep'?`<div class="exs"><button class="xchip ${UI.cdep?'on':''}" data-act="cdep">${UI.cdep?'✓ ':''}🏦 Сравнить с вкладом${UI.cdep?' '+nf(depNow(),2)+'%':''}</button>${cmpInfo}</div>`:''}
       <div id="cmpcards">${cmpCardsHtml()}</div>`;
   }
   // ---------------- «Портфель» — один экран
@@ -1425,7 +1499,8 @@ body.client header{display:none}
       ? `Вложили ${mshort(T)} → ≈ ${compact?mshort(A.monthly):cu(A.monthly,pv&&pv.monthly)} в месяц на руки, через ${termName()} вернётся ≈ ${mshort(fin-(R.paidOut||0))}`
       : `Вложили ${mshort(T)} → через ${termName()} получите ${compact?mshort(fin):cu(fin,pv&&pv.fin)}`;
     const vs=R.profit-A.dep;
-    const chip=`<div class="vs">${vs>=0?'▲ на '+mshort(vs)+' больше, чем во вкладе':'▼ на '+mshort(-vs)+' меньше, чем во вкладе'}</div>`;
+    const chip = (compact || DEPMODE()) ? `<div class="vs">${vs>=0?'▲ на '+mshort(vs)+' больше, чем во вкладе':'▼ на '+mshort(-vs)+' меньше, чем во вкладе'}</div>`
+      : `<div class="vs">≈ ${mshort(A.monthly)} в месяц купонами${A.acc==='std'?' после налога':''}</div>`;
     const dl = !compact && DELTA && Math.abs(DELTA.profit)>=1000 ? `<div class="vs dlt">${DELTA.profit>=0?'+':'−'}${mshort(Math.abs(DELTA.profit))} к прошлому варианту</div>` : '';
     return `<div class="hero ${!compact&&DELTA?'flash':''}"><div class="big">${line}</div>${chip}${dl}<div class="sm">после НДФЛ${P.account==='iis3'?(R.iisTax>0?` (ИИС-3: без налога до 30 млн ₽ дохода, с превышения — ${mshort(R.iisTax)})`:' (ИИС-3 — без налога при соблюдении срока, до 30 млн ₽ дохода)'):''} · до ${fmtD(A.H)} · ${P.reform?'с учётом налоговой реформы 2027':'по действующим ставкам НДФЛ'}</div>
       <div class="row3"><div><div class="l">Доход после налога</div><div class="v">${compact?mshort(R.profit):cu(R.profit,pv&&pv.profit)}</div></div>
@@ -1444,8 +1519,9 @@ body.client header{display:none}
     const fxSh=Object.entries(A.struct.cur).filter(([c])=>c!=='RUB').reduce((a,[,v])=>a+v,0)/T;
     const note=`<p>На руки после НДФЛ, сумма ${mshort(T)}. Вклад — ${nf(A.depRate*100,2)}% на год${PAY()?', проценты ежемесячно':', проценты раз в год без капитализации'}${A.depPath.length>1?'; дальше переоформление'+(A.depPath.slice(1).some(r=>r<A.depRate-1e-6)?' по ставке, которую ждёт рынок: '+A.depPath.slice(1).map(r=>nf(r*100,1)+'%').join(', '):' по той же ставке'):''}; с необлагаемой суммой процентов (1 млн ₽ × ключевая ставка).</p><p>ОФЗ — бумага по номиналу с доходностью кривой ОФЗ на срок клиента.</p>${INF!=null?`<p>Инфляция за последние 12 месяцев — ${nf(INF*100,2)}% (Банк России, ${infDate()}). «Сверх инфляции» — на сколько деньги растут быстрее цен.</p>`:''}${fxSh>0.005?`<p>Валютные облигации (${nf(fxSh*100,0)}% портфеля) приносят меньше рублёвых — это плата за защиту от ослабления рубля. В сравнении курс неизменный; если рубль ослабнет, валютная часть заработает больше.</p>`:''}`;
     return `<div class="card ${!compact&&DELTA?'flash':''}"><div class="h2row"><h2>Сравнение на ${termName()}</h2>${compact?'':info('cmpn','Как считается сравнение',note)}</div><div class="sub">на руки после НДФЛ, сумма ${mshort(T)}${compact||CLIENT?'':` · <button class="lnk" data-pill="dep">ставка вклада ${nf(A.depRate*100,2)}% ✎</button>`}</div>
-      <div class="tblwrap"><table><thead><tr><th>Вариант</th><th>Получите</th><th>Доход</th><th>Годовых${PAY()?' (простых)':''}</th>${INF!=null?'<th title="на сколько деньги растут быстрее цен">Сверх инфляции</th>':''}</tr></thead><tbody>${rows.map(([n,p,me])=>
-        `<tr><td class="nm">${me?'<b>'+n+'</b>':n}${p===best?' 🏆':''}</td><td class="num">${mshort(T+p)}</td><td class="num">${mshort(p)}</td><td class="num">${pc(ann(p))}</td>${INF!=null?`<td class="num ${ann(p)>INF?'up':'down'}">${sg(((1+ann(p))/(1+INF)-1)*100,2,'%')}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`;
+      <div class="tblwrap ${compact?'':'only-d'}"><table><thead><tr><th>Вариант</th><th>Получите</th><th>Доход</th><th>Годовых${PAY()?' (простых)':''}</th>${INF!=null?'<th title="на сколько деньги растут быстрее цен">Сверх инфляции</th>':''}</tr></thead><tbody>${rows.map(([n,p,me])=>
+        `<tr><td class="nm">${me?'<b>'+n+'</b>':n}${p===best?' 🏆':''}</td><td class="num">${mshort(T+p)}</td><td class="num">${mshort(p)}</td><td class="num">${pc(ann(p))}</td>${INF!=null?`<td class="num ${ann(p)>INF?'up':'down'}">${sg(((1+ann(p))/(1+INF)-1)*100,2,'%')}</td>`:''}</tr>`).join('')}</tbody></table></div>
+      ${compact?'':`<div class="only-m cml">${rows.map(([n,p,me])=>`<div class="cmr ${me?'me':''}"><div class="cmn">${n}${p===best?' 🏆':''}</div><div class="cmv"><b>${mshort(T+p)}</b><span>доход ${mshort(p)} · ${pc(ann(p))} годовых${INF!=null?` · <i class="${ann(p)>INF?'up':'down'}">${sg(((1+ann(p))/(1+INF)-1)*100,1,'%')} к инфляции</i>`:''}</span></div></div>`).join('')}</div>`}</div>`;
   }
   // деньги по месяцам: ближайший год на руки (после НДФЛ) или весь срок (купоны и погашения, до налога)
   const MN3=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
@@ -1500,7 +1576,7 @@ body.client header{display:none}
   function shieldHtml(A, compact){
     if(compact) return `<div class="card">${shieldInner(A,true)}</div>`;
     const S=A.stress; if(!S) return ''; const M=S.mc;
-    const aside = !S.n ? 'риска дефолта нет' : M ? (P.params.vdo ? `≈ ${nf(M.expDefaults,1)} ${defWord(M.expDefaults)} за срок` : `<b class="up">${pfP(M.beat)}</b> обогнать вклад`) : '';
+    const aside = !S.n ? 'риска дефолта нет' : M ? (P.params.vdo ? `≈ ${nf(M.expDefaults,1)} ${defWord(M.expDefaults)} за срок` : M.beat<0.05 ? 'вклад сейчас выгоднее' : `<b class="up">${pfP(M.beat)}</b> обогнать вклад`) : '';
     const note = S.n ? `<p>Худший случай: эмитент перестаёт платить сразу после покупки, по итогам банкротства возвращается ${nf(S.rec*100,0)}% (обычно 20–40%), убыток налог не уменьшает. Эмитенты — по убыванию доли.</p>${M?`<p>${nf(M.n,0)} симуляций: каждый эмитент может не заплатить с вероятностью по его рейтингу — по статистике дефолтов Эксперт РА 2001–2024 (без рейтинга — как B); в среднем ожидается ${nf(M.expDefaults,M.expDefaults<1?2:1)} дефолта за срок.</p>`:''}` : '';
     return sec('shield', `Запас прочности ${S.n?info('shn','Как считается запас прочности',note):''}`, aside, shieldInner(A,false), false);
   }
@@ -1526,11 +1602,11 @@ body.client header{display:none}
       <div class="fld" style="margin-top:8px"><label>Ключевая ставка в среднем за срок: <b id="kx_v">${nf(X,1)}%</b> <span class="muted">(сейчас ${nf(K,2)}%)</span></label>
         <input type="range" id="kx" min="${Math.max(4,Math.floor(K-8))}" max="${Math.ceil(K+8)}" step="0.5" value="${X}"></div>
       <div id="kx_out">${keyOutHtml(A)}</div>
-      ${A.shifts.length?`<div class="sub" style="margin-top:12px">резкий сдвиг рыночных ставок сразу после покупки</div>
-      <div class="tblwrap"><table><thead><tr><th>Сценарий</th><th>Стоимость портфеля сразу</th><th>Итог через ${termName()}</th></tr></thead><tbody>
+      ${A.shifts.length?`<details class="params" style="margin-top:12px"><summary>Резкий сдвиг ставок сразу после покупки</summary>
+      <div class="tblwrap" style="margin-top:8px"><table><thead><tr><th>Сценарий</th><th>Стоимость портфеля сразу</th><th>Итог через ${termName()}</th></tr></thead><tbody>
       <tr><td class="nm">Ставки не меняются</td><td class="num">—</td><td class="num">${mshort(A.total+A.main.profit)}</td></tr>
       ${A.shifts.map(s=>`<tr><td class="nm">${name(s.dy)}</td><td class="num ${s.nowRub>=0?'up':'down'}">${s.nowRub>=0?'+':'−'}${mshort(Math.abs(s.nowRub))} (${sg(s.now*100,1)})</td><td class="num">${mshort(A.total+s.end.profit)}</td></tr>`).join('')}
-      </tbody></table></div>`:''}</div>`;
+      </tbody></table></div></details>`:''}</div>`;
   }
   const cashflowMonths = (A, n) => { const m={}; for(const ps of A.positions) for(const f of ps.flows){ if(f.date>A.H) continue; const k=f.date.slice(0,7); m[k]=m[k]||{c:0,p:0}; if(f.kind==='c') m[k].c+=f.amt*ps.qty*ps.fx; else m[k].p+=f.amt*ps.qty*ps.fx; } let ks=Object.keys(m).sort(); if(n) ks=ks.slice(0,n); return ks.map(k=>({k,...m[k]})); };
   function ladder(A){ const y={}; for(const ps of A.positions) for(const f of ps.flows) if(f.kind!=='c'){ const k=f.date.slice(0,4); y[k]=(y[k]||0)+f.amt*ps.qty*ps.fx; } return Object.entries(y).sort(); }
@@ -1579,6 +1655,37 @@ body.client header{display:none}
     return list.sort((a,b)=>(b.cs-a.cs)).slice(0,6);
   }
   const suggHtml = q => suggestions(q).map(r=>`<button class="chipadd" data-addq="${r.id}">+ ${esc(r.name)} <span>${esc(r.rating||'н/р')} · ${pc(r.ytm,1)} · до ${fmtD(r.end)}</span></button>`).join('') || '<span class="muted">ничего не найдено</span>';
+  // ---------------- «есть лучшая альтернатива»: надёжность не ниже, срок ±30%, тот же тип купона, другой эмитент, доходность выше на 0,5 п.п.+
+  const KEEP = new Set(jget('b_keep',[]));
+  let ALTC = {};
+  function betterAlt(r){
+    if(!r || r.ytm==null || r.flag || r.kind==='float' || r.est) return null;      // у флоатеров доходность — оценка, сравнивать нечестно
+    if(r.id in ALTC) return ALTC[r.id];
+    const yrs=r.years||0, rs=rScore(r.rating), fl=false, tol=Math.min(1, Math.max(0.5, yrs*0.3)); let best=null;
+    for(const c of U){
+      if(c.id===r.id || c.cur!==r.cur || c.ytm==null || c.flag || c.sub || c.mbs || !c.ok) continue;
+      if((c.kind==='float')!==fl || c.years==null || Math.abs(c.years-yrs)>tol) continue;
+      if(c.ytm < r.ytm+0.005) continue;
+      if(c.est) continue;
+      if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || rScore(c.rating)>rs || c.price<70 || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
+      if(!best || c.ytm>best.ytm) best=c;
+    }
+    return ALTC[r.id]=best;
+  }
+  const altOf = id => { const r=BYID[id]; return r && !KEEP.has(id) && !inPort(id) ? betterAlt(r) : null; };
+  let ALTCTX='screen';
+  function altSheetHtml(id){
+    const r=BYID[id], c=betterAlt(r); if(!c) return '';
+    const col=(x,lab,cls)=>{ const at=BS.afterTax(x,BM,SETTLE); return `<div class="altc ${cls}"><span class="altl">${lab}</span><b>${esc(x.name)}</b> ${rTag(x.rating)}<small>${x.ofz?'ОФЗ':esc((x.emName||'').slice(0,40))}</small>
+      <dl><dt>Доходность</dt><dd>${pc(x.ytm)}</dd><dt>После НДФЛ</dt><dd>${at!=null?pc(at):'—'}</dd><dt>${x.off?'Оферта':'Погашение'}</dt><dd>${fmtD(x.end)}</dd><dt>Купон</dt><dd>${x.cpn!=null?nf(x.cpn,2)+'%':x.kind==='float'?'плав.':'—'} · ${freqName(x.freq)}</dd><dt>Оборот в день</dt><dd>${x.tv?nf(x.tv/1e6,1)+' млн ₽':'—'}</dd></dl></div>`; };
+    const d=c.ytm-r.ytm;
+    return `<h3>Есть лучшая альтернатива</h3><div class="sub">надёжность ${rScore(c.rating)<rScore(r.rating)?'выше':'та же'}, срок близкий, тот же тип купона — доходность выше на <b class="up">${nf(d*100,2)} п.п.</b> ≈ +${mshort(10e6*d*0.87)} в год после налога на каждые 10 млн</div>
+      <div class="altg">${col(r,'выбрана','')}${col(c,'лучше','best')}</div>
+      <div class="row-actions" style="margin-top:14px"><button class="btn acc" data-altpick="${c.id}" data-altfor="${r.id}">Взять лучшую</button><button class="btn ghost" data-altkeep="${r.id}">Оставить эту</button></div>
+      <div class="note" style="margin-top:8px">«Оставить эту» — для этой бумаги подсказка больше не появится.</div>`;
+  }
+  // добавить с проверкой альтернативы: если есть лучше — сначала шторка с выбором
+  function addChecked(id, ctx){ if(altOf(id)){ ALTCTX=ctx; openSheet(altSheetHtml(id)); return false; } return true; }
   function addToPort(id){
     if(inPort(id)) return;
     // доля новой бумаги — как у средней позиции (не больше лимита на эмитента); если места нет, остальные уменьшаются пропорционально
@@ -1605,10 +1712,11 @@ body.client header{display:none}
     const nEm=new Set(A.rows.filter(x=>!x.r.ofz).map(x=>x.r.em)).size, avg=rFromScore(A.avgR);
     const aside=`${A.rows.length} ${A.rows.length===1?'бумага':A.rows.length<5?'бумаги':'бумаг'}${nEm?` · ${nEm} ${emWord(nEm)}`:''} · ${avg==='ГОС'?'ОФЗ':'ср. '+avg}`;
     let h='';
-    if(P.warns&&P.warns.length) h+=`<ul class="warns">${P.warns.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`;
     if(A.skipped&&A.skipped.length) h+=`<ul class="warns"><li class="bad">Нет графика выплат — бумага не участвует в расчёте: ${esc(A.skipped.join(', '))}. Замените её.</li></ul>`;
-    const viol=profileCheck(A.rows,A.total,P.params), fit=fitProfile(A.rows,A.total), chosen=profName();
-    h+=`<div class="fitbox ${viol.length?'no':'ok'}">${fit?`По надёжности бумаг портфель — «${PROFILES[fit].name}»`:'По надёжности портфель рискованнее «Доходного»'}${viol.length?` · для «${esc(chosen)}» не выполнено:<ul>${viol.map(v=>`<li>${esc(v)}</li>`).join('')}</ul>`:` · «${esc(chosen)}» — всё в рамках`}</div>`;
+    const viol=profileCheck(A.rows,A.total,P.params), fit=fitProfile(A.rows,A.total), chosen=profName(), W=P.warns||[];
+    const notes=`<p><b>${fit?`По надёжности бумаг портфель — «${PROFILES[fit].name}».`:'По надёжности портфель рискованнее «Доходного».'}</b></p>${viol.length?`<p>Для «${esc(chosen)}» не выполнено:</p><ul>${viol.map(v=>`<li>${esc(v)}</li>`).join('')}</ul>`:`<p>«${esc(chosen)}» — всё в рамках профиля.</p>`}${W.length?`<p><b>Заметки по сборке</b></p><ul>${W.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}`;
+    INFO.notes={title:'Проверка портфеля', html:notes};
+    h+=`<button class="fitline ${viol.length?'no':'ok'}" data-info="notes">${viol.length?`⚠ Не всё в рамках профиля (${viol.length})`:'✓ В рамках профиля «'+esc(chosen)+'»'}${W.length?` · заметки по сборке (${W.length})`:''} <span>подробнее</span></button>`;
     h+=exSecHtml(A);
     h+=`<div class="addbar">${acBox('add','добавить бумагу: эмитент, название или ISIN')}<div class="chips2" id="sugg">${suggHtml('')}</div></div>`;
     h+=posRows(A,false);
@@ -1621,7 +1729,7 @@ body.client header{display:none}
   function emptyPortHtml(){
     return `<div class="card emptyp"><h2>Портфель пуст</h2><div class="sub">Соберите портфель под сумму и срок клиента или выберите готовый вариант в «Сравнении».</div>
       <div class="plist two">${PROF_ORDER.map(p=>`<button data-prof="${p}" data-build="1" class="${P.profile===p?'on':''}"><b>${PROFILES[p].name}</b><span>${PROFILES[p].d}</span></button>`).join('')}</div>
-      <div class="row-actions" style="margin-top:12px"><button class="btn ghost" data-tab="compare">⚖ Сравнение вариантов</button><button class="btn ghost" data-tab="xray">Разобрать портфель клиента</button></div></div>${recentHtml()}`;
+      <div class="row-actions" style="margin-top:12px"><button class="btn ghost" data-tab="compare">⚖ Варианты портфелей</button><button class="btn ghost" data-tab="xray">Разобрать портфель клиента</button></div></div>${prevChip()}`;
   }
   function trackHtml(A){ if(!A.track) return '';
     return `<div class="card trackc"><h2>Как живёт портфель с ${fmtD(A.track.d0)}</h2><div class="trk"><div><span>вложено тогда</span><b>${mshort(A.track.v0)}</b></div><div><span>стоят бумаги сейчас</span><b>${mshort(A.track.now)}</b></div><div><span>пришло купонов и погашений</span><b>${mshort(A.track.recv)}</b></div><div class="${A.track.ret>=0?'up':'down'}"><span>итого</span><b>${sg(A.track.ret*100,1,'%')}</b></div></div>
@@ -1747,6 +1855,7 @@ body.client header{display:none}
       <button data-act="pv" data-pv="report"><b>📄 Отчёт PDF</b><span>одна страница с QR-кодом</span></button>
       <button data-act="clear" class="danger"><b>✕ Очистить портфель</b><span>можно будет вернуть в течение нескольких секунд</span></button></div>
       <div class="fld" style="margin-top:14px"><label>Сохранить портфель (без данных клиента)</label><div class="row-actions"><input id="save_name" placeholder="название, например «Консервативный 50 млн»" style="flex:1;min-width:0"><button class="btn ghost" data-act="save">Сохранить</button></div></div>
+      ${jget('b_recent',[]).length?`<div class="fld" style="margin-top:12px"><label>Недавние расчёты (только на этом устройстве)</label>${recentHtml()}</div>`:''}
       ${saved.length?`<div class="fld" style="margin-top:12px"><label>Сохранённые</label><div class="chips2">${saved.map(n=>`<button class="chipadd" data-load="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`:''}`;
   }
   function vsSheetHtml(){ return `<h3>Сравнить «${esc(profName())}» с…</h3><div class="mlist">${vsChoices().map(([k,n])=>`<button data-vs="${esc(k)}"><b>${esc(n)}</b></button>`).join('')}</div>`; }
@@ -1880,17 +1989,17 @@ body.client header{display:none}
       const step=t=>{ const k=Math.min(1,(t-t0)/D), e=1-Math.pow(1-k,3); el.textContent=f(from+(to-from)*e); if(k<1) requestAnimationFrame(step); };
       el.textContent=f(from); requestAnimationFrame(step); });
   }
-  const TABS=[['compare','Сравнение'],['port','Портфель'],['screen','Подбор'],['xray','Разбор']];
+  const TABS=[['compare','Старт'],['port','Портфель'],['screen','Подбор'],['xray','Разбор']];
   function bbarHtml(){
     if(TAB!=='port' || PV!=='main' || !ANALYSIS || ANALYSIS.empty) return '';
     if(CLIENT) return `<div class="bbar"><button class="btn acc" data-act="present">▶ Презентация</button></div>`;
     return `<div class="bbar"><button class="btn acc" data-act="present">▶ Показать клиенту</button><button class="btn ghost" data-act="pv" data-pv="report">Отчёт</button><button class="btn ghost" data-act="moresheet">Ещё…</button></div>`;
   }
   function render(){
-    kill();
+    kill(); ALTC={};
     document.body.classList.toggle('client', CLIENT);
     $('tabs').innerHTML = CLIENT ? '' : TABS.map(([k,n])=>`<button class="tab ${TAB===k?'on':''}" data-tab="${k}">${n}${k==='port'&&P.pos.length?`<span class="cnt">${P.pos.length}</span>`:''}</button>`).join('')
-      + (P.pos.length?`<button class="tab clr" data-act="clear" title="очистить портфель">✕ очистить</button>`:'');
+      ;
     if(!U.length) return;
     let body;
     if(TAB==='port' || CLIENT) body = PV==='carry' ? carryHtml() : PV==='report' ? reportViewHtml() : PV==='vs' ? vsHtml() : portMainHtml();
@@ -1980,6 +2089,7 @@ body.client header{display:none}
   const _closeSheet=closeSheet;
   closeSheet = function(){ const was=_closeSheet(); if(was) sheetClosed(); return was; };
   document.addEventListener('click',async ev=>{
+    touch();
     const el=ev.target.closest('button,[data-why],[data-cmpopen],summary'); if(el && el.tagName==='BUTTON') hap(el.classList.contains('xchip')||el.classList.contains('pill')?'sel':'light');
     // подсказки поиска
     const aci=ev.target.closest('.aci'); if(aci){ const mode=aci.dataset.acmode;
@@ -1992,7 +2102,7 @@ body.client header{display:none}
       }
       if(aci.dataset.acid){ const r=BYID[aci.dataset.acid];
         if(mode==='screen'){ F.q=r.isin; F.em=''; saveF(); render(); return; }
-        if(mode==='add'){ remember(); addToPort(r.id); toast(`Добавлено: ${esc(r.name)}`, true); await recompute(); return; }
+        if(mode==='add'){ if(!addChecked(r.id,'add')) return; remember(); addToPort(r.id); toast(`Добавлено: ${esc(r.name)}`, true); await recompute(); return; }
         if(mode==='xray'){ const ta=$('xr_text'); if(ta){ ta.value=(ta.value.trim()?ta.value.trim()+'\n':'')+r.isin+' '; ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); XR.text=ta.value; }
           const inp=document.querySelector('[data-ac="xray"]'); if(inp) inp.value=''; const b=$('acl_xray'); if(b) b.innerHTML=''; return; }
       }
@@ -2014,7 +2124,9 @@ body.client header{display:none}
       TRACK=null; XRSNAP=null; TAB='port'; PV='main'; store.set('b_tab2',TAB); savePort(); pushRecent(); hap('ok'); window.scrollTo({top:0}); await recompute(); return; }
     const rc=ev.target.closest('[data-recent]'); if(rc){ const s=jget('b_recent',[])[+rc.dataset.recent]; if(s){ remember(); Object.assign(P, JSON.parse(JSON.stringify(s.p))); TRACK=null; XRSNAP=null; TAB='port'; PV='main'; store.set('b_tab2',TAB); savePort(); window.scrollTo({top:0}); await recompute(); } return; }
     const ld=ev.target.closest('[data-load]'); if(ld){ const s=jget('b_saved2',{})[ld.dataset.load]; if(s){ remember(); Object.assign(P, JSON.parse(JSON.stringify(s))); delete P.goals; delete P.step; if(!Array.isArray(P.exSec)) P.exSec=[]; closeSheet(); TRACK=null; XRSNAP=null; TAB='port'; PV='main'; store.set('b_tab2',TAB); savePort(); await recompute(); toast(`Открыт «${esc(ld.dataset.load)}»`, true); } return; }
-    const cm=ev.target.closest('[data-cmode]'); if(cm){ UI.cmode=cm.dataset.cmode; saveUI(); render(); return; }
+    const scn=ev.target.closest('[data-scen]'); if(scn){ const k=scn.dataset.scen;
+      if(k==='xray'){ TAB='xray'; store.set('b_tab2',TAB); render(); window.scrollTo({top:0}); return; }
+      UI.scen=k; saveUI(); render(); if(k==='dep' && P.depRate==null){ SHEET_KIND='dep'; openSheet(pillSheet('dep')); } return; }
     const mn=ev.target.closest('[data-money]'); if(mn){ if(mn.disabled) return; UI.money=mn.dataset.money; saveUI(); render(); return; }
     const xs=ev.target.closest('[data-exsec]'); if(xs){ const k=xs.dataset.exsec; const snap=snapP(); P.exSec=P.exSec||[]; P.exSec=P.exSec.includes(k)?P.exSec.filter(x=>x!==k):[...P.exSec,k]; savePort();
       await rebuild(P.exSec.includes(k)?`Без отрасли «${esc(k)}» — портфель пересобран`:`«${esc(k)}» снова разрешена — портфель пересобран`, snap); return; }
@@ -2023,14 +2135,24 @@ body.client header{display:none}
     const vsb=ev.target.closest('[data-vs]'); if(vsb){ closeSheet(); await vsOpen(VS.a&&PV==='vs'?null:'cur', vsb.dataset.vs); return; }
     const vso=ev.target.closest('[data-vsopen]'); if(vso){ const v=vso.dataset.vsopen==='a'?VS.a:VS.b; if(v&&v.pos){ remember(); P.pos=v.pos.map(p=>({id:p.id,w:p.w})); if(v.prof){ P.profile=v.prof; P.params=JSON.parse(JSON.stringify(PROFILES[v.prof])); } P.warns=[]; PV='main'; savePort(); pushRecent(); toast(`Открыт «${esc(v.label)}»`, true); window.scrollTo({top:0}); await recompute(); } return; }
     const th=ev.target.closest('th[data-s]'); if(th){ const s=th.dataset.s; if(F.sort===s) F.asc=!F.asc; else {F.sort=s; F.asc=(s==='name');} saveF(); render(); return; }
+    const alb=ev.target.closest('[data-alt]'); if(alb){ ev.stopPropagation(); ALTCTX='screen'; openSheet(altSheetHtml(alb.dataset.alt)); return; }
+    const alp=ev.target.closest('[data-altpick],[data-altkeep]'); if(alp){
+      const id = alp.dataset.altpick || alp.dataset.altkeep, orig = alp.dataset.altfor;
+      if(alp.dataset.altkeep){ KEEP.add(id); store.set('b_keep', JSON.stringify([...KEEP])); }
+      remember(); addToPort(id); savePort(); _closeSheet(); hap('sel');
+      toast(alp.dataset.altpick ? `Добавлена лучшая: ${esc(BYID[id].name)}` : `Добавлено: ${esc(BYID[id].name)}`, true);
+      if(ALTCTX==='add') await recompute(); else { ANALYSIS=null; render(); }
+      return; }
     const wy=ev.target.closest('[data-why]'); if(wy){ const r=BYID[wy.dataset.why]; if(!r) return;
       let where='в списке';
       if(TAB==='screen') screen(); else { BS.composite(U.filter(u=>passBase(u)&&u.cur===r.cur&&!u.sub&&!u.mbs)); where='на рынке в '+({RUB:'рублях',CNY:'юанях',USD:'долларах',EUR:'евро'}[r.cur]||r.cur); }
-      openSheet(`<h3>${esc(r.name)} ${rTag(r.rating)}</h3>${whyHtml(r, BS.afterTax(r,BM,SETTLE), where)}${TAB==='screen'?`<div class="row-actions" style="margin-top:12px"><button class="btn ${inPort(r.id)?'ghost':'acc'}" data-add="${r.id}">${inPort(r.id)?'Убрать из портфеля':'+ В портфель'}</button></div>`:''}`); return; }
+      const alt=TAB==='screen'?altOf(r.id):null;
+      openSheet(`<h3>${esc(r.name)} ${rTag(r.rating)}</h3>${alt?`<button class="altnote" data-alt="${r.id}">💡 Есть лучше: <b>${esc(alt.name)}</b> · ${esc(alt.rating||'')} · ${pc(alt.ytm)} (+${nf((alt.ytm-r.ytm)*100,2)} п.п.) <span>сравнить →</span></button>`:''}${whyHtml(r, BS.afterTax(r,BM,SETTLE), where)}${TAB==='screen'?`<div class="row-actions" style="margin-top:12px"><button class="btn ${inPort(r.id)?'ghost':'acc'}" data-add="${r.id}">${inPort(r.id)?'Убрать из портфеля':'+ В портфель'}</button></div>`:''}`); return; }
     const ad=ev.target.closest('[data-add]'); if(ad){ const id=ad.dataset.add;
+      if(!inPort(id) && !addChecked(id,'screen')) return;
       if(inPort(id)) P.pos=P.pos.filter(p=>p.id!==id); else addToPort(id);
       ANALYSIS=null; savePort(); hap('sel'); if(sheetOpen()) _closeSheet(); render(); return; }
-    const aq=ev.target.closest('[data-addq]'); if(aq){ remember(); addToPort(aq.dataset.addq); toast(`Добавлено: ${esc(BYID[aq.dataset.addq].name)}`, true); await recompute(); return; }
+    const aq=ev.target.closest('[data-addq]'); if(aq){ if(!addChecked(aq.dataset.addq,'add')) return; remember(); addToPort(aq.dataset.addq); toast(`Добавлено: ${esc(BYID[aq.dataset.addq].name)}`, true); await recompute(); return; }
     const wd=ev.target.closest('[data-wd]'); if(wd){ const p=P.pos.find(x=>x.id===wd.dataset.wd); if(p){ p.w=Math.max(0, Math.round((p.w+ +wd.dataset.d)*10)/10); if(p.w===0){ remember(); P.pos=P.pos.filter(x=>x!==p); toast('Бумага убрана', true); } savePort(); hap('sel'); await recompute(); } return; }
     const dl=ev.target.closest('[data-del]'); if(dl){ remember(); const r=BYID[dl.dataset.del]; P.pos=P.pos.filter(p=>p.id!==dl.dataset.del); savePort(); hap('medium'); toast(`Убрано: ${esc(r?r.name:'')}`, true); await recompute(); return; }
     const cd=ev.target.closest('[data-cdel]'); if(cd){ P.carry.pos=P.carry.pos.filter(p=>p.id!==cd.dataset.cdel); savePort(); await analyze(); render(); return; }
@@ -2043,6 +2165,9 @@ body.client header{display:none}
     if(act==='qclear'){ F.q=''; saveF(); render(); }
     if(act==='amtok'||act==='depok'){ const i=$('p_amount'); if(i) applyAmount(i.value)&&(AMT_DIRTY=true); const d=$('p_dep'); if(d && act==='depok'){ P.depRate=num(d.value); savePort(); PARAMS_DIRTY=true; } closeSheet(); }
     if(act==='depreset'){ P.depRate=null; savePort(); PARAMS_DIRTY=true; closeSheet(); }
+    if(act==='newclient'){ newClient(false); return; }
+    if(act==='contprev'){ await contPrev(); return; }
+    if(act==='cdep'){ UI.cdep=!UI.cdep; saveUI(); render(); if(UI.cdep && P.depRate==null){ SHEET_KIND='dep'; openSheet(pillSheet('dep')); } return; }
     if(act==='cmore'){ UI.cmore=true; saveUI(); CMP.key=null; render(); }
     if(act==='build'){ a.disabled=true; a.textContent='Собираю…'; await rebuild('Портфель пересобран'); }
     if(act==='pv'){ closeSheet(); PV=a.dataset.pv; if(PV==='carry'&&!ANALYSIS&&P.pos.length) recompute(); else render(); window.scrollTo({top:0}); }
@@ -2121,7 +2246,7 @@ body.client header{display:none}
   // переходы: ?v=compare|port|xray | ?q=SECID | ?p=… (Telegram дописывает свои данные после «#», поэтому параметры — в «?»); #PORT и #q= — для старых ссылок
   function applyHash(){
     const qs=new URLSearchParams(location.search);
-    if(readPortLink(qs)) return;
+    if(readPortLink(qs)) return true;
     const v=(qs.get('v')||'').toLowerCase(); if(v==='port'){ TAB='port'; return; } if(v==='xray'){ TAB='xray'; return; } if(v==='compare'||v==='calc'){ TAB='compare'; return; } if(v==='screen'){ TAB='screen'; return; }
     if(qs.get('q')){ TAB='screen'; F.q=qs.get('q'); F.em=''; return; }
     const h=decodeURIComponent((location.hash||'').slice(1));
@@ -2130,7 +2255,12 @@ body.client header{display:none}
     const m=h.match(/^q=(.+)$/); if(m){ TAB='screen'; F.q=m[1]; F.em=''; }
   }
   load().then(()=>{
-    applyHash(); render(); if(TAB==='port' && P.pos.length) recompute();
+    const fromLink=applyHash();
+    // прошло больше 4 часов — значит, новая встреча: начинаем с нуля (прошлый расчёт — кнопкой «↩ Продолжить»)
+    const last=+store.get('b_last','0');
+    if(!fromLink && !CLIENT && last && Date.now()-last>4*3600e3 && (P.pos.length || UI.scen)){ newClient(true); if(!new URLSearchParams(location.search).get('v')){ TAB='compare'; store.set('b_tab2',TAB); } }
+    touch();
+    render(); if(TAB==='port' && P.pos.length) recompute();
     window.addEventListener('hashchange',()=>{ applyHash(); render(); });
     setInterval(async()=>{ try{ await load(); if(TAB==='screen') render(); }catch(e){} }, 5*60*1000);
   }).catch(e=>{ console.error(e); $('app').innerHTML=`<div class="card empty">Не удалось загрузить котировки Мосбиржи (${esc(e.message)}). Обновите страницу через минуту.</div>`; $('upd').textContent=''; });
