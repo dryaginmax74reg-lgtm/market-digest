@@ -191,6 +191,13 @@ tr:last-child td{border:0}
   .ts{width:64px}
   .top-right .upd{display:none}
 }
+.ych summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.ych summary::-webkit-details-marker{display:none}.ych summary span{font-size:12.5px;color:var(--ink2);font-weight:600}
+.ych summary::after{content:"▸";color:var(--ink3)}.ych[open] summary::after{transform:rotate(90deg)}
+.ycg{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:12px}
+.ycl{font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:4px}.ycl b{color:var(--ink);margin-left:4px}.ycl span{margin-left:6px;font-size:12px}
+.ycv{height:170px;position:relative}
+.ycl .muted{color:var(--ink3)}
 </style>
 </head>
 <body>
@@ -214,7 +221,7 @@ tr:last-child td{border:0}
     {id:'bonds', name:'Облигации', icon:'◫'},
     {id:'fx', name:'Валюты', icon:'₽'},
     {id:'markets', name:'Рынки', icon:'↗'},
-    {id:'calc', name:'Расчёт', icon:'∑'},
+    {id:'calc', name:'Сравнение', icon:'⚖'},
   ];
   const TAB_SERIES = {
     rates:['KEY','DEP','RUSFARCNY','RUONIA'],
@@ -356,217 +363,7 @@ tr:last-child td{border:0}
       `<table><thead><tr><th data-s="group">Инструмент</th><th>Сейчас</th>${th('d1','1д')}${th('m1','1м','hide-m')}${th('ytd','YTD')}<th class="hide-m">${RANGES.find(r=>r[0]===RANGE)[1]}</th></tr></thead><tbody>${html}</tbody></table></div>`;
   }
 
-  // ---------- калькулятор: что получит клиент после НДФЛ (налог считается только с этих инвестиций)
-  // Правила по году получения дохода:
-  //   2026 — действующие: инвестдоход 13% до 2,4 млн ₽, 15% сверху; вклады: необлагаемо 1 млн × макс. ключевая на 1-е числа месяцев года
-  //   2027+ — законопроект № 617-9 (если примут): шкала 13/15/18/20/22% (2,4 / 5 / 20 / 50 млн);
-  //           вклады: необлагаемо 1 млн × макс. ключевая ПРОШЛОГО года; банки удерживают налог
-  const REFORM_YEAR = 2027;
-  const CALC = {amount: Number(store.get('calc_amount','100000000')), months: Number(store.get('calc_months','12')),
-                tax: true, reform: store.get('calc_reform','1')==='1', reinv: store.get('calc_reinv','reinv'), rates:null};
-  const REINV = [['pay','Выплачивать'],['reinv','Реинвестировать'],['iis','ИИС-3']];
-  const TERMS = [[3,'3 мес'],[6,'6 мес'],[12,'1 год'],[24,'2 года'],[36,'3 года']];
-  function curveAt(years){
-    const c=(DATA.curves||{})['сегодня']; if(!c) return has('RGBI_Y')?last('RGBI_Y'):null;
-    const p=c.points.slice().sort((a,b)=>a[0]-b[0]);
-    if(years<=p[0][0]) return p[0][1]; if(years>=p[p.length-1][0]) return p[p.length-1][1];
-    for(let i=1;i<p.length;i++) if(years<=p[i][0]){ const [x0,y0]=p[i-1],[x1,y1]=p[i]; return y0+(y1-y0)*(years-x0)/(x1-x0); }
-  }
-  function maxKeyOn1st(y){
-    if(!has('KEY')) return null; let mx=null;
-    for(let m=0;m<12;m++){ const t=new Date(y,m,1).getTime(); if(t>lastDate()) break; const v=valueAt('KEY',t); if(v!=null) mx=Math.max(mx??v,v); }
-    return mx;
-  }
-  const keyNow = () => has('KEY') ? last('KEY') : 0;
-  // необлагаемый процент по вкладам за год y
-  function depExempt(y, reform){
-    const nowY=new Date(lastDate()).getFullYear();
-    let k;
-    if(reform && y>=REFORM_YEAR) k = (y-1<=nowY ? maxKeyOn1st(y-1) : null) ?? keyNow();   // ставка прошлого года
-    else k = (y<=nowY ? maxKeyOn1st(y) : null) ?? keyNow();                              // ставка этого года (будущее — по текущей)
-    return (k||0)/100*1e6;
-  }
-  function tax1315(b){ b=Math.max(0,b); return Math.min(b,2.4e6)*0.13+Math.max(0,b-2.4e6)*0.15; }
-  function taxScale(b){
-    b=Math.max(0,b); const br=[[2.4e6,.13],[5e6,.15],[20e6,.18],[50e6,.20],[Infinity,.22]]; let t=0,lo=0;
-    for(const [hi,r] of br){ if(b>lo) t+=(Math.min(b,hi)-lo)*r; lo=hi; } return t;
-  }
-  function yearTax(y, base, reform){ return (reform && y>=REFORM_YEAR) ? taxScale(base) : tax1315(base); }
-  // доля срока в каждом календарном году
-  function splitYears(months){
-    const start=new Date(lastDate()), end=new Date(start); end.setMonth(end.getMonth()+months);
-    const total=end-start, out=[]; let cur=new Date(start);
-    while(cur<end){ const ny=new Date(cur.getFullYear()+1,0,1); const seg=Math.min(ny,end)-cur; out.push([cur.getFullYear(), seg/total]); cur=ny; }
-    return {parts:out, endYear:new Date(end-1).getFullYear()};
-  }
-  function taxFor(kind, inc, months, reform){
-    if(!CALC.tax) return 0;
-    const {parts,endYear}=splitYears(months);
-    if(kind==='mmf') return yearTax(endYear, inc, reform);                    // фонд: налог при продаже
-    return parts.reduce((s,[y,f])=>s+yearTax(y, inc*f-(kind==='dep'?depExempt(y,reform):0), reform),0);
-  }
-  function defaultRatesFor(months){ const keep=CALC.months; CALC.months=months; const r=defaultRates(); CALC.months=keep; return r; }
-  function defaultRates(){
-    const t=CALC.months/12;
-    const cv=(DATA.curves||{})['сегодня'], par=cv&&window.BondMath&&BondMath.parYield ? BondMath.parYield(cv.points, t, 2) : null;
-    return { dep: has('DEP')?last('DEP'):12, ofz: par!=null ? Math.round(par*1e4)/100 : (curveAt(t) ?? 13), corp: has('CORP_Y')?last('CORP_Y'):16,
-             mmf: has('RUONIA')?Math.max(0,last('RUONIA')-0.4):12 };
-  }
-  // облигация по номиналу с эффективной доходностью y, f купонов в год, на срок months;
-  // купоны: 'pay' — выплачиваются (лежат без дохода), 'reinv' — реинвестируются после 13% НДФЛ, 'iis' — целиком, без налога
-  function bondSim(A, y, f, months, mode, reform){
-    const st=new Date(lastDate()), end=new Date(st); end.setMonth(end.getMonth()+months);
-    const U=d=>Date.UTC(d.getFullYear(),d.getMonth(),d.getDate());
-    const flows=[]; let prev=U(st);
-    for(let k=1;;k++){
-      const d=new Date(st); d.setMonth(d.getMonth()+Math.round(12/f*k)); const ms=Math.min(U(d),U(end));
-      const amt=1000*(Math.pow(1+y,(ms-prev)/864e5/365)-1);
-      flows.push({ms,amt,kind:'c',date:BondMath.iso(ms)}); prev=ms;
-      if(ms>=U(end)) break;
-    }
-    flows.push({ms:U(end),amt:1000,kind:'a',date:BondMath.iso(U(end))});
-    const pos=[{id:'b',qty:A/1000,bond:{face:1000},flows,clean:100,accrued:0,fx:1,ytm:y}];
-    const run=acc=>BondMath.simulate(pos,{settle:BondMath.iso(U(st)),horizon:BondMath.iso(U(end)),account:acc,reinvest:mode==='pay'?0:y,reform});
-    if(!CALC.tax){ const g=run('none').final-A; return {inc:g, tax:0}; }
-    if(mode==='iis'){ const r=run('iis3'); return {inc:r.final-A+r.taxPaid, tax:r.taxPaid}; }   // ИИС-3: без налога до 30 млн ₽ дохода
-    const r=run('std');                       // доход, реально полученный при удержании налога, и фактический налог
-    return {inc:r.final-A+r.taxPaid, tax:r.taxPaid};
-  }
-  const money = v => (Math.round(v)).toLocaleString('ru-RU')+' ₽';
-  const moneyShort = v => Math.abs(v)>=1e6 ? nf(v/1e6, Math.abs(v)>=1e8?0:2)+' млн ₽' : money(v);
-  function calcResults(){ return calcFor(CALC.amount, CALC.months, CALC.rates, CALC.reinv); }
-  function calcFor(A, m, R, mode){
-    const t=m/12, iis=mode==='iis';
-    const sub = {pay:'купоны выплачиваются', reinv:'купоны реинвестируются после 13% НДФЛ', iis:'на ИИС-3: купоны реинвестируются целиком, без НДФЛ (до 30 млн ₽ дохода)'}[mode];
-    const rows=[
-      ['dep','Вклад', 'макс. ставка топ-10 банков (ЦБ, без капитализации); '+(mode==='pay'?'проценты ежемесячно':'проценты раз в год')+(t>1?', дальше переоформление: если кривая ОФЗ ждёт снижения ставок — ниже, рост не закладывается':''), null],
-      ['mmf','Фонд денежного рынка','≈ RUONIA минус комиссия 0,4%; налог при продаже'+(iis?' (на ИИС-3 — без налога до 30 млн ₽ дохода)':''), A*(Math.pow(1+R.mmf/100/365,365*t)-1)],
-      ['ofz','ОФЗ на срок','доходность по кривой ОФЗ, купон 2 раза в год; '+sub, null, 2],
-      ['corp','Корп. облигации','доходность индекса Мосбиржи, купон ежемесячно; '+sub+'; есть кредитный риск', null, 12],
-    ].map(([k,n,s,inc,f])=>{
-      let taxNow, taxRef;
-      if(k==='dep'){
-        const st=new Date(lastDate()), H=new Date(st); H.setMonth(H.getMonth()+m);
-        const U=d=>BondMath.iso(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
-        const cv=(DATA.curves||{})['сегодня'], path=BondMath.depositPath(R.dep/100, cv?cv.points:null, t);
-        const run=rf=>BondMath.depositNet(A,{settle:U(st),horizon:U(H),rates:path,payout:mode==='pay'?'monthly':'end',reform:rf,exempt:y=>depExempt(y,rf)});
-        const a=run(false), b=run(true); inc=a.gross; taxNow=CALC.tax?a.tax:0; taxRef=CALC.tax?b.tax:0;
-      } else if(f){
-        const y=R[k]/100;
-        const a=bondSim(A,y,f,m,mode,false), b=bondSim(A,y,f,m,mode,true);
-        inc=a.inc; taxNow=a.tax; taxRef=b.tax;
-      } else if(k==='mmf' && iis){ const ey=splitYears(m).endYear, over=Math.max(0,inc-30e6); taxNow=CALC.tax?yearTax(ey,over,false):0; taxRef=CALC.tax?yearTax(ey,over,true):0; }   // ИИС-3: без налога до 30 млн ₽ дохода
-      else { taxNow=taxFor(k,inc,m,false); taxRef=taxFor(k,inc,m,true); }
-      const tax=CALC.reform?taxRef:taxNow, net=inc-tax;
-      return {k,n,s,inc,tax,taxNow,taxRef,net,ann:(Math.pow(1+net/A,1/t)-1)*100};
-    });
-    rows.forEach(r=>r.vs=r.net-rows[0].net);
-    return {rows,t};
-  }
-  // ---------- калькулятор для встречи: три вопроса клиента
-  const CMODES=[['get','Сколько получу','на руки с суммы за срок'],['lose','Сколько теряет на вкладе','вклад клиента против облигаций'],['need','Сколько вложить','чтобы получать доход каждый месяц'],['beat','Какой вклад догонит','при какой ставке вклад сравняется с облигациями']];
-  if(CALC.myDep==null) CALC.myDep=Number(store.get('calc_mydep','')) || null;
-  if(!CALC.mode) CALC.mode=store.get('calc_mode','get');
-  if(!CALC.target) CALC.target=Number(store.get('calc_target','500000'));
-  const NAMES={dep:'Вклад',mmf:'Фонд денежного рынка',ofz:'ОФЗ',corp:'Корп. облигации'};
-  const ICON={dep:'🏦',mmf:'💧',ofz:'🇷🇺',corp:'🏢'};
-  function bisect(f, lo, hi, it=60){ for(let i=0;i<it;i++){ const m=(lo+hi)/2; if(f(m)) hi=m; else lo=m; } return (lo+hi)/2; }
-  function calcHtml(){
-    if(!CALC.rates) CALC.rates=defaultRates();
-    const M=CALC.mode;
-    const myDep = M==='lose' ? `<div class="fld"><label>Ставка вклада клиента, %</label><input id="c_mydep" inputmode="decimal" value="${CALC.myDep!=null?nf(CALC.myDep,2):''}" placeholder="${nf(CALC.rates.dep,2)}"></div>` : '';
-    const amt = M==='need'
-      ? `<div class="fld"><label>Сколько клиент хочет получать на руки в месяц, ₽</label><input id="c_target" inputmode="numeric" value="${CALC.target.toLocaleString('ru-RU')}"></div>`
-      : `<div class="fld"><label>Сумма, ₽</label><input id="c_amount" inputmode="numeric" value="${CALC.amount.toLocaleString('ru-RU')}"></div>`;
-    const term = M==='need' ? `<div class="fld"><label>Срок</label><div class="muted" style="font-weight:700;padding:12px 0">1 год, доход выплачивается ежемесячно</div></div>`
-      : `<div class="fld"><label>Срок</label><div class="chips">${TERMS.map(([m,n])=>`<button data-m="${m}" class="${m===CALC.months?'on':''}">${n}</button>`).join('')}</div></div>`;
-    return `<div class="card" id="card_CALC" style="margin-bottom:14px"><h2>Калькулятор для встречи</h2>
-      <div class="sub">быстрые ответы на три частых вопроса клиента — всё после НДФЛ, по сегодняшним ставкам</div>
-      <div class="cmodes">${CMODES.map(([k,n,d])=>`<button data-cmode="${k}" class="${M===k?'on':''}"><b>${n}</b><span>${d}</span></button>`).join('')}</div>
-      <div class="calc-in">${amt}${term}</div>${myDep?`<div class="calc-in" style="margin-top:12px">${myDep}<div></div></div>`:''}
-      ${M==='get'?`<div class="fld" style="margin-top:14px"><label>Доход по облигациям</label><div class="chips" id="c_reinv">${REINV.map(([k,n])=>`<button data-reinv="${k}" class="${k===CALC.reinv?'on':''}">${n}</button>`).join('')}</div></div>`:''}
-      <details class="cset"><summary>Ставки и налоги (можно изменить)</summary>
-        <div class="rates-ed">${['dep','mmf','ofz','corp'].map(k=>`<label>${NAMES[k]}, %<input data-rate="${k}" value="${nf(CALC.rates[k],2)}" inputmode="decimal"></label>`).join('')}</div>
-        <label class="tax"><input type="checkbox" id="c_tax" ${CALC.tax?'checked':''}> учитывать НДФЛ</label>
-        <label class="tax"><input type="checkbox" id="c_reform" ${CALC.reform?'checked':''}> доход с 2027 года — по налоговой реформе (13–22%, законопроект № 617-9)</label>
-        <div class="calc-note">Вклад — максимальная ставка топ-10 банков (ЦБ), ОФЗ — доходность по кривой на этот срок, корп. облигации — доходность индекса Мосбиржи, фонд денежного рынка — RUONIA минус 0,4% комиссии.</div>
-      </details></div>
-      <div id="c_out"></div>`;
-  }
-  function calcUpdate(){
-    const M=CALC.mode, out=$('c_out'); if(!out) return;
-    if(M==='get') out.innerHTML=calcGet();
-    else if(M==='lose') out.innerHTML=calcLose();
-    else if(M==='need') out.innerHTML=calcNeed();
-    else out.innerHTML=calcBeat();
-  }
-  // 1) сколько получит с суммы
-  function calcGet(){
-    const {rows}=calcResults(), dep=rows[0], best=rows.reduce((a,b)=>b.net>a.net?b:a), mx=Math.max(...rows.map(r=>r.net),1);
-    const term=(TERMS.find(t=>t[0]===CALC.months)||[0,''])[1];
-    const lead = best.k==='dep' ? `Сейчас выгоднее всего вклад.` :
-      `${NAMES[best.k]} дадут на <b>${moneyShort(best.net-dep.net)}</b> больше вклада за ${term}.`;
-    return `<div class="card cres"><div class="clead">С ${moneyShort(CALC.amount)} за ${term} клиент получит на руки:</div>
-      ${rows.map(r=>`<div class="cbar ${r===best?'best':''}"><div class="cn">${ICON[r.k]} ${NAMES[r.k]}${r===best?' <span class="win">выгоднее всего</span>':''}<small>${nf(CALC.rates[r.k],2)}% до налога · ${nf(r.ann,2)}% годовых на руки</small></div>
-        <div class="ct"><i style="width:${Math.max(2,r.net/mx*100)}%"></i></div><div class="cv num">${moneyShort(r.net)}<small>${r.k==='dep'?'налог '+moneyShort(r.tax):(r.vs>=0?'+':'−')+moneyShort(Math.abs(r.vs))+' к вкладу'}</small></div></div>`).join('')}
-      <div class="clead2">${lead}</div>
-      <div class="calc-note">${({pay:'Купоны выплачиваются клиенту, проценты по вкладу — ежемесячно.',reinv:'Купоны реинвестируются (брокер удерживает 13%, в конце года — пересчёт по шкале); вклад переоформляется с процентами раз в год.',iis:'ИИС-3: купоны реинвестируются целиком без налога (до 30 млн ₽ дохода, при сроке ИИС от 5 лет); вклад — с налогом.'})[CALC.reinv]}
-        Налог по вкладу — с суммы сверх необлагаемой (1 млн × макс. ключевая ставка). Облигации — держим до погашения; колебания цены, комиссии и другие доходы клиента не учтены.</div></div>`;
-  }
-  // 1б) сколько клиент недополучает на своём вкладе
-  function calcLose(){
-    const A=CALC.amount, m=CALC.months, my=CALC.myDep!=null?CALC.myDep:CALC.rates.dep, term=(TERMS.find(t=>t[0]===m)||[0,''])[1], yrs=m/12;
-    const rows=calcFor(A,m,{...CALC.rates, dep:my},'reinv').rows, dep=rows.find(r=>r.k==='dep');
-    const alt=rows.filter(r=>r.k!=='dep'&&r.k!=='mmf'), best=alt.reduce((a,b)=>b.net>a.net?b:a);
-    const lose=best.net-dep.net;
-    if(lose<=0) return `<div class="card cres"><div class="clead">Вклад клиента под ${nf(my,2)}% сейчас не уступает облигациям за ${term} — хорошая ставка.</div></div>`;
-    return `<div class="card cres lose"><div class="clead">Вклад ${moneyShort(A)} под ${nf(my,2)}% за ${term}:</div>
-      <div class="lose-big">−${moneyShort(lose)}<span>клиент недополучает по сравнению с ${best.k==='ofz'?'ОФЗ':'корп. облигациями'}${yrs>1?` — это ${moneyShort(lose/yrs)} в год`:''}, ≈ ${moneyShort(lose/m)} в месяц</span></div>
-      ${[dep,...alt].map(r=>`<div class="cbar ${r===best?'best':''}"><div class="cn">${ICON[r.k]} ${r.k==='dep'?'Вклад клиента':NAMES[r.k]}<small>${nf(r.k==='dep'?my:CALC.rates[r.k],2)}% до налога</small></div>
-        <div class="ct"><i style="width:${Math.max(2,r.net/Math.max(...[dep,...alt].map(x=>x.net))*100)}%"></i></div><div class="cv num">${moneyShort(r.net)}<small>${r.k==='dep'?'на руки':'+'+moneyShort(r.net-dep.net)+' к вкладу'}</small></div></div>`).join('')}
-      <div class="calc-note">Всё после НДФЛ; купоны реинвестируются, проценты по вкладу — раз в год без капитализации, с необлагаемой суммой. Ставки облигаций — сегодняшние (ОФЗ — по кривой на этот срок, корп. — индекс Мосбиржи).</div></div>`;
-  }
-  // 2) сколько вложить, чтобы получать X в месяц на руки (1 год, выплаты ежемесячно)
-  function calcNeed(){
-    const T=CALC.target; if(!(T>0)) return `<div class="card empty">Укажите желаемый доход в месяц.</div>`;
-    const need=k=>{ const f=A=>calcFor(A,12,CALC.rates,'pay').rows.find(r=>r.k===k).net/12>=T; return bisect(f,0,T*12/0.005); };
-    const ks=['dep','ofz','corp'], res=ks.map(k=>({k,A:need(k)})), dep=res[0], mx=Math.max(...res.map(r=>r.A));
-    const best=res.reduce((a,b)=>b.A<a.A?b:a);
-    return `<div class="card cres"><div class="clead">Чтобы получать <b>${moneyShort(T)}</b> в месяц на руки (после НДФЛ), нужно вложить:</div>
-      ${res.map(r=>`<div class="cbar ${r===best?'best':''}"><div class="cn">${ICON[r.k]} ${NAMES[r.k]}${r===best?' <span class="win">меньше всего денег</span>':''}<small>${nf(CALC.rates[r.k],2)}% до налога</small></div>
-        <div class="ct"><i style="width:${r.A/mx*100}%"></i></div><div class="cv num">${moneyShort(r.A)}<small>${r.k==='dep'?'база':((dep.A-r.A)>=0?'на '+moneyShort(dep.A-r.A)+' меньше вклада':'на '+moneyShort(r.A-dep.A)+' больше вклада')}</small></div></div>`).join('')}
-      <div class="clead2">${best.k==='dep'?'Сейчас вклад требует меньше всего денег.':`В ${best.k==='ofz'?'ОФЗ':'корп. облигациях'} нужно на <b>${moneyShort(dep.A-best.A)}</b> меньше, чем во вкладе — и доход тот же.`}</div>
-      <div class="calc-note">Срок — год, купоны и проценты выплачиваются клиенту (ОФЗ платят купон раз в полгода — сумма в месяц здесь средняя), налог — по шкале с учётом необлагаемой суммы по вкладам. Чем больше сумма, тем выше ставка НДФЛ (15% с дохода больше 2,4 млн ₽ в год${CALC.reform?', по реформе — до 22%':''}), поэтому зависимость не линейная.</div></div>`;
-  }
-  // 3) при какой ставке вклад догонит облигации
-  function calcBeat(){
-    const A=CALC.amount, m=CALC.months, term=(TERMS.find(t=>t[0]===m)||[0,''])[1];
-    const net=(R,k)=>calcFor(A,m,R,CALC.reinv==='iis'?'iis':CALC.reinv).rows.find(r=>r.k===k).net;
-    const be=k=>{ const goal=net(CALC.rates,k); return bisect(r=>net({...CALC.rates,dep:r},'dep')>=goal, 0, 80); };
-    const rows=['ofz','corp','mmf'].map(k=>({k,r:be(k)}));
-    const cur=CALC.rates.dep;
-    return `<div class="card cres"><div class="clead">Клиент говорит «у меня вклад лучше»? Вклад на ${moneyShort(A)} и ${term} должен давать, чтобы сравняться:</div>
-      ${rows.map(x=>`<div class="beat"><div class="cn">${ICON[x.k]} ${({ofz:'чтобы догнать ОФЗ',corp:'чтобы догнать корп. облигации',mmf:'чтобы догнать фонд денежного рынка'})[x.k]} <small>${nf(CALC.rates[x.k],2)}% до налога</small></div>
-        <div class="bv num ${x.r>cur?'up':''}">${nf(x.r,2)}%<small>${x.r>cur?`на ${nf(x.r-cur,2)} п.п. выше лучших ставок (${nf(cur,2)}%)`:`ниже лучших ставок (${nf(cur,2)}%) — здесь вклад выигрывает`}</small></div></div>`).join('')}
-      <div class="calc-note">Ставка вклада — без капитализации, как в индикаторе ЦБ; учитывает необлагаемую сумму процентов по вкладам. Облигации — ${({pay:'купоны выплачиваются',reinv:'купоны реинвестируются',iis:'на ИИС-3, без налога до 30 млн ₽ дохода'})[CALC.reinv]}.</div></div>`;
-  }
-  function calcBind(){
-    const amt=$('c_amount'), tg=$('c_target');
-    if(amt){ amt.addEventListener('input',ev=>{ const v=Number(ev.target.value.replace(/[^0-9]/g,''))||0; CALC.amount=v; store.set('calc_amount',String(v)); calcUpdate(); });
-      amt.addEventListener('blur',ev=>{ ev.target.value=CALC.amount.toLocaleString('ru-RU'); }); }
-    const md=$('c_mydep'); if(md) md.addEventListener('input',ev=>{ const v=parseFloat(ev.target.value.replace(',','.')); CALC.myDep=isNaN(v)?null:v; store.set('calc_mydep',isNaN(v)?'':String(v)); calcUpdate(); });
-    if(tg){ tg.addEventListener('input',ev=>{ const v=Number(ev.target.value.replace(/[^0-9]/g,''))||0; CALC.target=v; store.set('calc_target',String(v)); calcUpdate(); });
-      tg.addEventListener('blur',ev=>{ ev.target.value=CALC.target.toLocaleString('ru-RU'); }); }
-    $('c_tax').addEventListener('change',ev=>{ CALC.tax=ev.target.checked; calcUpdate(); });
-    $('c_reform').addEventListener('change',ev=>{ CALC.reform=ev.target.checked; store.set('calc_reform',CALC.reform?'1':'0'); calcUpdate(); });
-    $('card_CALC').addEventListener('click',ev=>{
-      const md=ev.target.closest('[data-cmode]'); if(md){ CALC.mode=md.dataset.cmode; store.set('calc_mode',CALC.mode); render(); return; }
-      const rv=ev.target.closest('button[data-reinv]'); if(rv){ CALC.reinv=rv.dataset.reinv; store.set('calc_reinv',CALC.reinv); render(); return; }
-      const b=ev.target.closest('.chips button[data-m]'); if(!b) return;
-      CALC.months=Number(b.dataset.m); store.set('calc_months',String(CALC.months)); CALC.rates.ofz=defaultRatesFor(CALC.months).ofz; render(); });
-    $('card_CALC').addEventListener('change',ev=>{ const i=ev.target.closest('input[data-rate]'); if(!i) return;
-      const v=parseFloat(i.value.replace(',','.')); if(!isNaN(v)) CALC.rates[i.dataset.rate]=v; calcUpdate(); });
-  }
+  // ---------- калькулятор заменён «Быстрым сравнением» на странице облигаций (реальные портфели тем же движком)
 
   // ---------- «Сегодня»: то, что раньше приходило текстом под карточкой (docs/digest.json)
   const SEGS=[['details','📋 Подробно'],['news','📰 Новости'],['money','💰 Денежные события'],['placements','🆕 Размещения']];
@@ -588,6 +385,16 @@ tr:last-child td{border:0}
         ${p.note?`<div class="nt">${esc(p.note.slice(0,160))}</div>`:''}<a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--acc);font-weight:700;font-size:13px;text-decoration:none">подробнее на bonds-lab ↗</a></div>`; }).join('')}</div>
       <div class="note">Первичные размещения на ${P.days} дней вперёд — сбор заявок или дата размещения · источник bonds-lab.ru</div>`;
   }
+  // «Графики за год» — спрятаны в раскрывающийся блок внизу «Подробно» (раньше приходили отдельной картинкой)
+  const YC = ['KEY','DEP','RGBI_Y','CORP_Y','USD','CNY','IMOEX','BRENT','GOLD'];
+  function yearChartsHtml(){
+    if(!DATA) return '';
+    const ks=YC.filter(has); if(!ks.length) return '';
+    return `<details class="card ych" id="ych" ${store.get('ych','')==='1'?'open':''}><summary><b>📊 Графики за год</b><span>${ks.length} графиков · нажмите, чтобы раскрыть</span></summary>
+      <div class="ycg">${ks.map(k=>{ const c=chgR(k,'1y'); return `<div class="ycc"><div class="ycl">${SHORT[k]||k} <b>${fmtVal(k)}</b> <span class="${c==null||isRate(k)?'muted':(c>=0?'up':'down')}">${c==null?'':fmtChg(k,c)+' за год'}</span></div><div class="ycv"><canvas id="yc_${k}"></canvas></div></div>`; }).join('')}</div></details>`;
+  }
+  function drawYear(){ const d=$('ych'); if(!d||!d.open) return; const keep=RANGE; RANGE='1y'; try{ YC.filter(has).forEach(k=>{ const c=$('yc_'+k); if(c && !c.dataset.done){ c.dataset.done='1'; bigChart(c,k); } }); } finally { RANGE=keep; } }
+  document.addEventListener('toggle',ev=>{ if(ev.target && ev.target.id==='ych'){ store.set('ych', ev.target.open?'1':''); drawYear(); } }, true);
   function todayHtml(){
     const seg=`<div class="seg">${SEGS.map(([k,n])=>`<button data-dseg="${k}" class="${DSEG===k?'on':''}">${n}</button>`).join('')}</div>`;
     if(!DIG) return seg+`<div class="card empty">Загружаю выпуск…</div>`;
@@ -598,7 +405,8 @@ tr:last-child td{border:0}
       ? `<div class="stale"><span>Свежий выпуск ещё публикуется — обычно это занимает 1–2 минуты после дайджеста.</span><button data-act="dreload">Обновить</button></div>` : '';
     let body;
     if(DSEG==='placements') body=placementsHtml(DIG.placements);
-    else if(DSEG==='details') body=`<div class="dg">${DIG.details.map(b=>`<div class="card">${b.replace(/\n/g,'<br>').replace(/<pre>([\s\S]*?)<\/pre>/g,(m,x)=>'<pre>'+x.replace(/<br>/g,'\n')+'</pre>')}</div>`).join('')}</div>`;
+    else if(DSEG==='details') body=`<div class="dg">${DIG.details.map(b=>`<div class="card">${b.replace(/\n/g,'<br>').replace(/<pre>([\s\S]*?)<\/pre>/g,(m,x)=>'<pre>'+x.replace(/<br>/g,'\n')+'</pre>')}</div>`).join('')}</div>`
+      + yearChartsHtml();
     else { const h=DIG[DSEG]||''; body=`<div class="dg"><div class="card">${h.replace(/\n/g,'<br>')}</div></div>`; }
     return seg+stale+head+body;
   }
@@ -608,10 +416,10 @@ tr:last-child td{border:0}
     kill();
     document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
     let html='';
-    if(TAB==='calc'){
-      $('app').innerHTML=calcHtml(); calcUpdate(); calcBind(); return;
+    if(TAB==='calc'){   // «Быстрое сравнение» — на странице облигаций
+      store.set('tab','today'); $('app').innerHTML='<div class="card loading">Открываю «Быстрое сравнение»…</div>'; location.href='bonds.html?v=compare'; return;
     }
-    if(TAB==='today'){ $('app').innerHTML=todayHtml(); if(!DIG) loadDigest(); return; }
+    if(TAB==='today'){ $('app').innerHTML=todayHtml(); if(!DIG) loadDigest(); else drawYear(); return; }
     if(TAB==='overview'){
       html = tilesRow(['KEY','DEP','USD','IMOEX'],true)
         + `<div class="grid2">${bigCard()}${perfCard()}</div>`
@@ -663,7 +471,7 @@ tr:last-child td{border:0}
     if(SEGS.some(([k])=>k===lv)){ TAB='today'; DSEG=lv; render(); return true; }
     if(TABS.some(t=>t.id===lv) && !TAB_SERIES[lv]?.includes?.(h.toUpperCase())){ TAB=lv; render(); return true; }
     h=h.toUpperCase();
-    const special={CURVE:['bonds','card_CURVE'],RATES:['rates','card_RATES'],PERF:['overview','card_PERF'],CALC:['calc','card_CALC']};
+    const special={CURVE:['bonds','card_CURVE'],RATES:['rates','card_RATES'],PERF:['overview','card_PERF']};
     let target;
     if(special[h]){ TAB=special[h][0]; FOCUS=h; target=special[h][1]; }
     else if(has(h)){ SEL=h; FOCUS=h; TAB=Object.keys(TAB_SERIES).find(t=>TAB_SERIES[t].includes(h))||'overview'; target='bigCard'; }

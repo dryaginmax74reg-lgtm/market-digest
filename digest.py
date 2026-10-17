@@ -459,7 +459,8 @@ def watch_lines(d, today):
     return [ln for ln in b.split("\n")[1:] if ln.strip()][:6]
 
 
-VIEWS = [("📋 Подробнее", "details"), ("📰 Новости", "news"), ("💰 Денежные события", "money"), ("🆕 Размещения", "placements")]
+VIEWS = [("📋 Подробнее", "details"), ("📰 Новости", "news"), ("💰 Денежные события: дивиденды, сделки", "money"),
+         ("🆕 Размещения облигаций на 2 недели", "placements")]
 
 
 def keyboard():
@@ -469,9 +470,12 @@ def keyboard():
     if dash:
         base = dash if dash.endswith("/") else dash + "/"
         rows = [
+            # полные подписи: длинные — по одной в строке, чтобы Telegram их не обрезал на телефоне
             [(VIEWS[0][0], base + "?v=details"), (VIEWS[1][0], base + "?v=news")],
-            [(VIEWS[2][0], base + "?v=money"), (VIEWS[3][0], base + "?v=placements")],
-            [("📊 Дашборд", base + "?v=overview"), ("🧮 Калькулятор", base + "?v=calc"), ("🧾 Облигации", base + "bonds.html")],
+            [(VIEWS[2][0], base + "?v=money")],
+            [(VIEWS[3][0], base + "?v=placements")],
+            [("📊 Дашборд рынка", base + "?v=overview"), ("⚖ Сравнение", base + "bonds.html?v=compare")],
+            [("🧾 Подбор облигаций и портфель", base + "bonds.html")],
         ]
         return {"inline_keyboard": [[{"text": t, "web_app": {"url": u}} for t, u in r] for r in rows]}
     rows = [
@@ -537,8 +541,6 @@ def make_visuals(d, now, demo=False):
         d["_hooks"] = events.call_hooks(series or {}, now.date())
         path = card.render_card(d, series or {}, now, strong_moves(d, now.date()))
         d["_card"] = path
-        if os.environ.get("SEND_CHARTS") == "1" and series:
-            d["_charts"] = charts.render_collage(series, curves, now.date())
     except Exception as ex:  # noqa: BLE001
         log(f"[warn] карточка/графики: {type(ex).__name__}: {ex}")
 
@@ -599,8 +601,7 @@ def main():
             deliver_card(st["card"], st["caption"], kb)
         else:   # карточка не нарисовалась — как раньше, текстом
             deliver(pack([st["caption"], st.get("fallback") or ""]), keyboard=kb)
-        if st.get("charts") and os.path.exists(st["charts"]):
-            deliver([], photos=[(st["charts"], "📊 Графики за год")])
+        # «Графики за год» больше не приходят отдельной картинкой — они в «Подробнее», в раскрывающемся блоке
 
 
 def deliver_card(path, cap, kb=None):
