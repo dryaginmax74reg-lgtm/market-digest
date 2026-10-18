@@ -853,6 +853,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   // ---------------- рейтинги и профили
   const RAT = ['AAA','AA+','AA','AA-','A+','A','A-','BBB+','BBB','BBB-','BB+','BB','BB-','B+','B','B-','CCC','CC','C','D'];
   const rScore = r => r==='ГОС' ? 0 : (RAT.indexOf(r)+1 || 99);
+  // рейтинг «по рынку»: если рынок требует на 1+ п.п. больше, чем по выпускам с тем же рейтингом и сроком — считаем на ступень ниже
+  const rS = r => rScore((r && r.mkt) || (r && r.rating));
   const rBand = r => r==='ГОС' ? 'ГОС' : (r||'').replace(/[+-]$/,'') || '—';
   const rCls = r => { const s=rScore(r); return s===0?'r0':s<=4?'r1':s<=10?'r2':s<99?'r3':'rn'; };
   const rTag = r => `<span class="rt ${rCls(r)}">${esc(r||'н/р')}</span>`;
@@ -1041,6 +1043,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     U = [...ofz, ...corp].map(x=>buildRow(x,fxai,cnyBoard)).filter(r=>r.price && r.end);
     U.forEach(r=>{ r.ok = passBase(r); });
     BS.computeFair(U);
+    U.forEach(r=>{ const k=rScore(r.rating); r.mkt = !r.ofz && !r.flag && r.prem!=null && r.prem>0.01 && k>=1 && k<RAT.length ? RAT[k] : null; });
     BS.netParts(U, {BM, settle:SETTLE, pdYear:pdYearS, lgd:LGD, ra:RA, downStep});
     BYID = Object.fromEntries(U.map(r=>[r.id,r]));
     offBar();
@@ -1101,7 +1104,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const downInfo = r => !r || r.ofz || !META ? null : (META.dg&&META.dg[r.id]) ? {d:META.dg[r.id][2], from:META.dg[r.id][0], to:META.dg[r.id][1]} : (META.dge&&META.dge[r.em]) ? {d:META.dge[r.em]} : null;
   // отчётность эмитента: слабая — вероятность дефолта на 1–2 ступени ниже (финансовые «прокладки» не штрафуются)
   const fundOf = r => !r || r.ofz ? null : (FUND.f[r.em] && !FUND.f[r.em].none ? FUND.f[r.em] : null);
-  const downStep = r => Math.min(3, (downInfo(r) ? 1 : 0) + ((fundOf(r)||{}).lvl || 0));
+  const downStep = r => Math.min(3, (downInfo(r) ? 1 : 0) + ((fundOf(r)||{}).lvl || 0) + (r && r.mkt ? 1 : 0));
   const fundTag = r => { const f=fundOf(r); return f&&f.lvl ? `<span class="tag w" title="${esc(f.flags.join('; '))}">⚠ отчётность</span>` : ''; };
   const kMln = v => v==null ? '—' : (v<0?'−':'')+(Math.abs(v)>=1e6 ? nf(Math.abs(v)/1e6,1)+' млрд ₽' : nf(Math.abs(v)/1e3,0)+' млн ₽');     // суммы ГИР БО — в тыс. ₽
   function fundHtml(r){
@@ -1202,10 +1205,10 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const base=c=>c.id!==r.id && passBase(c) && c.cur===r.cur && !c.flag && !c.sub && !c.mbs && (risky || (c.kind==='float')===grp)
       && c.years!=null && Math.abs(c.years-yrs)<=Math.max(0.5,yrs*0.3) && c.ytm!=null && (c.ofz || (c.tv||0)>=amount) && (c.ofz||c.price>=70);
     if(risky){   // бумага с меткой «риск» или экзотика: замена — надёжная бумага с похожим сроком и лучшей оценкой, доходность вторична
-      const cand=U.filter(c=>base(c) && !c.ofz && rScore(c.rating)<=Math.min(rScore(r.rating),rScore('A-')));
+      const cand=U.filter(c=>base(c) && !c.ofz && rS(c)<=Math.min(rS(r),rScore('A-')));
       if(!cand.length) return null; SCORE(cand); const c=cand.sort((a,b)=>(b.cs||0)-(a.cs||0))[0]; return c?{...c, _safe:true}:null;
     }
-    const cand=U.filter(c=>base(c) && (r.ofz ? c.ofz : (!c.ofz && rScore(c.rating)<=rScore(r.rating))) && c.ytm-r.ytm>=0.005);
+    const cand=U.filter(c=>base(c) && (r.ofz ? c.ofz : (!c.ofz && rS(c)<=rS(r))) && c.ytm-r.ytm>=0.005);
     if(!cand.length) return null;
     SCORE(cand);
     if(NETMODE){ const nr=BS.netOf(r); const c2=cand.filter(c=>nr==null || (BS.netOf(c)??-1)>=nr+0.0025); return c2.sort((a,b)=>(b.cs||0)-(a.cs||0))[0]||null; }
@@ -1294,7 +1297,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const premCell = r => r.prem==null ? '<td class="num muted">—</td>' :
       `<td class="num ${r.flag?'down':r.prem>0.002?'up':r.prem<-0.01?'muted':''}" title="норма для ${esc(r.rating)} и такого срока: ${pc(r.fair)} (соседей: ${r.peers}${r.width?', рейтинг ±'+r.width:''})">${sg(r.prem*100,2,'')}</td>`;
     const rows = list.slice(0,250).map(r=>{ const at=BS.afterTax(r, BM, SETTLE); return `<tr>
-      <td class="nm" data-why="${r.id}" title="почему такая оценка — нажмите">${r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span> ':''}${esc(r.name)}${fundTag(r)}${inhTag(r)}${r.flag?'<span class="tag d" title="рынок требует заметно больше, чем за такой же рейтинг и срок — видит риск, которого нет в рейтинге">риск</span>':''}${r.est?'<span class="tag w" title="доходность флоатера — оценка при неизменном купоне">~</span>':''}${r.call?'<span class="tag" title="колл-опцион эмитента">колл</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}" title="есть бумага с той же или выше надёжностью и доходностью выше">есть лучше</button>`:''}<small>${esc(r.isin)} · ${KIND_NAME[r.kind]}${r.cur!=='RUB'?' · '+r.cur:''}${r.emName&&!r.ofz?' · '+esc(r.emName.slice(0,40)):''}${!r.ofz?' · '+esc(r.sector):''}</small></td>
+      <td class="nm" data-why="${r.id}" title="почему такая оценка — нажмите">${r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span> ':''}${esc(r.name)}${fundTag(r)}${inhTag(r)}${mktTag(r)}${r.flag?'<span class="tag d" title="рынок требует заметно больше, чем за такой же рейтинг и срок — видит риск, которого нет в рейтинге">риск</span>':''}${r.est?'<span class="tag w" title="доходность флоатера — оценка при неизменном купоне">~</span>':''}${r.call?'<span class="tag" title="колл-опцион эмитента">колл</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}" title="есть бумага с той же или выше надёжностью и доходностью выше">есть лучше</button>`:''}<small>${esc(r.isin)} · ${KIND_NAME[r.kind]}${r.cur!=='RUB'?' · '+r.cur:''}${r.emName&&!r.ofz?' · '+esc(r.emName.slice(0,40)):''}${!r.ofz?' · '+esc(r.sector):''}</small></td>
       ${csCell(r)}
       <td>${rTag(r.rating)}</td>
       <td class="num">${pc(r.ytm)}</td>
@@ -1332,7 +1335,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         <div class="cv map"><canvas id="mapChart"></canvas></div><div class="row-actions" style="margin-top:8px"><button class="btn ghost" data-act="mapfs">На весь экран</button></div></details>
       <div class="card"><div class="sub" style="margin-top:0">найдено ${list.length}${list.length>250?', показаны первые 250':''} · сверху — лучшие по сумме показателей; <span class="tag d">риск</span> — внизу</div>
       <div class="sml only-m"><div class="smsort">${[['cs',NETMODE?'Чистая':'Оценка'],['y','Доходность'],['yrs','Срок'],['r','Рейтинг'],['tv','Оборот']].map(([k,n])=>`<button data-s="${k}" class="${F.sort===k?'on':''}">${n}${F.sort===k?(F.asc?' ↑':' ↓'):''}</button>`).join('')}</div>
-        ${list.slice(0,120).map(r=>`<div class="smr"><div class="smn" data-why="${r.id}"><b>${esc(r.name)}</b>${fundTag(r)}${inhTag(r)}${r.flag?'<span class="tag d">риск</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}">есть лучше</button>`:''}<small>${rTag(r.rating)} ${r.ofz?'ОФЗ':esc((r.emName||'').slice(0,28))} · до ${fmtD(r.end)}${r.off?' (оферта)':''}</small><small>купон ${r.cpn!=null?nf(r.cpn,1)+'%':r.kind==='float'?'плав.':'—'} ${freqName(r.freq)} · цена ${nf(r.price,1)} · оборот ${r.tv?nf(r.tv/1e6,1)+' млн':'—'}</small></div>
+        ${list.slice(0,120).map(r=>`<div class="smr"><div class="smn" data-why="${r.id}"><b>${esc(r.name)}</b>${fundTag(r)}${inhTag(r)}${mktTag(r)}${r.flag?'<span class="tag d">риск</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}">есть лучше</button>`:''}<small>${rTag(r.rating)} ${r.ofz?'ОФЗ':esc((r.emName||'').slice(0,28))} · до ${fmtD(r.end)}${r.off?' (оферта)':''}</small><small>купон ${r.cpn!=null?nf(r.cpn,1)+'%':r.kind==='float'?'плав.':'—'} ${freqName(r.freq)} · цена ${nf(r.price,1)} · оборот ${r.tv?nf(r.tv/1e6,1)+' млн':'—'}</small></div>
           <div class="smv"><b class="num">${r.flag?'—':NETMODE?(r.net?nf(r.cs,2)+'%':'—'):r.cs}</b><small>${NETMODE?'чистая':'оценка'}</small><small class="num">дох. ${pc(r.ytm,1)}</small></div>
           <button class="add ${inPort(r.id)?'on':''}" data-add="${r.id}" aria-label="${inPort(r.id)?'убрать из портфеля':'в портфель'}">${inPort(r.id)?'✓':'+'}</button></div>`).join('')||'<div class="empty">ничего не найдено — ослабьте фильтры</div>'}
         ${list.length>120?`<div class="note" style="padding:10px 4px">показаны первые 120 из ${list.length} — уточните поиск или фильтры</div>`:''}</div>
@@ -1365,8 +1368,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(!r.ofz && (P.exSec||[]).includes(r.sector)) return false;                 // «без девелопмента», «без банков»…
     if(pp.ofzOnly) return r.ofz && (r.kind==='fixed' || (r.kind==='float' && pp.floaterMax>0)) && inWindow(r, pp, relax);
     if(r.kind==='float' && (r.ofz || !(pp.floaterMax>0))) return false;     // ОФЗ — только с фикс. купоном
-    if(rScore(r.rating)>rScore(pp.minRating)) return false;
-    if(pp.maxRating && rScore(r.rating)<rScore(pp.maxRating)) return false;   // короткие ВДО: не выше A−
+    if(rS(r)>rScore(pp.minRating)) return false;
+    if(pp.maxRating && rS(r)<rScore(pp.maxRating)) return false;   // короткие ВДО: не выше A−
     if(r.dur==null || r.dur>pp.durMax) return false;
     if(pp.priceMin ? r.price<pp.priceMin : (r.price<70 && !r.ofz)) return false;
     if(pp.issueMin && r.issue!=null && r.issue<pp.issueMin) return false;
@@ -1558,8 +1561,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const ofz=share(x=>x.r.ofz && x.r.cur==='RUB');
     const rubShare=share(x=>x.r.cur==='RUB');
     if(pp.ofzMin>0 && ofz+0.5 < pp.ofzMin*rubShare/100) v.push(`ОФЗ ${nf(ofz,0)}% — нужно от ${nf(pp.ofzMin*rubShare/100,0)}%`);
-    const low=rows.filter(x=>!x.r.ofz && rScore(x.r.rating)>rScore(pp.minRating));
-    if(low.length) v.push(`рейтинг ниже ${pp.minRating}: ${low.map(x=>x.r.name).join(', ')}`);
+    const low=rows.filter(x=>!x.r.ofz && rS(x.r)>rScore(pp.minRating));
+    if(low.length) v.push(`рейтинг ниже ${pp.minRating}: ${low.map(x=>x.r.name+(x.r.mkt&&rScore(x.r.rating)<=rScore(pp.minRating)?` (рынок оценивает как ${x.r.mkt})`:'')).join(', ')}`);
     const em={}; rows.forEach(x=>{ if(!x.r.ofz) em[x.r.emName||x.r.em]=(em[x.r.emName||x.r.em]||0)+x.cost/total*100; });
     const emCap = pp.vdo ? Math.max(pp.issuerMax,6) : pp.issuerMax;      // короткие ВДО: при нехватке эмитентов — до 6% (остаток — в ОФЗ)
     if(!riskOnly) for(const [k,s] of Object.entries(em)) if(s>emCap+0.5) v.push(`${k}: ${nf(s,1)}% — больше ${emCap}% на эмитента`);
@@ -1611,11 +1614,14 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(!(L>0)){ P.carry.warns=['в портфеле нет ОФЗ и валютных облигаций — займ взять не под что']; savePort(); return; }
     const lrEff = loanRateSimple()!=null ? effOf(loanRateSimple()) : 0;
     for(let it=0; it<4; it++){
-      const pool=cnyPool().filter(r=>!r.sub && !r.flag && r.kind!=='float' && !excl.has(r.id) && !excl.has('em:'+r.em)
-        && rScore(r.rating)<=rScore(pp.minRating) && r.dur!=null && r.price>=70 && inWindow(r) && r.ytm>lrEff);
+      // под займ — только то, ради чего он берётся: торги за юани (★), доходность минимум на 2 п.п. выше ставки займа, есть оборот;
+      // срок — от 40% срока клиента и до двух лет после него (такие бумаги в конце продаются по рынку); рейтинг — по профилю клиента
+      const lo=addDays(SETTLE, Math.max(30, Math.round(P.term*30.4*0.4))), hi=addDays(horizonISO(), 730);
+      const pool=cnyPool().filter(r=>r.cnyBoard && !r.sub && !r.flag && r.kind!=='float' && !excl.has(r.id) && !excl.has('em:'+r.em)
+        && rS(r)<=rScore(pp.minRating) && r.dur!=null && r.price>=70 && r.end && r.end>=lo && r.end<=hi && r.ytm>=lrEff+0.02 && (r.tv||0)>=1e6);
       SCORE(pool);
-      const sc=r=>(r.cnyBoard?100:0)+(r.cs??0);      // сначала — с режимом торгов за юани, дальше по сводной оценке
-      const best={}; for(const r of pool){ const k=r.ofz?r.id:r.em; if(!best[k]||sc(r)>sc(best[k])) best[k]=r; }
+      const sc=r=>{ const n=BS.netOf(r); return n!=null ? n : (r.ytm||0); };      // по чистой доходности (после налога и ожидаемых потерь)
+      const best={}; for(const r of pool){ const k=r.em; if(!best[k]||sc(r)>sc(best[k])) best[k]=r; }
       const cand=Object.values(best).sort((a,b)=>sc(b)-sc(a));
       const n=Math.min(cand.length, Math.max(3, Math.ceil(L/((pp.issuerMax/100)*(P.amount+L))-1e-9)));
       P.carry.pos=cand.slice(0,n).map(r=>({id:r.id, w:Math.floor(1000/n)/10}));
@@ -1624,7 +1630,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       if(!bad.length) break;
       for(const p of bad){ const b=BZ[p.id], r=BYID[p.id]; if(b.def) excl.add('em:'+r.em); else excl.add(p.id); dropped.push(r.name); }
     }
-    if(!P.carry.pos.length) warns.push(`не нашлось юаневых облигаций под срок ${termName()} с доходностью выше ставки займа — добавьте вручную`);
+    if(!P.carry.pos.length) warns.push(`не нашлось юаневых облигаций с торгами за юани, оборотом и доходностью хотя бы на 2 п.п. выше ставки займа (${nf((lrEff)*100,2)}%) — займ сейчас не даёт смысла; бумаги можно добавить вручную`);
     if(dropped.length) warns.push('исключены: '+dropped.join(', '));
     P.carry.warns=warns; savePort();
   }
@@ -1826,6 +1832,22 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(k==='more') return moreParamsHtml();
     return '';
   }
+  // ---------------- «Собрать по критериям клиента»: основа-профиль + валюты + главные лимиты → автосборка
+  const CRITB=['cons','mod','inc'];
+  function critSheetHtml(){
+    const pp=P.params, base=CRITB.includes(P.profile)?P.profile:(P.critBase||'mod');
+    const fld=(k,n)=>`<div class="fld"><label>${n}</label><input data-pp="${k}" value="${esc(pp[k]??'')}" inputmode="decimal"></div>`;
+    return `<h3>Собрать по критериям клиента</h3><div class="sub">Портфель соберётся сам из бумаг Мосбиржи под сумму ${mshort(P.amount)} и срок ${termName()}; задача — обогнать вклад. Потом любую бумагу можно заменить или добавить вручную.</div>
+      <div class="fld" style="margin-top:12px"><label>Основа — правила профиля${P.profile==='custom'?' (изменены)':''}</label><div class="qchips">${CRITB.map(k=>`<button data-critbase="${k}" class="${base===k?'on':''}">${PROFILES[k].name}</button>`).join('')}</div></div>
+      <div class="fld" style="margin-top:10px"><label>Валюты, % от суммы</label></div>
+      <div class="cur">${CURS.map(([c,n])=>`<div class="fld"><label>${n}${c!=='RUB'&&FX[c]?` · ${nf(FX[c],2)}`:''}</label><input data-cur="${c}" value="${P.cur[c]||0}" inputmode="decimal"></div>`).join('')}</div>
+      <div class="pgrid" style="margin-top:6px">${fld('ofzMin','ОФЗ не меньше, %')}
+        <div class="fld"><label>Рейтинг не ниже</label><select data-pp="minRating">${RAT.slice(0,13).map(r=>`<option ${pp.minRating===r?'selected':''}>${r}</option>`).join('')}</select></div>
+        ${fld('issuerMax','На эмитента до, %')}${fld('sectorMax','На отрасль до, %')}${fld('floaterMax','Флоатеры до, %')}</div>
+      <label class="chk"><input type="checkbox" id="c_monthly" ${P.monthly?'checked':''} ${P.account==='iis3'?'disabled':''}> купоны клиенту на руки каждый месяц</label>
+      <label class="chk"><input type="checkbox" id="p_qual" ${P.qual!==false?'checked':''}> клиент — квалифицированный инвестор</label>
+      <button class="btn acc wide" data-act="critbuild" style="margin-top:12px">Собрать портфель</button>`;
+  }
   function moreParamsHtml(){
     const pp=P.params;
     const fld=(k,n)=>`<div class="fld"><label>${n}</label><input data-pp="${k}" value="${esc(pp[k])}" inputmode="decimal"></div>`;
@@ -1929,8 +1951,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       <div class="scens">${SCENS.map(([k,ic,t])=>`<button data-scen="${k}" class="${UI.scen===k?'on':''}">${t}</button>`).join('')}${UI.scen==='dep'?cmpInfo:''}</div>
       ${UI.scen==='inc'?`<div class="card incbox"><div class="fld big"><label>Сколько клиент хочет получать на руки в месяц, ₽</label><input id="c_inc" value="${Math.round(UI.cinc).toLocaleString('ru-RU')}" inputmode="decimal"></div></div>`:''}
       ${UI.scen!=='dep'?`<div class="exs"><button class="xchip ${UI.cdep?'on':''}" data-act="cdep">${UI.cdep?'✓ ':''}Сравнить с вкладом${UI.cdep?' '+nf(depNow(),2)+'%':''}</button>${cmpInfo}</div>`:''}
-      <button class="card manualc" data-act="manual"><div><b>Собрать портфель вручную</b><span>выбираете бумаги сами: поиск по эмитенту или ISIN, лучшие по оценке, подсказка «есть лучше»; доходность, налоги и сравнение с вкладом считаются сразу</span></div><em>→</em></button>
-      <div id="cmpcards">${cmpCardsHtml()}</div>`;
+      <button class="card manualc critc" data-act="crit"><div><b>Собрать по критериям клиента</b><span>валюты, доля ОФЗ, рейтинг, лимиты на эмитента и отрасль — портфель соберётся сам и должен обогнать вклад; любую бумагу потом можно заменить</span></div><em>›</em></button>
+      <div id="cmpcards">${cmpCardsHtml()}</div>
+      <button class="card manualc" data-act="manual"><div><b>Или собрать вручную</b><span>выбираете бумаги сами: поиск по эмитенту или ISIN, лучшие по оценке, подсказка «есть лучше»; доходность, налоги и сравнение с вкладом считаются сразу</span></div><em>→</em></button>`;
   }
   // ---------------- «Портфель» — один экран
   let PREV=null, DELTA=null;          // прошлый вариант — чтобы подсветить, что изменилось
@@ -2114,11 +2137,11 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const r=BYID[id]; if(!r) return null; const pp=P.params;
     const seen=SIMSEEN[id]||new Set([id]); const others=new Set(P.pos.filter(p=>p.id!==id).map(p=>BYID[p.id]).filter(Boolean).map(x=>x.em));
     SCORE(U.filter(u=>passBase(u)&&u.cur===r.cur&&!u.sub&&!u.mbs));
-    const yrs=r.years||0, rs=rScore(r.rating);
+    const yrs=r.years||0, rs=rS(r);
     const ok=(c,dr,dy)=>!seen.has(c.id) && !inPort(c.id) && passBase(c) && c.cur===r.cur && !c.flag && !c.sub && !c.mbs && c.ytm!=null
       && (c.kind==='float')===(r.kind==='float') && c.years!=null && Math.abs(c.years-yrs)<=Math.max(0.5,yrs*dy)
-      && (r.ofz ? c.ofz : (!c.ofz && c.em!==r.em && !others.has(c.em) && Math.abs(rScore(c.rating)-rs)<=dr && rScore(c.rating)<=Math.max(rs,rScore(pp.minRating))
-        && !(pp.maxRating && rScore(c.rating)<rScore(pp.maxRating)) && !(P.exSec||[]).includes(c.sector) && c.price>=(pp.priceMin||70) && (c.tv||0)>0));
+      && (r.ofz ? c.ofz : (!c.ofz && c.em!==r.em && !others.has(c.em) && Math.abs(rS(c)-rs)<=dr && rS(c)<=Math.max(rs,rScore(pp.minRating))
+        && !(pp.maxRating && rS(c)<rScore(pp.maxRating)) && !(P.exSec||[]).includes(c.sector) && c.price>=(pp.priceMin||70) && (c.tv||0)>0));
     for(const [dr,dy] of [[1,0.3],[2,0.5],[3,0.8]]){ const c=U.filter(x=>ok(x,dr,dy)).sort((a,b)=>(b.cs||0)-(a.cs||0))[0]; if(c) return c; }
     return null;
   }
@@ -2192,9 +2215,10 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     let list;
     if(q){ q=q.toLowerCase(); list=U.filter(r=>passBase(r) && !r.sub && !r.mbs && (r.name+' '+r.id+' '+r.isin+' '+(r.emName||'')).toLowerCase().includes(q)); }
     else list=U.filter(r=>passBase(r) && curs.includes(r.cur) && !r.flag && !r.sub && !r.mbs && inWindow(r, pp) && !(P.exSec||[]).includes(r.sector)
-      && (r.ofz ? r.kind!=='float' : !pp.ofzOnly && rScore(r.rating)<=rScore(pp.minRating) && !(pp.maxRating && rScore(r.rating)<rScore(pp.maxRating))) && (r.kind!=='float' || pp.floaterMax>0) && liqOk(r, P.amount*0.05, pp));
+      && (r.ofz ? r.kind!=='float' : !pp.ofzOnly && rS(r)<=rScore(pp.minRating) && !(pp.maxRating && rS(r)<rScore(pp.maxRating))) && (r.kind!=='float' || pp.floaterMax>0) && liqOk(r, P.amount*0.05, pp));
     list=list.filter(r=>!inPort(r.id)); SCORE(list);
-    return list.sort((a,b)=>(b.cs-a.cs)).slice(0,6);
+    const emIn=new Set(P.pos.map(p=>BYID[p.id]&&!BYID[p.id].ofz?BYID[p.id].em:null).filter(Boolean)), seen=new Set();
+    return list.sort((a,b)=>(b.cs-a.cs)).filter(r=>{ if(q || r.ofz) return true; if(emIn.has(r.em) || seen.has(r.em)) return false; seen.add(r.em); return true; }).slice(0,6);
   }
   const suggHtml = q => suggestions(q).map(r=>`<button class="chipadd" data-addq="${r.id}">+ ${esc(r.name)} <span>${esc(r.rating||'н/р')} · ${pc(r.ytm,1)} · до ${fmtD(r.end)}</span></button>`).join('') || '<span class="muted">ничего не найдено</span>';
   // ---------------- «есть лучшая альтернатива»: надёжность не ниже, срок ±30%, тот же тип купона, другой эмитент, доходность выше на 0,5 п.п.+
@@ -2203,17 +2227,18 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   function betterAlt(r){
     if(!r || r.ytm==null || r.flag || r.kind==='float' || r.est) return null;      // у флоатеров доходность — оценка, сравнивать нечестно
     if(r.id in ALTC) return ALTC[r.id];
-    const yrs=r.years||0, rs=rScore(r.rating), fl=false, tol=Math.min(1, Math.max(0.5, yrs*0.3)); let best=null;
+    const yrs=r.years||0, rs=rS(r), fl=false, tol=Math.min(1, Math.max(0.5, yrs*0.3)); let best=null;
     for(const c of U){
       if(c.id===r.id || c.cur!==r.cur || c.ytm==null || c.flag || c.sub || c.mbs || !c.ok) continue;
+      if(!c.ofz && c.em!==r.em && P.pos.some(p=>p.id!==r.id && BYID[p.id] && BYID[p.id].em===c.em)) continue;
       if((c.kind==='float')!==fl || c.years==null || Math.abs(c.years-yrs)>tol) continue;
       if(c.est) continue;
       if(NETMODE){            // чистая доходность (после налога и ожидаемых потерь) выше на 0,5 п.п.; рейтинг может быть и ниже — риск уже вычтен
         const nr=BS.netOf(r), nc=BS.netOf(c); if(nr==null || nc==null || nc < nr+0.005) continue;
-        if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || c.price<70 || rScore(c.rating)>rScore(P.params.minRating||'BB-') || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
+        if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || c.price<70 || rS(c)>rScore(P.params.minRating||'BB-') || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
         if(!best || nc>BS.netOf(best)) best=c; continue; }
       if(c.ytm < r.ytm+0.005) continue;
-      if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || rScore(c.rating)>rs || c.price<70 || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
+      if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || rS(c)>rs || c.price<70 || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
       if(!best || c.ytm>best.ytm) best=c;
     }
     return ALTC[r.id]=best;
@@ -2244,8 +2269,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const soonTag = r => { const o=soonDays(r.off), c=soonDays(r.call);
     return r.off && o>=0 && o<=30 ? `<span class="tag w" title="оферта ${fmtD(r.off)} — заявку брокеру подают заранее">оферта через ${o} дн.</span>`
       : r.call && c>=0 && c<=30 ? `<span class="tag w" title="эмитент вправе погасить досрочно ${fmtD(r.call)}">колл через ${c} дн.</span>` : ''; };
+  const mktTag = r => r && r.mkt ? `<span class="tag w" title="рынок даёт по выпуску на ${nf(r.prem*100,1)} п.п. больше, чем по бумагам с тем же рейтингом и сроком, — в отборе и оценке считаем как ${r.mkt}">рынок: как ${r.mkt}</span>` : '';
   const inhTag = r => r && r.rInh ? '<span class="tag w" title="у нового выпуска ещё нет своего рейтинга в справочнике — взят рейтинг эмитента по его другим выпускам">рейтинг эмитента</span>' : '';
-  const posFlags = x => [soonTag(x.r), fundTag(x.r), inhTag(x.r), x.r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span>':'', x.r.flag?'<span class="tag d">риск</span>':'', x.r.sub?'<span class="tag w">суборд.</span>':'', x.bz&&x.bz.qual?'<span class="tag w">квал</span>':'', x.bz&&x.bz.def?'<span class="tag d">дефолт</span>':x.bz&&x.bz.tdef?'<span class="tag w" title="Мосбиржа отмечает, что у эмитента был технический дефолт (задержка выплаты, затем исполнена). Это не текущий дефолт — проверьте новости эмитента">техдефолт в истории</span>':'', x.a.est?'<span class="tag w" title="часть купонов неизвестна — по последней ставке">купон ~</span>':'', (x.r.ofz||x.r.cur!=='RUB')&&FX.CNY?'<span class="tag loan" title="под эту бумагу брокер даёт займ в юанях (дисконт 20%)">залог</span>':''].join('');
+  const posFlags = x => [soonTag(x.r), fundTag(x.r), inhTag(x.r), mktTag(x.r), x.r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span>':'', x.r.flag?'<span class="tag d">риск</span>':'', x.r.sub?'<span class="tag w">суборд.</span>':'', x.bz&&x.bz.qual?'<span class="tag w">квал</span>':'', x.bz&&x.bz.def?'<span class="tag d">дефолт</span>':x.bz&&x.bz.tdef?'<span class="tag w" title="Мосбиржа отмечает, что у эмитента был технический дефолт (задержка выплаты, затем исполнена). Это не текущий дефолт — проверьте новости эмитента">техдефолт в истории</span>':'', x.a.est?'<span class="tag w" title="часть купонов неизвестна — по последней ставке">купон ~</span>':'', (x.r.ofz||x.r.cur!=='RUB')&&FX.CNY?'<span class="tag loan" title="под эту бумагу брокер даёт займ в юанях (дисконт 20%)">залог</span>':''].join('');
   let OPENROW=null;
   function posRows(A, ro){
     const tax=P.account!=='iis3', wide=WIDE();
@@ -2384,8 +2410,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       const body = tab==='s' ? sostavHtml(A)
         : tab==='d' ? (wide?'':compareHtml(A))+moneyHtml(A)+eventsHtml(A)+carryTeaserHtml(A)
         : (wide?'':checkHtml(A))+mapb+shieldHtml(A)+ladderHtml(A)+ratesHtml(A)+how;
-      if(wide) return `<div class="kab"><div class="kcol">${barHtml('port')}${trackHtml(A)}${todoHtml(A)}${sumHtml(A)}${compareHtml(A)}${checkHtml(A)}</div><div class="kcol">${tabs}${body}</div></div>`;
-      return barHtml('port')+trackHtml(A)+todoHtml(A)+sumHtml(A)+sumBarHtml(A)+tabs+body;
+      if(wide) return `<div class="kab"><div class="kcol">${barHtml('port')}${trackHtml(A)}${todoHtml(A)}${sumHtml(A)}${depFixHtml(A)}${compareHtml(A)}${checkHtml(A)}</div><div class="kcol">${tabs}${body}</div></div>`;
+      return barHtml('port')+trackHtml(A)+todoHtml(A)+sumHtml(A)+sumBarHtml(A)+depFixHtml(A)+tabs+body;
     } finally { FLAT=false; }
   }
   // ---------------- ссылка «для клиента»: только просмотр
@@ -2740,6 +2766,39 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     countUp(); if(ANALYSIS){ DELTA=null; PREV=null; } syncBack();
   }
   let anlToken=0;
+  // ---------------- «обогнать вклад»: если портфель по критериям проигрывает вкладу — пробуем ослабить по одному критерию и показываем, что даст
+  let DEPFIX={key:null, busy:false, items:[]};
+  const depKey = () => JSON.stringify([P.params, P.cur, P.amount, P.term, P.account, P.monthly, P.depRate, P.pos.map(p=>p.id).sort()]);
+  const RATN = r => RAT[Math.min(RAT.length-1, rScore(r))] || r;
+  async function depFixRun(){
+    const A=ANALYSIS; if(CLIENT || !A || A.empty || P.params.ofzOnly || MANUAL) return;
+    if(A.main.profit >= A.dep){ DEPFIX={key:null, busy:false, items:[]}; return; }
+    const key=depKey(); if(DEPFIX.key===key) return; DEPFIX={key, busy:true, items:[]}; render();
+    const pp0=P.params, cur0=P.cur, tries=[];
+    if((pp0.ofzMin||0)>0) tries.push([`ОФЗ не меньше 0% вместо ${pp0.ofzMin}%`, {ofzMin:0}]);
+    if(pp0.minRating && rScore(pp0.minRating)<11) tries.push([`рейтинг от ${RATN(pp0.minRating)} вместо ${pp0.minRating}`, {minRating:RATN(pp0.minRating)}]);
+    if((pp0.floaterMax||0)<30) tries.push([`флоатеры до 30% вместо ${pp0.floaterMax||0}%`, {floaterMax:30}]);
+    if(CURS.some(([c])=>c!=='RUB' && (num(cur0[c])||0)>0)) tries.push(['без валютной части — всё в рублях', null, {RUB:100,CNY:0,USD:0,EUR:0}]);
+    const out=[];
+    for(const [label, ch, cur] of tries){
+      try{ const pp=Object.assign(JSON.parse(JSON.stringify(pp0)), ch||{}); const res=await buildChecked(pp, P.pos.filter(p=>p.pin), cur||cur0);
+        if(DEPFIX.key!==key) return;
+        const B=res.pos.length ? await computeA(res.pos, {light:true}) : null;
+        if(B && !B.empty) out.push({label, ch, cur, annual:B.main.annual, beat:B.main.profit-B.dep}); }catch(e){ console.error(e); }
+    }
+    if(DEPFIX.key!==key) return;
+    DEPFIX={key, busy:false, items:out.sort((a,b)=>b.beat-a.beat).slice(0,3)}; render();
+  }
+  function depFixHtml(A){
+    if(CLIENT || !A || A.empty || MANUAL || P.params.ofzOnly || A.main.profit>=A.dep) return '';
+    const gap=A.dep-A.main.profit, depA=Math.pow(1+A.dep/A.total,1/A.main.years)-1;
+    const it=DEPFIX.items, ok=it.filter(x=>x.beat>0);
+    return `<div class="card pchk depfix"><div class="sech"><h2>Не обгоняет вклад</h2><span class="aside">на ${mshort(gap)}</span></div>
+      <div class="sub" style="margin:0 0 6px">По этим критериям — ${pc(A.main.annual)} годовых после налога против ${pc(depA)} у вклада.${DEPFIX.busy?' Проверяю, какой критерий мешает…':''}</div>
+      ${it.map((x,i)=>`<div class="ckr ${x.beat>0?'':'w'}"><i>${x.beat>0?'✓':'–'}</i><span>Если ${esc(x.label)}: <b>${pc(x.annual)}</b> — ${x.beat>0?`обгоняет вклад на ${mshort(x.beat)}`:`всё ещё на ${mshort(-x.beat)} меньше`}</span>${x.beat>0?`<button class="kb" data-depfix="${i}">Применить</button>`:''}</div>`).join('')}
+      ${!DEPFIX.busy && it.length && !ok.length?`<div class="note" style="margin-top:6px">Ослабление одного критерия не помогает: на сроке ${termName()} вклад сейчас объективно выгоднее при такой надёжности. Можно увеличить срок или допустить более низкий рейтинг вместе с другими изменениями.</div>`:''}
+      ${!DEPFIX.busy && !it.length?`<div class="note" style="margin-top:6px">Ослаблять нечего — критерии и так минимальные; на этом сроке вклад сейчас объективно выгоднее.</div>`:''}</div>`;
+  }
   async function recompute(){
     if(ANALYSIS && !ANALYSIS.empty) PREV={fin:ANALYSIS.total+ANALYSIS.main.profit, profit:ANALYSIS.main.profit, annual:ANALYSIS.main.annual, monthly:ANALYSIS.monthly};
     ANALYSIS=null; render();
@@ -2750,6 +2809,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(PREV && ANALYSIS && !ANALYSIS.empty){ const d=ANALYSIS.main.profit-PREV.profit; DELTA=Math.abs(d)>=1?{profit:d}:null; } else { DELTA=null; PREV=null; }
     if(!DELTA) PREV=null;
     render();
+    depFixRun();
   }
   // пересборка с сохранением и возможностью «Вернуть»
   async function rebuild(msg, snap){
@@ -2777,6 +2837,10 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(t.id==='xr_text') XR.text=t.value;
     if(t.id==='c_inc'){ const raw=Number(String(t.value).replace(/[^0-9]/g,'')); if(raw>0){ UI.cinc=raw; saveUI(); } clearTimeout(tmr); tmr=setTimeout(cmpPaint,250); }
   });
+  // числовые поля: при нажатии значение выделяется — можно сразу печатать, не стирая «0»
+  document.addEventListener('focusin',ev=>{ const t=ev.target; if(t && t.tagName==='INPUT' && t.inputMode==='decimal'){ try{ t.select(); }catch(e){} } });
+  document.addEventListener('mouseup',ev=>{ const t=ev.target; if(t && t.tagName==='INPUT' && t.inputMode==='decimal' && t.selectionStart===t.selectionEnd && t.dataset.sel!=='1'){ t.dataset.sel='1'; ev.preventDefault(); t.select(); } },true);
+  document.addEventListener('focusout',ev=>{ const t=ev.target; if(t && t.dataset) delete t.dataset.sel; });
   document.addEventListener('keydown',ev=>{
     if(ev.key==='Enter' && ev.target.dataset && ev.target.dataset.ac==='screen'){ ev.preventDefault(); F.q=ev.target.value.trim(); F.em=''; saveF(); render(); return; }
     if(ev.key==='Enter' && (ev.target.id==='p_amount'||ev.target.id==='p_dep')){ ev.preventDefault(); ev.target.blur(); }
@@ -2786,6 +2850,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(t.dataset.f && t.tagName==='SELECT'){ F[t.dataset.f]=t.value; saveF(); render(); return; }
     if(t.dataset.csel){ const k=t.dataset.csel; CSEL = t.checked ? [...CSEL.filter(x=>x!==k), k].slice(-2) : CSEL.filter(x=>x!==k); hap('sel'); cmpPaint(); return; }
     if(t.id==='p_amount'){ if(applyAmount(t.value)){ t.value=Math.round(P.amount).toLocaleString('ru-RU'); document.querySelectorAll('[data-amt]').forEach(b=>b.classList.toggle('on',Math.abs(+b.dataset.amt-P.amount)<1)); AMT_DIRTY=true; } else t.value=Math.round(P.amount).toLocaleString('ru-RU'); return; }
+    if(t.id==='c_monthly'){ P.monthly=t.checked; savePort(); return; }
     if(t.id==='p_monthly'){ P.monthly=t.checked; savePort(); closeSheet(); await afterParams(false); return; }
     if(t.id==='p_reform'){ P.reform=t.checked; savePort(); PARAMS_DIRTY=true; return; }
     if(t.id==='p_qual'){ P.qual=t.checked; savePort(); return; }
@@ -2846,6 +2911,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const am=ev.target.closest('[data-amt]'); if(am){ P.amount=+am.dataset.amt; savePort(); AMT_DIRTY=true; closeSheet(); return; }
     const tm=ev.target.closest('[data-term]'); if(tm){ const nt=+tm.dataset.term; if(nt===P.term){ closeSheet(); return; } const snap=snapP(); P.term=nt; savePort(); SHEET_KIND=null; _closeSheet(); await afterParams(true, snap); return; }
     const ac=ev.target.closest('[data-acct]'); if(ac){ P.account=ac.dataset.acct; savePort(); SHEET_KIND=null; _closeSheet(); await afterParams(false); return; }
+    const dfx=ev.target.closest('[data-depfix]'); if(dfx){ const x=DEPFIX.items[+dfx.dataset.depfix]; if(!x) return; const snap=snapP();
+      if(x.ch){ Object.assign(P.params, x.ch); P.profile='custom'; } if(x.cur) P.cur=Object.assign({}, x.cur); savePort(); await rebuild('Критерий ослаблен: '+x.label, snap); return; }
+    const cb=ev.target.closest('[data-critbase]'); if(cb){ const k=cb.dataset.critbase; P.profile=k; P.critBase=k; P.params=JSON.parse(JSON.stringify(PROFILES[k])); savePort(); openSheet(critSheetHtml()); hap('sel'); return; }
     const pf=ev.target.closest('[data-prof]'); if(pf){ const k=pf.dataset.prof; SHEET_KIND=null; _closeSheet();
       if(k===P.profile && P.pos.length && !pf.dataset.build){ return; }
       const snap=snapP(); P.profile=k; P.params=JSON.parse(JSON.stringify(PROFILES[k])); savePort();
@@ -2941,6 +3009,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(act==='present'){ if(!ANALYSIS||ANALYSIS.empty) return; DECK=a.dataset.deck||'main'; SLIDE=0; await loadQR(); presShow(); hap('medium'); try{ const e=document.documentElement; if(e.requestFullscreen && !IN_TG) await e.requestFullscreen(); }catch(e){} }
     if(['clientlink','print'].includes(act) && $('pres')) await presClose();
     if(act==='reload'){ a.disabled=true; try{ await load(); ANALYSIS=null; render(); if(TAB==='port'&&P.pos.length) recompute(); toast(OFFLINE?'Связи всё ещё нет':'Цены обновлены'); }catch(e){ toast('Связи нет'); } }
+    if(act==='crit'){ if(!CRITB.includes(P.profile) && P.profile!=='custom'){ P.profile='mod'; P.params=JSON.parse(JSON.stringify(PROFILES.mod)); savePort(); } openSheet(critSheetHtml()); }
+    if(act==='critbuild'){ const snap=snapP(); closeSheet(); P.pos=P.pos.filter(p=>p.pin); TAB='port'; PV='main'; store.set('b_tab2',TAB); window.scrollTo({top:0}); await rebuild('Портфель собран по критериям', snap); }
     if(act==='mapfs'){ closeSheet(); await mapfsOpen(); }
     if(act==='mapclose'){ mapfsClose(); }
     if(act==='pnext'){ SLIDE++; presShow(); }

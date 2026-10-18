@@ -227,6 +227,7 @@ h1,h2,h3{font-family:var(--disp);font-weight:500;letter-spacing:-.01em}
 .grp td{text-transform:none;letter-spacing:0;font-size:12.5px}
 .bnav{box-shadow:var(--lift)}
 .btn.acc,.acc-btn{background:var(--act);color:#fff}
+.tabs .tab[data-tab=calc]{background:var(--act);color:#fff}
 @media (prefers-reduced-motion: reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
 </style>
 </head>
@@ -251,7 +252,7 @@ h1,h2,h3{font-family:var(--disp);font-weight:500;letter-spacing:-.01em}
     {id:'bonds', name:'Облигации', icon:'◫'},
     {id:'fx', name:'Валюты', icon:'₽'},
     {id:'markets', name:'Рынки', icon:'↗'},
-    {id:'calc', name:'Сравнение', icon:'⚖'},
+    {id:'calc', name:'Подбор ↗', icon:'⚖'},     // одна дверь на страницу облигаций (Старт: сравнение с вкладом, подбор, портфель)
   ];
   const TAB_SERIES = {
     rates:['KEY','DEP','RUSFARCNY','RUONIA'],
@@ -447,7 +448,7 @@ h1,h2,h3{font-family:var(--disp);font-weight:500;letter-spacing:-.01em}
     document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
     let html='';
     if(TAB==='calc'){   // «Быстрое сравнение» — на странице облигаций
-      store.set('tab','today'); $('app').innerHTML='<div class="card loading">Открываю «Быстрое сравнение»…</div>'; location.href='bonds.html?v=compare'; return;
+      store.set('tab','today'); $('app').innerHTML='<div class="card loading">Открываю подбор облигаций…</div>'; location.href='bonds.html?v=compare'; return;
     }
     if(TAB==='today'){ $('app').innerHTML=todayHtml(); if(!DIG) loadDigest(); else drawYear(); return; }
     if(TAB==='overview'){
@@ -488,7 +489,7 @@ h1,h2,h3{font-family:var(--disp);font-weight:500;letter-spacing:-.01em}
     document.documentElement.dataset.theme=t; store.set('theme',t); if(DATA) render();
   });
   $('tabs').innerHTML=TABS.map(t=>`<button class="tab" data-tab="${t.id}">${t.name}</button>`).join('')+
-    `<a class="tab" href="bonds.html" style="text-decoration:none;background:var(--act);color:#fff">Подбор облигаций ↗</a>`;
+''; 
   $('bnav').innerHTML=TABS.map(t=>`<button data-tab="${t.id}"><i>${t.icon}</i>${t.name}</button>`).join('');
 
   // ---------- переход по кнопке из Telegram: #IMOEX, #USD, #CURVE, #RATES, #PERF ...

@@ -1,4 +1,5 @@
-"""Карточка дня: картинка 1080×1350 в стиле дашборда (вариант «финтех»).
+"""Карточка дня: картинка 1080×1350 в стиле «Кабинет» (как дашборд и страница облигаций):
+бумажный фон, тёмно-синий — главное, бронза — тонкие акценты; текст — Onest, цифры и заголовки — Literata.
 Используется digest.py: render_card(data, series, now) -> путь к PNG."""
 import os
 from datetime import timedelta
@@ -8,24 +9,26 @@ from common import MONTHS, WEEKDAYS, fnum, fpct, fpp, market_view, next_meeting,
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "card.png")
 
-BG, CARD, INK, INK2, INK3, LINE = "#eef1f6", "#ffffff", "#101828", "#667085", "#98a2b3", "#e6eaf1"
-ACC, ACC2, UP, DOWN, WARN = "#5b5bf7", "#8b5cf6", "#12b76a", "#f04438", "#f79009"
+BG, CARD, INK, INK2, INK3, LINE = "#f4f0e8", "#fcfaf6", "#16202b", "#5d6670", "#8f969d", "#e5ded1"
+ACC, ACC2, UP, DOWN, WARN = "#1b2f45", "#8f6e3c", "#2d6a4f", "#a3392b", "#9a5a12"
+NAVY, CREAM, BRASS2 = "#1b2f45", "#f4f0e8", "#f0e6d3"
 W, H = 1080, 1350
 
 
 def _fonts():
+    """Onest (текст) и Literata (цифры, заголовки) из файлов рядом со скриптом; иначе DejaVu."""
     import logging
     logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
-    """Manrope из файлов рядом со скриптом (если загружены в репозиторий), иначе DejaVu Sans."""
     from matplotlib import font_manager as fm
-    fam = []
-    for f in ("Manrope-SemiBold.ttf", "Manrope-ExtraBold.ttf"):
-        p = os.path.join(HERE, f)
+    have = set()
+    for f, fam in (("Onest-Medium.ttf", "Onest"), ("Onest-SemiBold.ttf", "Onest"), ("Literata-Medium.ttf", "Literata")):
+        p = os.path.join(HERE, "fonts", f)
         if os.path.exists(p):
             fm.fontManager.addfont(p)
-            if "Manrope" not in fam:
-                fam.append("Manrope")
-    return fam + ["DejaVu Sans"]
+            have.add(fam)
+    sans = (["Onest"] if "Onest" in have else []) + ["DejaVu Sans"]
+    serif = (["Literata"] if "Literata" in have else []) + ["DejaVu Serif"]
+    return sans, serif
 
 
 def render_card(d, series, now, moves=(), path=OUT):
@@ -35,8 +38,8 @@ def render_card(d, series, now, moves=(), path=OUT):
     import numpy as np
     from matplotlib.patches import FancyBboxPatch
 
-    fam = _fonts()
-    plt.rcParams["font.family"] = fam
+    sans, serif = _fonts()
+    plt.rcParams["font.family"] = sans
     today = now.date()
     fig = plt.figure(figsize=(W / 100, H / 100), dpi=100, facecolor=BG)
 
@@ -46,8 +49,9 @@ def render_card(d, series, now, moves=(), path=OUT):
     def fy(y):
         return 1 - y / H
 
-    def text(x, y, s, size, color=INK, weight=800, ha="left", va="top"):
-        fig.text(fx(x), fy(y), s, fontsize=size, color=color, fontweight=weight, ha=ha, va=va)
+    def text(x, y, s, size, color=INK, weight=500, ha="left", va="top", disp=False):
+        fig.text(fx(x), fy(y), s, fontsize=size, color=color, fontweight=weight, ha=ha, va=va,
+                 family=serif if disp else sans)
 
     def box(x, y, w, h, color=CARD, r=34, z=0):
         p = FancyBboxPatch((fx(x), fy(y + h)), fx(w), h / H, boxstyle=f"round,pad=0,rounding_size={r / W}",
@@ -67,64 +71,57 @@ def render_card(d, series, now, moves=(), path=OUT):
         xs = np.arange(len(pts))
         step = key in ("KEY", "DEP")
         if step:
-            ax.step(xs, pts, where="post", color=color, lw=2.4)
+            ax.step(xs, pts, where="post", color=color, lw=2.0)
         else:
-            ax.plot(xs, pts, color=color, lw=2.4, solid_capstyle="round")
+            ax.plot(xs, pts, color=color, lw=2.0, solid_capstyle="round")
         lo, hi = min(pts), max(pts)
         pad = (hi - lo) * 0.15 or abs(hi) * 0.01 or 1
         ax.set_ylim(lo - pad, hi + pad)
-        ax.fill_between(xs, pts, lo - pad, color=color, alpha=0.10, step="post" if step else None, lw=0)
+        ax.fill_between(xs, pts, lo - pad, color=color, alpha=0.06, step="post" if step else None, lw=0)
         ax.set_xlim(0, len(pts) - 1)
 
     # ---------- шапка
-    text(60, 46, "Рынки сегодня", 36)
-    text(60, 106, f"{WEEKDAYS[now.weekday()]}, {now.day} {MONTHS[now.month - 1]} · {now:%H:%M} МСК", 17, INK2, 600)
+    text(60, 44, "Рынки сегодня", 38, disp=True)
+    text(60, 116, f"{WEEKDAYS[now.weekday()]}, {now.day} {MONTHS[now.month - 1]} · {now:%H:%M} МСК", 17, INK2)
 
     # ---------- главная карточка: ключевая ставка
-    y0 = 158
+    y0 = 170
     hero_h = 222
-    hero = box(60, y0, W - 120, hero_h, ACC)
-    gax = fig.add_axes([fx(60), fy(y0 + hero_h), fx(W - 120), hero_h / H])
-    gax.set_axis_off()
-    grad = np.linspace(0, 1, 256).reshape(1, -1)
-    from matplotlib.colors import LinearSegmentedColormap
-    cmap = LinearSegmentedColormap.from_list("g", [ACC, ACC2])
-    im = gax.imshow(grad, aspect="auto", cmap=cmap, extent=[0, 1, 0, 1])
-    im.set_clip_path(hero)
+    box(60, y0, W - 120, hero_h, NAVY)
     key = (d.get("key") or [(None, None)])[-1][1]
     key0 = None
     for dd, v in d.get("key") or []:
         if dd <= f"{today.year - 1}-12-31":
             key0 = v
-    text(95, y0 + 28, "Ключевая ставка ЦБ", 16, "#e9e7ff", 600)
-    text(95, y0 + 58, f"{fnum(key)}%" if key is not None else "н/д", 44, "#ffffff")
+    text(95, y0 + 28, "Ключевая ставка ЦБ", 16, "#b9c4d0")
+    text(95, y0 + 56, f"{fnum(key)}%" if key is not None else "н/д", 50, CREAM, disp=True)
     if key is not None and key0 is not None:
-        text(95, y0 + 160, f"{fpp(key - key0)} п.п. с начала года", 15, "#e9e7ff", 600)
+        text(95, y0 + 166, f"{fpp(key - key0)} п.п. с начала года", 15, "#b9c4d0")
     nm = next_meeting(today)
     rx = 560
     if nm:
         days = (nm - today).days
-        text(rx, y0 + 28, "Следующее заседание", 14, "#e9e7ff", 600)
+        text(rx, y0 + 28, "Следующее заседание", 14, "#b9c4d0")
         text(rx, y0 + 52, f"{nm.day} {MONTHS[nm.month - 1]}" + (" · сегодня" if days == 0 else f" · через {days} дн."),
-             20, "#ffffff")
+             21, CREAM, disp=True)
     z = d.get("zcyc") or {}
     ofz1 = (z.get("points") or {}).get(1.0)
     mv = market_view(key, ofz1)
     if mv:
         spread, key_eff, view = mv
-        text(rx, y0 + 100, "Рынок закладывает (по ОФЗ 1 год)", 14, "#e9e7ff", 600)
-        text(rx, y0 + 124, view, 20, "#ffffff")
-        text(rx, y0 + 162, f"ОФЗ 1г {fnum(ofz1)}% vs ключевая ≈{fnum(key_eff)}%", 13, "#e9e7ff", 600)
-        text(rx, y0 + 184, "(обе — в годовом начислении)", 12, "#d9d6ff", 600)
+        text(rx, y0 + 100, "Рынок закладывает (по ОФЗ 1 год)", 14, "#b9c4d0")
+        text(rx, y0 + 124, view, 21, "#e3c99a", disp=True)
+        text(rx, y0 + 164, f"ОФЗ 1г {fnum(ofz1)}% vs ключевая ≈{fnum(key_eff)}%", 13, "#b9c4d0")
+        text(rx, y0 + 186, "(обе — в годовом начислении)", 12, "#8d9aa8")
 
     # ---------- сильные движения
     y = y0 + hero_h + 22
     if moves:
         mh = 58 + 30 * min(len(moves), 3)
-        box(60, y, W - 120, mh, "#fff4e5")
-        text(90, y + 16, "Сильные движения", 14, "#b54708", 600)
+        box(60, y, W - 120, mh, BRASS2)
+        text(90, y + 16, "Сильные движения", 14, ACC2, 600)
         for i, (_icon, t) in enumerate(moves[:3]):
-            text(90, y + 46 + 30 * i, "• " + t, 15, INK, 600)
+            text(90, y + 46 + 30 * i, "• " + t, 15, INK)
         y += mh + 22
 
     # ---------- плитки 3×3
@@ -195,21 +192,21 @@ def render_card(d, series, now, moves=(), path=OUT):
     for i, (label, val, (l1, c1), l2, sk, lc) in enumerate(tiles[:9]):
         cx = 60 + (i % 3) * (tw + gap)
         cy = y + (i // 3) * (th + gap)
-        box(cx, cy, tw, th, r=28)
-        text(cx + 22, cy + 20, label, 12.5, INK2, 600)
-        text(cx + 22, cy + 42, val, 27, INK)
+        box(cx, cy, tw, th, r=26)
+        text(cx + 22, cy + 20, label, 12.5, INK2)
+        text(cx + 22, cy + 42, val, 28, INK, disp=True)
         if l1:
-            text(cx + 22, cy + 90, l1, 12.5, c1, 600)
+            text(cx + 22, cy + 98, l1, 12.5, c1, 600)
         if l2:
-            text(cx + 22, cy + 112, l2, 12, INK3, 600)
+            text(cx + 22, cy + 120, l2, 12, INK3)
         cut = (today - timedelta(days=92)).isoformat()
         pts = [v for dd_, v in (series.get(sk) or []) if dd_ >= cut]
         color = lc or (UP if len(pts) > 1 and pts[-1] >= pts[0] else DOWN)
         if th - 150 > 40:
-            spark(cx + 22, cy + 140, tw - 44, th - 158, sk, color)
+            spark(cx + 22, cy + 148, tw - 44, th - 164, sk, color)
 
     text(W / 2, H - 38, "мини-графики — 3 месяца · источники: Банк России, Мосбиржа, Yahoo Finance", 12.5, INK3,
-         600, ha="center")
+         ha="center")
     fig.savefig(path, facecolor=BG)
     plt.close(fig)
     return path
