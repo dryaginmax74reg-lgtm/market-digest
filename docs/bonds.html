@@ -749,6 +749,15 @@ a.qrbox{color:inherit;text-decoration:none}
 .rep .card{background:#fff;border:1px solid #e5ded1;box-shadow:none}
 .rep h2{font-family:var(--disp);font-weight:500}
 .rep .reptitle{font:500 22px var(--disp);letter-spacing:-.01em}
+.kr-n small.kr-p{color:var(--ink3);font-size:12px;margin-top:2px}
+.coab{background:var(--bg);border-radius:16px;padding:14px 16px;margin:8px 0 12px}.coh{font:500 16px var(--disp);margin-bottom:6px}
+.coab .cod{margin:0 0 10px;font-size:14.5px;line-height:1.5;color:var(--ink)}
+.cokpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:10px}.cokpi div{background:var(--card);border-radius:10px;padding:7px 10px}
+.cokpi span{display:block;font-size:11.5px;color:var(--ink2)}.cokpi b{font:500 15px var(--disp)}.cokpi i{font-style:normal;font-size:12px;color:var(--ink2);font-family:Onest}
+.cosay{font-size:13.5px;line-height:1.5;border-left:2px solid var(--act);padding:2px 0 2px 10px;color:var(--ink)}.cosay span{display:block;font-size:11.5px;color:var(--act);font-weight:600;margin-bottom:2px}
+.cosrc{font-size:11px;color:var(--ink3);margin-top:8px}.cosrc a{color:var(--ink2)}
+.cobond{font-size:13px;color:var(--ink2);margin:4px 2px 8px}
+.ndt{white-space:nowrap}.ndt.warn{color:var(--warn)}.ndt.down{color:var(--down)}
 /* карта рынка на весь экран */
 #mapfs{position:fixed;inset:0;z-index:1100;background:var(--bg);display:flex;flex-direction:column;padding:calc(10px + var(--tg-safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom))}
 #mapfs .mh{display:flex;align-items:center;gap:8px;padding:2px 4px 8px}#mapfs .mh h2{flex:1;font-size:20px}
@@ -1121,6 +1130,68 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const elMaxOf = pp => pp.elMax!=null ? pp.elMax : (PROFILES[P.profile]||{}).elMax;
   const pdYear = r => r.ofz ? 0 : (r.rating in PD3 ? 1-Math.pow(1-PD3[r.rating]/100, 1/3) : 1-Math.pow(1-0.179,1/3));   // без рейтинга — как B
   const relWord = r => { const s=rScore(r.rating); return r.ofz?'государство (ОФЗ)':s<=1?'максимальная надёжность на рынке':s<=4?'очень высокая надёжность':s<=7?'высокая надёжность':s<=10?'умеренная надёжность':s<99?'спекулятивный уровень':'рейтинга нет'; };
+  // ---------------- «О компании»: 1–2 предложения о бизнесе (Википедия), масштаб и долговая нагрузка (РСБУ, ГИР БО ФНС), бумаги на бирже
+  // Чистый долг / EBITDA: в РСБУ нет строки амортизации, поэтому вместо EBITDA — прибыль от продаж (EBIT); оценка чуть строже настоящего ND/EBITDA
+  const FINSEC = r => /Лизинг|МФО|Банк|Страх/i.test(r.sector||'');     // у лизинга и финансовых компаний долг — основа бизнеса, ЧД/EBITDA не показателен
+  const sentences = t => { const out=[]; let cur=''; const parts=String(t).replace(/([.!?])\s+/g,'$1\u0001').split('\u0001');
+    for(const p of parts){ cur=cur?cur+' '+p:p; if(/(\b(тыс|млн|млрд|руб|г|гг|т\.\s?д|т\.\s?е|им|ул|др|пр|см|англ|лат|св|ок|ст)\.)$/i.test(cur) || !/^[А-ЯЁA-Z«"0-9]/.test((parts[parts.indexOf(p)+1]||'A'))) continue; out.push(cur); cur=''; }
+    if(cur) out.push(cur); return out; };
+  const ndOf = r => { const f=fundOf(r); if(!f || f.spv || f.none) return null; if(!(f.ebit>0)) return {neg:true}; return {v:(f.debt-f.cash)/f.ebit}; };
+  const ndWord = v => v<=0 ? 'долга почти нет — денег больше, чем долга' : v<1 ? 'долговая нагрузка низкая' : v<3 ? 'долговая нагрузка умеренная' : v<4.5 ? 'долговая нагрузка заметная' : 'долговая нагрузка высокая';
+  const ndTxt = r => { const x=ndOf(r); if(!x) return ''; return x.neg ? 'ЧД/EBITDA: убыток' : x.v<=0 ? 'ЧД/EBITDA < 0' : `ЧД/EBITDA ${nf(x.v,1)}×`; };
+  const ndTag = r => { const t=ndTxt(r); if(!t) return ''; const x=ndOf(r), c=FINSEC(r)?'':x.neg||x.v>4.5?'down':x.v>3?'warn':''; return `<span class="ndt ${c}" title="чистый долг / прибыль от продаж по РСБУ ${(fundOf(r)||{}).y||''} (ГИР БО ФНС); амортизации в РСБУ нет, поэтому вместо EBITDA — EBIT: оценка чуть строже">${t}</span>`; };
+  const CO = {};
+  const coreName = full => { full=String(full||''); const q=full.match(/[«"„“]([^»"”“]+)[»"”“]/); let s=q?q[1]:full;
+    s=s.replace(/(публичное|непубличное)?\s*(акционерное общество|общество с ограниченной ответственностью)/ig,'').replace(/\b(ПАО|НПАО|АО|ООО|ЗАО|ОАО|МКПАО|МФК)\b/g,'').replace(/[«»"„“”]/g,'').trim(); return s; };
+  async function wikiFind(r){
+    const full=(META&&META.em&&META.em[r.em])||r.emName||'', core=coreName(full); if(core.length<3) return null;
+    const norm=s=>String(s).toLowerCase().replace(/ё/g,'е').replace(/[«»"'().,\-–—\s]/g,'');
+    const nc=norm(core);
+    const j=await fetch(`https://ru.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(core)}&srlimit=4&format=json&origin=*`).then(x=>x.json());
+    for(const h of ((j.query&&j.query.search)||[])){
+      const nt=norm(h.title.replace(/\s*\(.*\)\s*$/,'')); if(nt.length<3 || !(nt.includes(nc)||nc.includes(nt))) continue;
+      const s=await fetch(`https://ru.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(h.title.replace(/ /g,'_'))}`).then(x=>x.json()).catch(()=>null);
+      if(!s || s.type==='disambiguation' || !s.extract) continue;
+      if(!/(компани|предприяти|банк|групп|оператор|производител|холдинг|корпорац|акционерн|организац|лизинг|ритейл|сеть|завод|комбинат|девелопер|застройщик|концерн|фирма|перевоз|поставщик|разработчик|агентств|общество|монополи|добыва|инвестиц)/i.test(s.extract)) continue;
+      const clean=s.extract.replace(/\s*\([^()]*\)/g,'').replace(/\s*\[[^\]]*\]/g,'').replace(/\s{2,}/g,' ').trim();
+      let txt=sentences(clean).slice(0,2).join(' ').trim();
+      if(txt.length>320) txt=txt.slice(0,317).replace(/\s\S*$/,'')+'…';
+      return {text:txt, url:(s.content_urls&&s.content_urls.desktop&&s.content_urls.desktop.page)||`https://ru.wikipedia.org/wiki/${encodeURIComponent(h.title)}`};
+    }
+    return null;
+  }
+  async function coDesc(r){
+    if(!r || r.ofz) return null; if(r.em in CO) return CO[r.em];
+    try{ const c=JSON.parse(store.get('co2_'+r.em,'null')); if(c && Date.now()-c.t<30*864e5) return CO[r.em]=c.v; }catch(e){}
+    let v; try{ v=await wikiFind(r); }catch(e){ return undefined; }          // нет связи — не запоминаем
+    CO[r.em]=v; store.set('co2_'+r.em, JSON.stringify({t:Date.now(), v})); return v;
+  }
+  function emBonds(r){ const L=U.filter(x=>x.em===r.em && passBase(x)); return {n:L.length, vol:L.reduce((a,x)=>a+(x.issue||0),0), next:L.map(x=>x.end).filter(Boolean).sort()[0]}; }
+  function sayLine(r, d){
+    if(r.ofz) return 'ОФЗ — облигации Министерства финансов России: самый надёжный долг в рублях, риска неплатежа компании нет.';
+    const f=fundOf(r), x=ndOf(r), parts=[];
+    const first=d&&d.text ? sentences(d.text)[0].trim() : `${esc(r.emName||'Эмитент')} — компания из отрасли «${esc(r.sector)}».`;
+    if(!(d&&d.text)) parts.push(first);        // описание уже стоит выше — не повторяем
+    if(f && !f.spv && f.rev>0){ const g=f.rev0>0?(f.rev/f.rev0-1)*100:null;
+      parts.push(`Выручка ${kMln(f.rev)} за ${f.y} год${g!=null&&Math.abs(g)>=3?` (${g>0?'рост':'снижение'} на ${nf(Math.abs(g),0)}%)`:''}, ${f.np>0?'бизнес прибыльный':f.np<0?'по итогам года убыток':'прибыль около нуля'}${x&&!x.neg?(FINSEC(r)?', для лизинговой и финансовой компании большой долг — основа бизнеса, важнее рейтинг и капитал':`, ${ndWord(x.v)}${x.v>0?` (ЧД/EBITDA ${nf(x.v,1)}×)`:''}`):''}.`); }
+    else if(f && f.spv) parts.push('Облигации выпускает финансовая компания группы — платит по ним группа, судить нужно по отчётности группы.');
+    parts.push(`Рейтинг ${esc(r.rating||'н/р')} — ${relWord(r)}.`);
+    return parts.join(' ');
+  }
+  function aboutHtml(r){
+    if(r.ofz) return `<div class="coab"><p class="cod">${sayLine(r)}</p></div>`;
+    const f=fundOf(r), b=emBonds(r), d=CO[r.em], loading=!(r.em in CO);
+    const kp=[];
+    if(f && !f.spv && f.rev>0){ const g=f.rev0>0?(f.rev/f.rev0-1)*100:null; kp.push(['Выручка '+f.y, kMln(f.rev)+(g!=null?` <i>${g>=0?'+':'−'}${nf(Math.abs(g),0)}%</i>`:'')]); kp.push(['Чистая прибыль', kMln(f.np)]); }
+    const x=ndOf(r); if(x) kp.push(['ЧД/EBITDA'+(FINSEC(r)?' <i>(для лизинга не показателен)</i>':''), x.neg?'убыток от продаж':x.v<=0?'< 0':nf(x.v,1)+'×']);
+    kp.push(['На бирже', `${b.n} ${b.n%10===1&&b.n%100!==11?'выпуск':b.n%10>=2&&b.n%10<=4&&(b.n%100<10||b.n%100>=20)?'выпуска':'выпусков'}${b.vol>0?' · '+mshort(b.vol):''}`]);
+    return `<div class="coab" id="coab" data-em="${esc(r.em)}"><div class="coh">О компании</div>
+      <p class="cod">${d&&d.text?esc(d.text):loading?'<span class="muted">ищу описание…</span>':`<span class="muted">Описания в открытых источниках не нашлось.</span> ${esc(r.emName||'')} · ${esc(r.sector)}`}</p>
+      <div class="cokpi">${kp.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
+      <div class="cosay"><span>Что сказать клиенту</span>${sayLine(r,d)}</div>
+      <div class="cosrc">${d&&d.url?`описание — <a href="${esc(d.url)}" target="_blank" rel="noopener">Википедия</a> · `:''}${f&&!f.spv?`цифры — РСБУ ${f.y}, ГИР БО ФНС; EBITDA ≈ прибыль от продаж`:/банк|страх|мфо|микрофин/i.test((r.emName||'')+' '+r.sector)?'банки, страховые и МФО отчитываются в ЦБ — цифр ФНС нет':'отчётности ФНС нет'}</div></div>`;
+  }
+  async function aboutFill(r){ if(!r || r.ofz || (r.em in CO)) return; await coDesc(r); const el=$('coab'); if(el && el.dataset.em===String(r.em)) el.outerHTML=aboutHtml(r); }
   let WHY=null;
   function whyHtml(r, at, where='в списке'){
     const P_=r.csParts||{y:0,p:0,q:0,l:0};
@@ -1297,14 +1368,14 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const premCell = r => r.prem==null ? '<td class="num muted">—</td>' :
       `<td class="num ${r.flag?'down':r.prem>0.002?'up':r.prem<-0.01?'muted':''}" title="норма для ${esc(r.rating)} и такого срока: ${pc(r.fair)} (соседей: ${r.peers}${r.width?', рейтинг ±'+r.width:''})">${sg(r.prem*100,2,'')}</td>`;
     const rows = list.slice(0,250).map(r=>{ const at=BS.afterTax(r, BM, SETTLE); return `<tr>
-      <td class="nm" data-why="${r.id}" title="почему такая оценка — нажмите">${r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span> ':''}${esc(r.name)}${fundTag(r)}${inhTag(r)}${mktTag(r)}${r.flag?'<span class="tag d" title="рынок требует заметно больше, чем за такой же рейтинг и срок — видит риск, которого нет в рейтинге">риск</span>':''}${r.est?'<span class="tag w" title="доходность флоатера — оценка при неизменном купоне">~</span>':''}${r.call?'<span class="tag" title="колл-опцион эмитента">колл</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}" title="есть бумага с той же или выше надёжностью и доходностью выше">есть лучше</button>`:''}<small>${esc(r.isin)} · ${KIND_NAME[r.kind]}${r.cur!=='RUB'?' · '+r.cur:''}${r.emName&&!r.ofz?' · '+esc(r.emName.slice(0,40)):''}${!r.ofz?' · '+esc(r.sector):''}</small></td>
+      <td class="nm" data-why="${r.id}" title="почему такая оценка — нажмите">${r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span> ':''}${esc(r.name)}${fundTag(r)}${inhTag(r)}${mktTag(r)}${r.flag?'<span class="tag d" title="рынок требует заметно больше, чем за такой же рейтинг и срок — видит риск, которого нет в рейтинге">риск</span>':''}${r.est?'<span class="tag w" title="доходность флоатера — оценка при неизменном купоне">~</span>':''}${r.call?'<span class="tag" title="колл-опцион эмитента">колл</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}" title="есть бумага с той же или выше надёжностью и доходностью выше">есть лучше</button>`:''}<small>${esc(r.isin)} · ${KIND_NAME[r.kind]}${r.cur!=='RUB'?' · '+r.cur:''}${r.emName&&!r.ofz?' · '+esc(r.emName.slice(0,40)):''}${!r.ofz?' · '+esc(r.sector):''}${ndTxt(r)?' · '+ndTag(r):''}</small></td>
       ${csCell(r)}
       <td>${rTag(r.rating)}</td>
       <td class="num">${pc(r.ytm)}</td>
       ${premCell(r)}
       <td class="num hide-m">${at!=null?((r.kind==='float'||r.kind==='amort')?'≈':'')+pc(at):'—'}</td>
       <td class="num">${r.cpn!=null?nf(r.cpn,2)+'%':r.kind==='float'?'плав.':'—'}<small class="muted" style="display:block;font-size:11px">${freqName(r.freq)}</small></td>
-      <td class="num">${nf(r.price,2)}</td>
+      <td class="num">${nf(r.price,2)}${curY(r)!=null?`<small class="muted" style="display:block;font-size:11px">тек. ${pc(curY(r))}</small>`:''}</td>
       <td class="num hide-m">${nf(r.dur,2)}</td>
       <td class="num">${fmtD(r.end)}${r.off?' <span class="tag">оф.</span>':''}<small class="muted" style="display:block;font-size:11px">${r.days} дн.</small></td>
       <td class="num hide-m">${r.tv?nf(r.tv/1e6,1):'—'}${r.tvAvg?'':'<small class="muted" style="display:block;font-size:10.5px">сегодня</small>'}</td>
@@ -1335,7 +1406,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         <div class="cv map"><canvas id="mapChart"></canvas></div><div class="row-actions" style="margin-top:8px"><button class="btn ghost" data-act="mapfs">На весь экран</button></div></details>
       <div class="card"><div class="sub" style="margin-top:0">найдено ${list.length}${list.length>250?', показаны первые 250':''} · сверху — лучшие по сумме показателей; <span class="tag d">риск</span> — внизу</div>
       <div class="sml only-m"><div class="smsort">${[['cs',NETMODE?'Чистая':'Оценка'],['y','Доходность'],['yrs','Срок'],['r','Рейтинг'],['tv','Оборот']].map(([k,n])=>`<button data-s="${k}" class="${F.sort===k?'on':''}">${n}${F.sort===k?(F.asc?' ↑':' ↓'):''}</button>`).join('')}</div>
-        ${list.slice(0,120).map(r=>`<div class="smr"><div class="smn" data-why="${r.id}"><b>${esc(r.name)}</b>${fundTag(r)}${inhTag(r)}${mktTag(r)}${r.flag?'<span class="tag d">риск</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}">есть лучше</button>`:''}<small>${rTag(r.rating)} ${r.ofz?'ОФЗ':esc((r.emName||'').slice(0,28))} · до ${fmtD(r.end)}${r.off?' (оферта)':''}</small><small>купон ${r.cpn!=null?nf(r.cpn,1)+'%':r.kind==='float'?'плав.':'—'} ${freqName(r.freq)} · цена ${nf(r.price,1)} · оборот ${r.tv?nf(r.tv/1e6,1)+' млн':'—'}</small></div>
+        ${list.slice(0,120).map(r=>`<div class="smr"><div class="smn" data-why="${r.id}"><b>${esc(r.name)}</b>${fundTag(r)}${inhTag(r)}${mktTag(r)}${r.flag?'<span class="tag d">риск</span>':''}${altOf(r.id)?`<button class="tag g altb" data-alt="${r.id}">есть лучше</button>`:''}<small>${rTag(r.rating)} ${r.ofz?'ОФЗ':esc((r.emName||'').slice(0,28))} · до ${fmtD(r.end)}${r.off?' (оферта)':''}</small><small>купон ${r.cpn!=null?nf(r.cpn,1)+'%':r.kind==='float'?'плав.':'—'} ${freqName(r.freq)} · цена ${nf(r.price,2)}%${curY(r)!=null?' · тек. дох. '+pc(curY(r)):''}${ndTxt(r)?' · '+ndTag(r):''} · оборот ${r.tv?nf(r.tv/1e6,1)+' млн':'—'}</small></div>
           <div class="smv"><b class="num">${r.flag?'—':NETMODE?(r.net?nf(r.cs,2)+'%':'—'):r.cs}</b><small>${NETMODE?'чистая':'оценка'}</small><small class="num">дох. ${pc(r.ytm,1)}</small></div>
           <button class="add ${inPort(r.id)?'on':''}" data-add="${r.id}" aria-label="${inPort(r.id)?'убрать из портфеля':'в портфель'}">${inPort(r.id)?'✓':'+'}</button></div>`).join('')||'<div class="empty">ничего не найдено — ослабьте фильтры</div>'}
         ${list.length>120?`<div class="note" style="padding:10px 4px">показаны первые 120 из ${list.length} — уточните поиск или фильтры</div>`:''}</div>
@@ -2296,11 +2367,14 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const inhTag = r => r && r.rInh ? '<span class="tag w" title="у нового выпуска ещё нет своего рейтинга в справочнике — взят рейтинг эмитента по его другим выпускам">рейтинг эмитента</span>' : '';
   const posFlags = x => [soonTag(x.r), fundTag(x.r), inhTag(x.r), mktTag(x.r), x.r.cnyBoard?'<span class="star" title="есть режим торгов за юани">★</span>':'', x.r.flag?'<span class="tag d">риск</span>':'', x.r.sub?'<span class="tag w">суборд.</span>':'', x.bz&&x.bz.qual?'<span class="tag w">квал</span>':'', x.bz&&x.bz.def?'<span class="tag d">дефолт</span>':x.bz&&x.bz.tdef?'<span class="tag w" title="Мосбиржа отмечает, что у эмитента был технический дефолт (задержка выплаты, затем исполнена). Это не текущий дефолт — проверьте новости эмитента">техдефолт в истории</span>':'', x.a.est?'<span class="tag w" title="часть купонов неизвестна — по последней ставке">купон ~</span>':'', (x.r.ofz||x.r.cur!=='RUB')&&FX.CNY?'<span class="tag loan" title="под эту бумагу брокер даёт займ в юанях (дисконт 20%)">залог</span>':''].join('');
   let OPENROW=null;
+  // цена в % от номинала и текущая доходность (купон / цена) — как в терминале брокера
+  const curY = r => r && r.cpn>0 && r.price>0 ? r.cpn/r.price : null;
+  const priceLine = (r, ytm) => `цена ${nf(r.price,2)}%${curY(r)!=null?` · тек. дох. ${pc(curY(r))}`:''}${ytm!=null?` · к погаш. ${pc(ytm)}`:''}`;
   function posRows(A, ro){
     const tax=P.account!=='iis3', wide=WIDE();
     return `<div class="kl ${ro?'ro':''} ${wide&&!ro?'wide':''}">${A.rows.map(x=>{ const id=x.r.id, pin=!!x.p.pin, open=!ro&&(wide||OPENROW===id), net=NETMODE&&x.r.net?BS.netOf(x.r,{tax}):null, end=x.a.end||x.r.end;
       return `<div class="kr ${pin?'pin':''} ${open?'open':''}"><div class="kr-m" ${ro||wide?`data-why="${id}"`:`data-row="${id}"`}>
-          <div class="kr-n"><b>${esc(x.r.name)}</b>${posFlags(x)}<small>${rTag(x.r.rating)} ${x.r.ofz?'ОФЗ':esc((x.r.emName||'').slice(0,26))} · до ${fmtD(end)}${x.a.toCall?' (колл)':x.a.toOffer?' (оферта)':''} · ${nf(x.p.w,1)}%</small></div>
+          <div class="kr-n"><b>${esc(x.r.name)}</b>${posFlags(x)}<small>${rTag(x.r.rating)} ${x.r.ofz?'ОФЗ':esc((x.r.emName||'').slice(0,26))} · до ${fmtD(end)}${x.a.toCall?' (колл)':x.a.toOffer?' (оферта)':''} · ${nf(x.p.w,1)}%</small><small class="kr-p num">${priceLine(x.r, x.a.ytm)}${ndTxt(x.r)?' · '+ndTag(x.r):''}</small></div>
           <div class="kr-v num"><b>${mshort(x.cost)}</b><small>${net!=null?pc(net)+' чистая':x.a.ytm!=null?pc(x.a.ytm):'нет данных'}</small></div></div>
         ${open?`<div class="kr-e"><button class="wb" data-wd="${id}" data-d="-1" aria-label="меньше">−</button><input class="qty wqty" data-w="${id}" value="${nf(x.p.w,1)}" inputmode="decimal" aria-label="доля, %"><button class="wb" data-wd="${id}" data-d="1" aria-label="больше">+</button>
           <button class="kb rub" data-amtpos="${id}">${x.qty?x.qty.toLocaleString('ru-RU')+' шт':'меньше лота'}</button><button class="kb" data-sim="${id}" title="заменить на похожую">${wide?'↻':'Заменить'}</button><button class="kb more" data-why="${id}" aria-label="ещё">⋯</button></div>`:''}</div>`; }).join('')}</div>`;
@@ -2641,8 +2715,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         ${qr?`<a class="qrbox" href="${esc(clink)}">${qr}<span>отсканируйте или нажмите — портфель с актуальными ценами</span></a>`:''}</div>
       <a class="replink" href="${esc(clink)}">Открыть портфель с актуальными ценами ›</a>
       ${heroHtml(A,true)}
-      <div class="card"><h2>Состав</h2><table><thead><tr><th>Выпуск</th><th>Рейтинг</th><th>Доходность</th><th>Купон</th><th>Погашение</th><th>Доля</th><th>Сумма</th></tr></thead><tbody>
-      ${A.rows.map(x=>`<tr><td>${esc(x.r.name)}</td><td>${esc(x.r.rating||'н/р')}</td><td>${pc(x.a.ytm)}</td><td>${x.r.cpn!=null?nf(x.r.cpn,2)+'%, '+freqName(x.r.freq):x.r.kind==='float'?'плавающий, '+freqName(x.r.freq):'—'}</td><td>${fmtD(x.a.end)}${x.a.toCall?' (колл)':x.a.toOffer?' (оферта)':''}</td><td>${nf(x.cost/Math.max(A.total,P.amount)*100,1)}%</td><td>${money(x.cost)}</td></tr>`).join('')}
+      <div class="card"><h2>Состав</h2><table><thead><tr><th>Выпуск</th><th>Рейтинг</th><th>Цена, %</th><th>Доходность</th><th>Тек. дох.</th><th>Купон</th><th>Погашение</th><th>ЧД/EBITDA</th><th>Доля</th><th>Сумма</th></tr></thead><tbody>
+      ${A.rows.map(x=>`<tr><td>${esc(x.r.name)}</td><td>${esc(x.r.rating||'н/р')}</td><td>${nf(x.r.price,2)}</td><td>${pc(x.a.ytm)}</td><td>${curY(x.r)!=null?pc(curY(x.r)):'—'}</td><td>${x.r.cpn!=null?nf(x.r.cpn,2)+'%, '+freqName(x.r.freq):x.r.kind==='float'?'плавающий, '+freqName(x.r.freq):'—'}</td><td>${fmtD(x.a.end)}${x.a.toCall?' (колл)':x.a.toOffer?' (оферта)':''}</td><td>${(()=>{ const n=ndOf(x.r); return x.r.ofz?'—':!n?'н/д':n.neg?'убыток':n.v<=0?'< 0':nf(n.v,1)+'×'; })()}</td><td>${nf(x.cost/Math.max(A.total,P.amount)*100,1)}%</td><td>${money(x.cost)}</td></tr>`).join('')}
       </tbody></table></div>
       <div class="two"><div class="card"><h2>Выплаты на ближайший год</h2><table><thead><tr><th>Месяц</th><th>Купоны</th><th>Погашения</th></tr></thead><tbody>
         ${cf.map(x=>`<tr><td>${x.k.slice(5)}.${x.k.slice(0,4)}</td><td>${money(x.c)}</td><td>${x.p?money(x.p):'—'}</td></tr>`).join('')}</tbody></table><div class="note">до налога</div></div>
@@ -2983,7 +3057,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       let where='в списке';
       if(TAB==='screen') screen(); else { SCORE(U.filter(u=>passBase(u)&&u.cur===r.cur&&!u.sub&&!u.mbs)); where='на рынке в '+({RUB:'рублях',CNY:'юанях',USD:'долларах',EUR:'евро'}[r.cur]||r.cur); }
       const alt=TAB==='screen'?altOf(r.id):null;
-      openSheet(`<h3>${esc(r.name)} ${rTag(r.rating)}</h3>${alt?`<button class="altnote" data-alt="${r.id}">Есть лучше: <b>${esc(alt.name)}</b> · ${esc(alt.rating||'')} · ${NETMODE?'чистая '+pc(BS.netOf(alt))+' (+'+nf((BS.netOf(alt)-BS.netOf(r))*100,2)+' п.п.)':pc(alt.ytm)+' (+'+nf((alt.ytm-r.ytm)*100,2)+' п.п.)'} <span>сравнить →</span></button>`:''}${whyHtml(r, BS.afterTax(r,BM,SETTLE), where)}${TAB==='screen'?`<div class="row-actions" style="margin-top:12px"><button class="btn ${inPort(r.id)?'ghost':'acc'}" data-add="${r.id}">${inPort(r.id)?'Убрать из портфеля':'+ В портфель'}</button></div>`:TAB==='port'&&inPort(r.id)&&!CLIENT?`<div class="row-actions" style="margin-top:12px"><button class="btn ghost" data-sim="${r.id}">↻ Заменить…</button><button class="btn ghost" data-amtpos="${r.id}">₽ Сумма</button><button class="btn ghost" data-pin="${r.id}">${P.pos.find(p=>p.id===r.id).pin?'Открепить':'Закрепить'}</button><button class="btn ghost danger" data-del="${r.id}">✕ Убрать</button></div>`:''}`); return; }
+      if(CLIENT){ openSheet(`<h3>${esc(r.name)} ${rTag(r.rating)}</h3>${aboutHtml(r)}<div class="cobond num">${priceLine(r, r.ytm)} · ${r.cpn!=null?'купон '+nf(r.cpn,2)+'%, '+freqName(r.freq):r.kind==='float'?'плавающий купон':''} · до ${fmtD(r.end)}${r.off?' (оферта)':''}</div>`); aboutFill(r); return; }
+      openSheet(`<h3>${esc(r.name)} ${rTag(r.rating)}</h3>${aboutHtml(r)}${alt?`<button class="altnote" data-alt="${r.id}">Есть лучше: <b>${esc(alt.name)}</b> · ${esc(alt.rating||'')} · ${NETMODE?'чистая '+pc(BS.netOf(alt))+' (+'+nf((BS.netOf(alt)-BS.netOf(r))*100,2)+' п.п.)':pc(alt.ytm)+' (+'+nf((alt.ytm-r.ytm)*100,2)+' п.п.)'} <span>сравнить →</span></button>`:''}${whyHtml(r, BS.afterTax(r,BM,SETTLE), where)}${TAB==='screen'?`<div class="row-actions" style="margin-top:12px"><button class="btn ${inPort(r.id)?'ghost':'acc'}" data-add="${r.id}">${inPort(r.id)?'Убрать из портфеля':'+ В портфель'}</button></div>`:TAB==='port'&&inPort(r.id)&&!CLIENT?`<div class="row-actions" style="margin-top:12px"><button class="btn ghost" data-sim="${r.id}">↻ Заменить…</button><button class="btn ghost" data-amtpos="${r.id}">₽ Сумма</button><button class="btn ghost" data-pin="${r.id}">${P.pos.find(p=>p.id===r.id).pin?'Открепить':'Закрепить'}</button><button class="btn ghost danger" data-del="${r.id}">✕ Убрать</button></div>`:''}`); aboutFill(r); return; }
     const ad=ev.target.closest('[data-add]'); if(ad){ const id=ad.dataset.add;
       if(!inPort(id) && !addChecked(id,'screen')) return;
       if(inPort(id)) P.pos=P.pos.filter(p=>p.id!==id); else addToPort(id);
