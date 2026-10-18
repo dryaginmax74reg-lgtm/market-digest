@@ -224,6 +224,16 @@ function mk({ c = 10, period = 182, n = 6, first = '2027-01-01', amort = null, f
   // ОФЗ на срок: без налога и реинвест по y — годовая = y
   const o = B.parBondNet(1e7, 0.14, 2, '2026-01-01', '2029-01-01', 'none', true, false);
   ok('ОФЗ на срок без налога = доходности кривой', near(o.annual, 0.14, 1e-6), o.annual);
+  // ЛДВ: дисконтная бумага (цена 70) гасится через 4 года — рост цены без налога; через 2 года — с налогом
+  const zc = (end, n) => [{ id: 'z', qty: n, bond: { face: 1000 }, flows: [{ ms: B.toMs(end), amt: 1000, kind: 'a', date: end }], clean: 70, accrued: 0, fx: 1, ytm: 0.1 }];
+  const l4 = B.simulate(zc('2030-01-02', 1000), { settle: '2026-01-01', account: 'std', reinvest: 0, ldv: true });
+  ok('ЛДВ: держим больше 3 лет — налога нет', l4.taxPaid === 0 && near(l4.ldvFree, 300000, 1e-6), l4.taxPaid);
+  const n4 = B.simulate(zc('2030-01-02', 1000), { settle: '2026-01-01', account: 'std', reinvest: 0, ldv: false });
+  ok('без ЛДВ — 13% с роста цены', near(n4.taxPaid, 39000, 1e-6), n4.taxPaid);
+  const l2 = B.simulate(zc('2028-01-02', 1000), { settle: '2026-01-01', account: 'std', reinvest: 0, ldv: true });
+  ok('ЛДВ: меньше 3 лет — налог есть', near(l2.taxPaid, 39000, 1e-6), l2.taxPaid);
+  const big = B.simulate(zc('2030-01-02', 50000), { settle: '2026-01-01', account: 'std', reinvest: 0, ldv: true });
+  ok('ЛДВ: лимит 3 млн за год владения (4 года → 12 млн)', near(big.ldvFree, 12e6, 1e-6), big.ldvFree);
 }
 console.log(fails ? `\n${fails} FAILED` : '\nALL OK');
 process.exit(fails ? 1 : 0);

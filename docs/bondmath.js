@@ -201,6 +201,8 @@
    *  - другие доходы клиента НЕ учитываются.
    *  account='iis3': налог не удерживается, весь купон реинвестируется (льгота ИИС-3 при соблюдении срока);
    *  освобождение — не больше 30 млн ₽ дохода, с превышения налог по шкале при закрытии (iisTax).
+   *  o.ldv (только account='std'): льгота долгосрочного владения (п. 17.2 ст. 217 НК) — доход от погашения или продажи бумаги,
+   *  которая к этому моменту держится больше 3 лет, не облагается в пределах 3 млн ₽ × число полных лет владения (на позицию). Купоны облагаются всегда.
    *  Все денежные величины переводятся в рубли по fx (курс считается постоянным).
    * Плечо: позиции с lev:true куплены на заёмные деньги (o.loanRate — эфф. годовая ставка займа, o.loanShift — её сдвиг).
    *  Долг = стоимость lev-позиций, растёт по ставке займа (проценты капитализируются); купоны и погашения заёмных бумаг
@@ -243,7 +245,14 @@
     let cash = 0, t = s, debt = borrowed, repaid = 0, paidOut = 0;
     const years = {};          // year -> {base, withheld}
     const Y = y => (years[y] = years[y] || { base: 0, withheld: 0 });
-    let gross = { coupons: 0, redemptions: 0, reinvest: 0, loanInterest: 0 }, taxPaid = 0;
+    let gross = { coupons: 0, redemptions: 0, reinvest: 0, loanInterest: 0 }, taxPaid = 0, ldvFree = 0;
+    // ЛДВ: какая часть дохода от погашения/продажи освобождается (держим больше 3 лет — до 3 млн ₽ за каждый полный год)
+    const ldvCut = (x, ms, g) => {
+      if (!o.ldv || !tax || !(g > 0)) return g;
+      const yrs = Math.floor((ms - s) / DAY / 365.25 + 1e-9); if (yrs < 3) return g;
+      x.ldvLeft = x.ldvLeft == null ? 3e6 * yrs : x.ldvLeft;
+      const free = Math.min(g, x.ldvLeft); x.ldvLeft -= free; ldvFree += free; return g - free;
+    };
     const cal = [];            // денежный календарь: {date, coupon, principal} (в рублях, до налога, на весь портфель)
 
     function grow(toMs_) {
@@ -300,6 +309,7 @@
           let g = amt - basis;
           // неиспользованный НКД покупки при полном погашении — расход
           if (x.faceLeft <= 1e-9 && x.nkdLeft > 0) { g -= x.nkdLeft; x.nkdLeft = 0; }
+          g = ldvCut(x, e.ms, g);
           Y(y).base += g;
           if (g > 0) { Y(y).withheld += 0.13 * g; cash -= 0.13 * g; }
         }
@@ -322,6 +332,7 @@
       cash += proceeds;
       if (tax) {
         let g = proceeds - basis - x.nkdLeft; x.nkdLeft = 0;
+        g = ldvCut(x, H, g);
         const y = yearOf(H); Y(y).base += g; if (g > 0) { Y(y).withheld += 0.13 * g; cash -= 0.13 * g; }
       }
     }
@@ -339,7 +350,7 @@
     return {
       invested, final: cash, profit: cash - invested, years: T,
       annual: o.withdraw ? (ret - 1) / T : Math.pow(ret, 1 / T) - 1,     // годовая после налогов (при выводе купонов — простая)
-      paidOut, iisTax, gross, taxPaid, taxByYear: years, mtm, horizon: iso(H), calendar: cal, borrowed, debt,
+      paidOut, iisTax, gross, taxPaid, ldvFree, taxByYear: years, mtm, horizon: iso(H), calendar: cal, borrowed, debt,
     };
   }
 

@@ -758,6 +758,8 @@ a.qrbox{color:inherit;text-decoration:none}
 .cosrc{font-size:11px;color:var(--ink3);margin-top:8px}.cosrc a{color:var(--ink2)}
 .cobond{font-size:13px;color:var(--ink2);margin:4px 2px 8px}
 .ndt{white-space:nowrap}.ndt.warn{color:var(--warn)}.ndt.down{color:var(--down)}
+.sanity .ckr.e i{background:color-mix(in srgb,var(--down) 16%,transparent);color:var(--down)}.sanity.bad{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--down) 45%,transparent)}
+.pchk .ckr.e i{background:color-mix(in srgb,var(--down) 16%,transparent);color:var(--down)}
 /* карта рынка на весь экран */
 #mapfs{position:fixed;inset:0;z-index:1100;background:var(--bg);display:flex;flex-direction:column;padding:calc(10px + var(--tg-safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom))}
 #mapfs .mh{display:flex;align-items:center;gap:8px;padding:2px 4px 8px}#mapfs .mh h2{flex:1;font-size:20px}
@@ -809,6 +811,12 @@ a.qrbox{color:inherit;text-decoration:none}
 body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px))}
 @media(min-width:760px){.sumbar{display:none}}
 @media print{.sumc,.card{background:#fff!important;color:#000!important}.sumbar,.ptabs,.tabs{display:none!important}}
+.txc>summary{list-style:none;display:flex;align-items:baseline;gap:10px;cursor:pointer}.txc>summary::-webkit-details-marker{display:none}
+.txc>summary b{font:500 18px Literata,serif;flex:0 0 auto}.txc>summary span{flex:1;text-align:right;color:var(--ink);font-size:14px;white-space:nowrap}.txc>summary small{color:var(--ink3);font-size:12.5px}.txc:not([open]){padding-top:14px;padding-bottom:14px}.txc>summary em{font-style:normal;color:var(--ink3);transition:transform .2s}.txc[open]>summary em{transform:rotate(90deg)}
+.txk{display:flex;gap:8px;margin-top:12px}.txk div{flex:1;background:var(--soft);border-radius:12px;padding:10px 12px}.txk span{font-size:12.5px;color:var(--ink2)}.txk b{display:block;font:500 20px Literata,serif;margin-top:2px}
+.txc .sline{font-size:13.5px;color:var(--ink2);margin-top:10px;line-height:1.45}.txc .sline b{color:var(--ink)}
+.txt{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px}.txt tr,.txt tr:hover td,.txt td{background:none!important}.txt td{padding:8px 0;border-top:1px solid var(--line);border-bottom:0;vertical-align:top;white-space:normal;text-align:left;font-weight:500}.txt tr:first-child td{border-top:0;font-size:12px}.txt td:last-child{text-align:right;white-space:nowrap;padding-left:10px;font-variant-numeric:tabular-nums}.txt small{display:block;color:var(--ink3);font-size:12px;margin-top:2px}.txt .mut{color:var(--ink3)}
+.txh{background:var(--brass2);border-radius:14px;padding:12px 13px;margin-top:10px;font-size:13.5px;line-height:1.45}.txh .row-actions{margin-top:8px}
 </style>
 </head>
 <body>
@@ -833,7 +841,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   let NETMODE = QS.get('score')!=='old';
   const LGD = Math.min(0.95, Math.max(0.3, parseFloat(QS.get('lgd'))||0.75));
   const RA = Math.min(5, Math.max(1, parseFloat(QS.get('ra'))||1));        // запас на неопределённость: ожидаемые потери × RA
-  const SCORE = list => NETMODE ? BS.netComposite(list, {tax: P.account!=='iis3'}) : BS.composite(list);
+  // режим налога для чистой доходности: ИИС-3 — без налога; брокерский счёт и «держит до погашения» — с льготой долгосрочного владения
+  const netO = () => ({tax: P.account!=='iis3', ldv: P.account!=='iis3' && P.ldv!==false});
+  const SCORE = list => NETMODE ? BS.netComposite(list, netO()) : BS.composite(list);
   const $ = id => document.getElementById(id);
   const store = {get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
   const jget = (k,d) => { try{ return JSON.parse(store.get(k,'')) ?? d; }catch(e){ return d; } };
@@ -884,7 +894,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const CURS = [['RUB','₽ Рубли'],['CNY','¥ Юани'],['USD','$ Доллары'],['EUR','€ Евро']];
   const CUR_SIGN = {RUB:'₽',CNY:'¥',USD:'$',EUR:'€',CHF:'₣'};
   const TERMS = [[6,'6 мес'],[12,'1 год'],[24,'2 года'],[36,'3 года'],[60,'5 лет']];
-  const KIND_NAME = {fixed:'фикс.',float:'флоатер',amort:'аморт.',disc:'дисконт.',linker:'линкер',struct:'структ.',conv:'конверт.'};
+  const KIND_NAME = {fixed:'фикс.',float:'флоатер',amort:'аморт.',disc:'дисконт.',linker:'линкер',struct:'структ.',io:'защита капитала',conv:'конверт.'};
   const freqName = f => f>=12?'ежемес.':f>=4?'ежекв.':f>=2?'2 р/год':f>=1?'1 р/год':'—';
 
   // ---------------- состояние
@@ -895,7 +905,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   // сегмент (без суборд. и СФО), метка «риск» внизу и один лучший выпуск на эмитента — всегда; em — выбранный эмитент (все его выпуски)
   const F_DEF = {cur:'RUB', kind:'all', minR:'A-', yMin:'', yMax:'', mMin:'', mMax:'', ctype:'all', liq:'1', q:'', em:'', sort:'cs', asc:false, offer:'any', sec:'all'};
   const F = Object.assign({}, F_DEF, jget('b_filters5',{}));
-  const P = Object.assign({amount:30e6, term:12, profile:'mod', params:null, cur:{RUB:100,CNY:0,USD:0,EUR:0}, account:'std', reform:true,
+  const P = Object.assign({amount:30e6, term:12, profile:'mod', params:null, cur:{RUB:100,CNY:0,USD:0,EUR:0}, account:'std', reform:true, ldv:true,
     monthly:false, depRate:null, pos:[], qual:true, carry:null, warns:[], exSec:[]}, jget('b_port2',{}));
   if(P.profile==='agg'){ P.profile='inc'; P.params=null; }                                                // профиль «Агрессивный» убран
   if(!P.params) P.params = JSON.parse(JSON.stringify(PROFILES[P.profile]||PROFILES.mod));
@@ -956,6 +966,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(/Конверт/i.test(t)) return 'conv';
     if(/ИОС/.test(s.SHORTNAME||'')) return 'struct';
     if(!t && !(s.COUPONPERIOD>0)) return 'struct';                       // тип не указан и купонов нет — экзотика
+    // купон 0,01% у корпоративной бумаги — облигация с защитой капитала: доход зависит от базового актива (ВТБ Б-1, ГПБ 004Р, Альфа Б1Р…),
+    // на бирже почти не торгуется — доходность по цене стакана не настоящая
+    if(s.COUPONPERCENT>0 && s.COUPONPERCENT<=0.05 && !/^SU/.test(s.SECID||'')) return 'io';
     if(/плавающ/i.test(t) || /^SU29/.test(s.SECID)) return 'float';
     if(/Дисконт/i.test(t)) return 'disc';
     if(/Амортиз/i.test(t)) return 'amort';
@@ -1062,7 +1075,10 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   }
 
   // ---------------- подбор
-  function passBase(r){ return !['linker','struct','conv'].includes(r.kind) && r.ytm!=null && r.years>0.02 && r.price>0; }
+  // низкая цена из-за низкого купона, а не из-за проблем: высокий рейтинг, нет премии к норме, скидка к номиналу объясняется разницей доходности и купона
+  const lowCpn = r => !r.flag && r.kind==='fixed' && r.cpn!=null && r.cpn<10 && r.price>=50 && r.prem!=null && r.prem<0.015 && rS(r)<=rScore('AA-')
+    && (100-r.price) <= Math.max(0,(r.ytm||0)*100-r.cpn)*(r.years||0)*1.3;
+  function passBase(r){ return !['linker','struct','conv','io'].includes(r.kind) && r.ytm!=null && r.years>0.02 && r.price>0; }
   function screen(){
     const minS = F.minR==='any' ? 999 : rScore(F.minR);
     const q = F.q.trim().toLowerCase();
@@ -1208,14 +1224,15 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       r.mbs?'Секьюритизация: номинал гасится по мере погашения кредитов — сроки непредсказуемы.':'',
     ].filter(Boolean);
     if(NETMODE){
-      const n=r.net, tax=P.account!=='iis3', v=BS.netOf(r,{tax}), dn=downInfo(r);
+      const n=r.net, tax=P.account!=='iis3', v=BS.netOf(r,netO()), dn=downInfo(r);
       const ln=(l,x,t,cls='')=>`<div class="nl ${cls}"><span>${l}${t?`<small>${t}</small>`:''}</span><b>${x}</b></div>`;
       const pp_=x=>(x>=0?'+':'−')+nf(Math.abs(x*100),2);
       const body = r.flag || !n ? `<p class="down"><b>Метка «риск»</b> — чистая доходность не считается, в автосборку бумага не попадает.</p>` :
         `<div class="nlist">${ln(`Доходность к ${r.off?'оферте':'погашению'}`, pc(n.y0), 'к цене покупки')}
         ${n.call?ln('Досрочное погашение (колл)', pp_(n.call), `бумага дороже номинала, эмитент вправе погасить ${fmtD(r.call)} — считаем худший исход`):''}
         ${n.fl?ln('Плавающий купон', pp_(n.fl), 'доходность при сегодняшней ставке пересчитана по ожиданиям рынка (ОФЗ-ПК против ОФЗ с фикс. купоном того же срока)'):''}
-        ${ln('НДФЛ', tax?pp_(-n.tax):'0', tax?'по модели купонов и погашения':'ИИС-3 — без налога')}
+        ${(()=>{ const t=BS.taxOf(r,netO()), l=tax&&netO().ldv&&n.taxL!=null&&n.taxL<n.tax-1e-4;
+          return ln('НДФЛ', tax?pp_(-t):'0', !tax?'ИИС-3 — без налога':l?`льгота долгосрочного владения: гасится через ${nf(r.years,1)} г., рост цены до номинала без налога, купоны — с налогом (без льготы было бы −${nf(n.tax*100,2)})`:'по модели купонов и погашения'); })()}
         ${r.ofz?ln('Ожидаемые потери от дефолта','0','государство'):ln('Ожидаемые потери от дефолта', pp_(-n.el), `вероятность дефолта ${nf(n.pd*100,n.pd<0.01?2:1)}% в год (${esc(r.rating||'без рейтинга — как B')}${n.step?`, считаем на ${n.step} ${n.step===1?'ступень':'ступени'} ниже: ${[dn?'недавнее понижение':'', (fundOf(r)||{}).lvl?'слабая отчётность':''].filter(Boolean).join(' и ')}`:''}) × потери при дефолте ${nf(LGD*100,0)}%`)}
         ${n.bonus?ln('Премия к рынку', pp_(n.bonus), `доходность выше нормы для ${esc(r.rating)} и такого срока на ${nf(r.prem*100,2)} п.п. — засчитываем половину, не больше 0,5`):''}
         ${n.pen?ln('Спред в стакане', pp_(-n.pen), r.bid>0?`между покупкой и продажей ${nf((r.ask-r.bid)/r.ask*100,1)}% — цена срочного выхода`:'покупателей в стакане нет — выйти быстро будет трудно'):''}
@@ -1272,7 +1289,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     return {items:out, miss};
   }
   function xrReplace(r, amount){
-    const yrs=r.years||0, grp=r.kind==='float', risky=!!r.flag || ['linker','struct','conv'].includes(r.kind);
+    const yrs=r.years||0, grp=r.kind==='float', risky=!!r.flag || ['linker','struct','conv','io'].includes(r.kind);
     const base=c=>c.id!==r.id && passBase(c) && c.cur===r.cur && !c.flag && !c.sub && !c.mbs && (risky || (c.kind==='float')===grp)
       && c.years!=null && Math.abs(c.years-yrs)<=Math.max(0.5,yrs*0.3) && c.ytm!=null && (c.ofz || (c.tv||0)>=amount) && (c.ofz||c.price>=70);
     if(risky){   // бумага с меткой «риск» или экзотика: замена — надёжная бумага с похожим сроком и лучшей оценкой, доходность вторична
@@ -1282,7 +1299,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const cand=U.filter(c=>base(c) && (r.ofz ? c.ofz : (!c.ofz && rS(c)<=rS(r))) && c.ytm-r.ytm>=0.005);
     if(!cand.length) return null;
     SCORE(cand);
-    if(NETMODE){ const nr=BS.netOf(r); const c2=cand.filter(c=>nr==null || (BS.netOf(c)??-1)>=nr+0.0025); return c2.sort((a,b)=>(b.cs||0)-(a.cs||0))[0]||null; }
+    if(NETMODE){ const nr=BS.netOf(r,netO()); const c2=cand.filter(c=>nr==null || (BS.netOf(c,netO())??-1)>=nr+0.0025); return c2.sort((a,b)=>(b.cs||0)-(a.cs||0))[0]||null; }
     return cand.sort((a,b)=>(b.ytm-a.ytm)+((b.cs||0)-(a.cs||0))/400)[0];
   }
   function xrRun(){
@@ -1304,7 +1321,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       if(r.ytm==null) issues.push(`${r.name}: нет доходности (флоатер без объявленного купона или нет сделок)`);
       if(!r.ofz && r.tv>0 && x.amt>r.tv*3) issues.push(`${r.name}: позиция ${mshort(x.amt)} — это ${nf(x.amt/r.tv,0)} дневных оборотов, быстро продать не получится`);
       if(r.prem!=null && r.prem<-0.01 && !r.ofz) issues.push(`${r.name}: платит на ${nf(-r.prem*100,1)} п.п. меньше похожих бумаг того же рейтинга — переплата за покупку`);
-      if(['linker','struct','conv'].includes(r.kind)) issues.push(`${r.name}: ${KIND_NAME[r.kind]} — доходность нельзя посчитать обычным способом`);
+      if(['linker','struct','conv','io'].includes(r.kind)) issues.push(`${r.name}: ${KIND_NAME[r.kind]} — доходность нельзя посчитать обычным способом`);
     }
     for(const [k,v] of Object.entries(em)) if(v>0.15) issues.push(`эмитент ${k}: ${nf(v*100,0)}% портфеля — больше 15% на одного`);
     for(const [k,v] of Object.entries(sec)) if(v>0.35) issues.push(`отрасль «${k}»: ${nf(v*100,0)}% — больше 35% в одной отрасли`);
@@ -1382,8 +1399,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       <td><button class="add ${inPort(r.id)?'on':''}" data-add="${r.id}" title="${inPort(r.id)?'убрать из портфеля':'в портфель'}">${inPort(r.id)?'✓':'+'}</button></td></tr>`; }).join('');
     const nF=fCount(), fOpen = UI.filt!=null ? UI.filt : DESK();
     const emR = F.em ? U.find(r=>r.em===F.em) : null;
-    return `<div class="card"><div class="h2row"><h2>Подбор облигаций</h2>${info('scr','Как ранжируется', NETMODE?'<p><b>Чистая доходность</b> — сколько в среднем остаётся клиенту, % годовых: доходность к погашению или оферте (при колл-опционе дороже номинала — к дате колла) минус НДФЛ (на ИИС-3 — без налога) минус ожидаемые потери от дефолта (вероятность по рейтингу, Эксперт РА 2001–2024, × потери 75%; после понижения рейтинга за 90 дней — на ступень ниже) плюс премия к норме своего рейтинга и срока (половина, не больше 0,5 п.п.; ближе к метке «риск» — ноль) минус штраф за спред больше 1%.</p><p>Флоатеры пересчитываются по ожиданиям рынка: доходность при сегодняшней ставке минус (ОФЗ-ПК − ОФЗ с фикс. купоном того же срока).</p><p>Метка «риск» — доходность заметно выше нормы для рейтинга: рынок видит проблему. Такие бумаги внизу и в автосборку не попадают.</p>':'<p>«Оценка» 0–100 — по сумме показателей среди отобранных бумаг: доходность 35% (флоатеры сравниваются с флоатерами, фикс. купон — с фикс.; доходность флоатера — оценка при неизменной ставке), переплата к норме своего рейтинга 25%, надёжность (рейтинг) 25%, ликвидность 15%.</p><p>«Норма» — типичная доходность бумаг той же валюты, типа купона и сегмента и того же рейтинга с близким сроком. Премия = доходность − норма. Доходность — к цене предложения (по ней покупаете).</p><p>Переплата больше 3 п.п. или цена ниже 60% — метка «риск»: рынок видит риск, которого нет в рейтинге. Такие бумаги — внизу списка и в автосборку не попадают. Субординированные выпуски и секьюритизация в подбор не попадают.</p><p>По умолчанию в списке — лучший выпуск каждого эмитента; найдите эмитента — увидите все его выпуски. «Оборот» — средний за 10 дней, а пока его нет — сегодняшний. «После НДФЛ» — при 13%; у флоатеров и бумаг с амортизацией — приближённо (≈).</p><p>★ — выпуск можно купить за юани (есть режим торгов в юанях). Рейтинг — сводный со smart-lab.</p>')}</div>
-      <div class="sub">все облигации Мосбиржи без субординированных и СФО · по одному лучшему выпуску на эмитента · «+» — в портфель · нажмите на название — ${NETMODE?'из чего складывается чистая доходность':'почему такая оценка'}</div>
+    return `<div class="card"><div class="h2row"><h2>Подбор облигаций</h2>${info('scr','Как ранжируется', NETMODE?'<p><b>Чистая доходность</b> — сколько в среднем остаётся клиенту, % годовых: доходность к погашению или оферте (при колл-опционе дороже номинала — к дате колла) минус НДФЛ (на ИИС-3 — без налога; если клиент держит до погашения, у бумаг, которые гасятся позже 3 лет, рост цены до номинала — без налога по льготе долгосрочного владения) минус ожидаемые потери от дефолта (вероятность по рейтингу, Эксперт РА 2001–2024, × потери 75%; после понижения рейтинга за 90 дней — на ступень ниже) плюс премия к норме своего рейтинга и срока (половина, не больше 0,5 п.п.; ближе к метке «риск» — ноль) минус штраф за спред больше 1%.</p><p>Флоатеры пересчитываются по ожиданиям рынка: доходность при сегодняшней ставке минус (ОФЗ-ПК − ОФЗ с фикс. купоном того же срока).</p><p>Метка «риск» — доходность заметно выше нормы для рейтинга: рынок видит проблему. Такие бумаги внизу и в автосборку не попадают.</p>':'<p>«Оценка» 0–100 — по сумме показателей среди отобранных бумаг: доходность 35% (флоатеры сравниваются с флоатерами, фикс. купон — с фикс.; доходность флоатера — оценка при неизменной ставке), переплата к норме своего рейтинга 25%, надёжность (рейтинг) 25%, ликвидность 15%.</p><p>«Норма» — типичная доходность бумаг той же валюты, типа купона и сегмента и того же рейтинга с близким сроком. Премия = доходность − норма. Доходность — к цене предложения (по ней покупаете).</p><p>Переплата больше 3 п.п. или цена ниже 60% — метка «риск»: рынок видит риск, которого нет в рейтинге. Такие бумаги — внизу списка и в автосборку не попадают. Субординированные выпуски, секьюритизация и облигации с защитой капитала (купон 0,01% + доход от базового актива: ВТБ Б-1, ГПБ 004Р, Альфа Б1Р — на бирже почти не торгуются, цена в стакане не рыночная) в подбор не попадают.</p><p>По умолчанию в списке — лучший выпуск каждого эмитента; найдите эмитента — увидите все его выпуски. «Оборот» — средний за 10 дней, а пока его нет — сегодняшний. «После НДФЛ» — при 13%; у флоатеров и бумаг с амортизацией — приближённо (≈).</p><p>★ — выпуск можно купить за юани (есть режим торгов в юанях). Рейтинг — сводный со smart-lab.</p>')}</div>
+      <div class="sub">все облигации Мосбиржи без субординированных, СФО и облигаций с защитой капитала (купон 0,01%) · по одному лучшему выпуску на эмитента · «+» — в портфель · нажмите на название — ${NETMODE?'из чего складывается чистая доходность':'почему такая оценка'}</div>
       <div class="srch">${acBox('screen','эмитент, название или ISIN', F.em?'':F.q)}${emR?`<button class="emchip" data-act="emclear">${esc(emR.emName||emR.name)} · все выпуски <b>✕</b></button>`:''}${!F.em&&F.q?`<button class="emchip" data-act="qclear">«${esc(F.q)}» <b>✕</b></button>`:''}</div>
       <details class="fdet" id="fdet" ${fOpen?'open':''}><summary>Фильтры${nF?` <span class="cntb">${nF}</span>`:''}</summary>
       <div class="filters">
@@ -1443,7 +1460,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(rS(r)>rScore(pp.minRating)) return false;
     if(pp.maxRating && rS(r)<rScore(pp.maxRating)) return false;   // короткие ВДО: не выше A−
     if(r.dur==null || r.dur>pp.durMax) return false;
-    if(pp.priceMin ? r.price<pp.priceMin : (r.price<70 && !r.ofz)) return false;
+    if(pp.priceMin ? r.price<pp.priceMin : (r.price<70 && !r.ofz && !lowCpn(r))) return false;
     if(pp.issueMin && r.issue!=null && r.issue<pp.issueMin) return false;
     return inWindow(r, pp, relax);
   }
@@ -1521,9 +1538,24 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         const corpPool=pool.filter(r=>!r.ofz || c!=='RUB');
         const n=Math.max(c==='RUB'?pp.minIssuers:Math.min(pp.minIssuers,4), Math.ceil(corpShare*100/pp.issuerMax-1e-9));
         const got=pick(corpPool, corpShare, n, false);
-        if(!got.length) warns.push(`${c}: нет бумаг под ограничения профиля и срок ${termName()}`);
-        else {
-          const w=Math.min(corpShare/got.length, (pp.vdo?Math.max(pp.issuerMax,6):pp.issuerMax)/100);   // ВДО: если эмитентов меньше 25 — до 6% на каждого
+        // то, что не удалось разложить по корпоративным бумагам, — в ОФЗ той же валюты, иначе в рублёвые ОФЗ (с понятным предупреждением)
+        const reserve = left => {
+          const H_=horizonISO(), ofzOf=cc=>SCORE(U.filter(r=>r.ofz && r.cur===cc && r.kind==='fixed' && passBase(r) && !used.has(r.id) && r.end>=addDays(SETTLE,45) && r.end<=addDays(H_,31+365))).sort((a,b)=>(b.cs||0)-(a.cs||0));
+          let res=ofzOf(c).slice(0, left>0.2?3:left>0.08?2:1), inRub=false;
+          if(!res.length && c!=='RUB'){ res=ofzOf('RUB').slice(0, left>0.2?3:left>0.08?2:1); inRub=true; }
+          if(!res.length){      // все подходящие ОФЗ уже в портфеле — добавляем к ним (ОФЗ ликвидны, лимита на эмитента нет)
+            let ex=pos.filter(p=>{ const r=BYID[p.id]; return r && r.ofz && r.cur===c && !p.pin; }); if(!ex.length && c!=='RUB'){ ex=pos.filter(p=>{ const r=BYID[p.id]; return r && r.ofz && r.cur==='RUB' && !p.pin; }); inRub=true; }
+            if(!ex.length) return false;
+            ex.forEach(p=>p.w+=left/ex.length*100);
+            warns.push(inRub ? `${c}: бумаг под критерии хватило только на часть доли — ${nf(left*100,1)}% (${mshort(left*A)}) добавлены к рублёвым ОФЗ, валютная доля меньше заданной`
+              : `${c==='RUB'?'':c+': '}ликвидных корпоративных бумаг под эти критерии на сумму ${mshort(A)} не хватило — ${nf(left*100,1)}% (${mshort(left*A)}) добавлены к ОФЗ как ликвидный резерв`);
+            return true; }
+          res.forEach(r=>{ pos.push({id:r.id, w:left/res.length*100}); used.add(r.id); });
+          warns.push(inRub ? `${c}: бумаг под критерии хватило только на часть доли — ${nf(left*100,1)}% (${mshort(left*A)}) положены в рублёвые ОФЗ, валютная доля меньше заданной`
+            : `${c==='RUB'?'':c+': '}ликвидных корпоративных бумаг под эти критерии на сумму ${mshort(A)} не хватило — ${nf(left*100,1)}% (${mshort(left*A)}) в ОФЗ как ликвидный резерв`);
+          return true; };
+        {     // даже если на равные доли не подошло ни одной бумаги — ниже добираем бумагами поменьше по их ликвидности, остаток — в ОФЗ
+          const w=Math.min(got.length?corpShare/got.length:0, (pp.vdo?Math.max(pp.issuerMax,6):pp.issuerMax)/100);   // ВДО: если эмитентов меньше 25 — до 6% на каждого
           // если нашлось меньше бумаг, чем нужно, доля каждой растёт — снова проверяем лимиты групп рейтинга и флоатеров
           const ws=new Map(got.map(r=>[r, w]));
           const capGroup=(f, cap, prev)=>{ const g=got.filter(f); const sum=g.reduce((a,r)=>a+ws.get(r),0)+prev;
@@ -1533,6 +1565,25 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
           for(const [b,cap] of Object.entries(pp.bandCap||{})) if(cap!=null) capGroup(r=>rBand(r.rating)===b, cap, done(r=>rBand(r.rating)===b));
           capGroup(r=>r.kind==='float', pp.floaterMax, done(r=>r.kind==='float'));
           for(const sc_ of new Set(got.map(r=>r.sector))) capGroup(r=>r.sector===sc_, (pp.sectorMax??100), done(r=>!r.ofz && r.sector===sc_));
+          // крупная сумма: если ликвидности не хватило на равные доли, добираем бумагами поменьше — каждая не больше своего оборота (× LQ),
+          // в том числе вторыми выпусками тех же эмитентов; лимиты на эмитента, отрасль, группы рейтинга и флоатеры — как обычно
+          { let left=corpShare-[...ws.values()].reduce((a,b)=>a+b,0); const per=corpShare/n;
+            if(left>0.002){ const em2={}, sec2={}, band2={}; let fl2=0;
+              for(const r of got){ const v=ws.get(r); em2[r.em]=(em2[r.em]||0)+v; sec2[r.sector]=(sec2[r.sector]||0)+v; const b=rBand(r.rating); band2[b]=(band2[b]||0)+v; if(r.kind==='float') fl2+=v; }
+              const secDone=k=>done(x=>!x.ofz && x.sector===k), bandDone=k=>done(x=>rBand(x.rating)===k), flDone=done(x=>x.kind==='float');
+              for(const r of corpPool.slice().sort((a,b)=>sc(b)-sc(a))){
+                if(left<=0.002) break; if(used.has(r.id) || r.ofz) continue;
+                const emNow=(emW[r.em]||0)-(got.some(g=>g.em===r.em)?got.filter(g=>g.em===r.em).length*0:0), b=rBand(r.rating);
+                const emCur=Math.max(em2[r.em]||0, emNow);
+                let wv=Math.min(left, per, Math.max(0, pp.issuerMax/100-emCur), Math.max(0, secMax-((sec2[r.sector]||0)+secDone(r.sector))));
+                if(pp.liq>0) wv=Math.min(wv, (r.tv||0)*LQ.liq/A);
+                if(pp.bandCap[b]!=null) wv=Math.min(wv, Math.max(0, pp.bandCap[b]/100-((band2[b]||0)+bandDone(b))));
+                if(r.kind==='float') wv=Math.min(wv, Math.max(0, pp.floaterMax/100-(fl2+flDone)));
+                if(wv<0.004 || wv*A<300e3) continue;                      // мельче 0,4% и 300 тыс. ₽ — не дробим
+                got.push(r); ws.set(r, wv); used.add(r.id); left-=wv;
+                em2[r.em]=emCur+wv; emW[r.em]=emCur+wv; sec2[r.sector]=(sec2[r.sector]||0)+wv; band2[b]=(band2[b]||0)+wv; if(r.kind==='float') fl2+=wv;
+              }
+            } }
           // два выпуска одного эмитента — можно, если это лесенка: сроки отличаются от полугода, второй почти так же выгоден (не хуже на 0,5 п.п.),
           // ликвидности хватает на половину доли; доля на эмитента при этом не растёт — она делится между выпусками
           for(const r of got){ const w0=ws.get(r);
@@ -1547,8 +1598,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
             let rv=res.sort((a,b)=>(b.cs||0)-(a.cs||0)).slice(0, left>0.2?3:left>0.08?2:1);
             if(!rv.length) rv=SCORE(U.filter(r=>r.ofz && r.cur==='RUB' && r.kind==='fixed' && passBase(r) && !used.has(r.id) && r.end>=addDays(SETTLE,45))).sort((a,b)=>a.end<b.end?-1:1).slice(0,1);
             if(rv.length){ rv.forEach(r=>{ pos.push({id:r.id, w:left/rv.length*100}); used.add(r.id); });
-              warns.push(`ВДО по правилам нашлись у ${got.length} эмитентов — по ${nf(Math.min(w,0.06)*100,1)}% на каждого; оставшиеся ${nf(left*100,1)}% — в коротких ОФЗ как резерв`); continue; }
+              warns.push(`ВДО по правилам и ликвидности нашлись у ${new Set(got.map(r=>r.em)).size} эмитентов — на ${nf((corpShare-left)*100,1)}% суммы; оставшиеся ${nf(left*100,1)}% — в коротких ОФЗ как резерв`); continue; }
           }
+          if(left>0.001 && !pp.vdo && reserve(left)) continue;
           if(left>0.001) warns.push(`${c}: подошло эмитентов — ${got.length} из ${n}, ${nf(left*100,1)}% не распределено (лимиты профиля: до ${pp.issuerMax}% на эмитента${Object.keys(pp.bandCap||{}).length?', по группам рейтинга':''}${pp.sectorMax<100?', до '+pp.sectorMax+'% на отрасль':''}${(P.exSec||[]).length?', без отраслей: '+P.exSec.join(', '):''}). Добавьте бумаги в «Составе» или ослабьте ограничения.`);
         }
       }
@@ -1626,9 +1678,17 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         if(a2.ytm!=null && a2.ytm<a.ytm){ b=b2; a={...a2, toCall:true}; } }
       const fx = FX[r.cur]||NaN;
       const cost = (r.price/100*r.face + (a.accrued??r.ai??0))*qty*fx;
-      rows.push({p,r,bz,a,fx,qty,cost});
-      if(a.ytm!=null && qty>0) positions.push({id:r.id, qty, bond:b, flows:a.flows, clean:r.price, accrued:a.accrued, fx, ytm:a.ytm, floater:r.kind==='float', lev:!!lev});
+      rows.push({p,r,bz,a,b,fx,qty,cost});
     }
+    // количество — целыми лотами вниз; на небольших суммах так остаются заметные деньги. Докупаем по лоту туда, где недобор больше всего,
+    // пока остаток позволяет (доля бумаги может превысить заданную не больше чем на один лот)
+    { const target=x=>x.p.w/100*base, lotCost=x=>(x.r.price/100*x.r.face+(x.a.accrued??x.r.ai??0))*x.r.lot*x.fx;
+      let left=list.reduce((a,p)=>a+(p.w||0),0)/100*base - rows.reduce((a,x)=>a+(x.a.ytm!=null?x.cost:0),0);
+      for(let guard=0; guard<500 && left>0; guard++){
+        const c=rows.filter(x=>x.a.ytm!=null && isFinite(x.fx) && lotCost(x)>0 && lotCost(x)<=left && x.cost+lotCost(x)<=target(x)+lotCost(x)*0.999).sort((x,y)=>(target(y)-y.cost)-(target(x)-x.cost))[0];
+        if(!c) break; const lc=lotCost(c); c.qty+=c.r.lot; c.cost+=lc; left-=lc; } }
+    for(const x of rows){ const {r,a,b,fx,qty}=x;
+      if(a.ytm!=null && qty>0) positions.push({id:r.id, qty, bond:b, flows:a.flows, clean:r.price, accrued:a.accrued, fx, ytm:a.ytm, floater:r.kind==='float', lev:!!lev}); }
     // в расчёт идут только бумаги с рассчитанной доходностью; остальные показываются с пометкой «нет данных»
     const total = rows.filter(x=>x.a.ytm!=null && x.qty>0).reduce((s,x)=>s+x.cost,0);
     return {rows, positions, total, skipped: rows.filter(x=>x.a.ytm==null).map(x=>x.r.name)};
@@ -1707,7 +1767,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       const pool=cnyPool().filter(r=>r.cnyBoard && !r.sub && !r.flag && r.kind!=='float' && !excl.has(r.id) && !excl.has('em:'+r.em)
         && rS(r)<=rScore(pp.minRating) && r.dur!=null && r.price>=70 && r.end && r.end>=lo && r.end<=hi && r.ytm>=lrEff+0.02 && (r.tv||0)>=1e6);
       SCORE(pool);
-      const sc=r=>{ const n=BS.netOf(r); return n!=null ? n : (r.ytm||0); };      // по чистой доходности (после налога и ожидаемых потерь)
+      const sc=r=>{ const n=BS.netOf(r,netO()); return n!=null ? n : (r.ytm||0); };      // по чистой доходности (после налога и ожидаемых потерь)
       const best={}; for(const r of pool){ const k=r.em; if(!best[k]||sc(r)>sc(best[k])) best[k]=r; }
       const cand=Object.values(best).sort((a,b)=>sc(b)-sc(a));
       const n=Math.min(cand.length, Math.max(3, Math.ceil(L/((pp.issuerMax/100)*(P.amount+L))-1e-9)));
@@ -1733,8 +1793,15 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const reinv = py ? Math.max(0, py.ytm) : 0.15;              // реинвестиция не ниже 0%
     const acc = P.account==='iis3'?'iis3':'std';
     // цель «ежемесячные выплаты»: купоны выводятся клиенту, погашения реинвестируются под доходность портфеля
-    const opt = extra => Object.assign({settle, horizon:H, reinvest:reinv, withdraw:!!PAY(), reform:P.reform}, extra||{});
+    const opt = extra => Object.assign({settle, horizon:H, reinvest:reinv, withdraw:!!PAY(), reform:P.reform, ldv:P.ldv!==false}, extra||{});
     const main = BM.simulate(positions, opt({account:acc}));
+    // налоги за срок: сколько заплатим, что дала льгота долгосрочного владения, сколько дал бы ИИС-3 (если срок от 5 лет)
+    let taxI=null;
+    if(acc==='std'){
+      const noL = P.ldv!==false ? BM.simulate(positions, opt({account:acc, ldv:false})) : null;
+      taxI = {paid:main.taxPaid, inc:main.profit+main.taxPaid, ldv:noL?Math.max(0,noL.taxPaid-main.taxPaid):0};
+      if(P.term>=60){ const ii=BM.simulate(positions, opt({account:'iis3'})); taxI.iis=ii.profit-main.profit; }
+    }
     // ежемесячно на руки (если купоны выводятся): купоны за первые 12 мес. (или срок), после НДФЛ
     const mN=Math.min(12,P.term), cut=addMonths(settle,mN);
     const cps=main.calendar.filter(c=>c.date<=cut).reduce((s,c)=>s+c.coupon,0);
@@ -1825,7 +1892,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         plan: TRACK.y!=null ? TRACK.v*TRACK.y*days/365 : null, dep: TRACK.dp!=null ? TRACK.v*TRACK.dp*days/365 : null};
     }
     const emMax = Math.max(0, ...Object.values(emCost).map(e=>e.cost/total));
-    return {rows, positions, total, skipped, py, main, monthly, dep, track, depR, depPath, depRate, ofz, ofzR, ofzY, shifts, stress, exempt, acc, reinv, keyNow, mac, mod, struct, avgR, emMax, settle, H, carry,
+    return {rows, positions, total, skipped, py, main, taxI, monthly, dep, track, depR, depPath, depRate, ofz, ofzR, ofzY, shifts, stress, exempt, acc, reinv, keyNow, mac, mod, struct, avgR, emMax, settle, H, carry,
                 left: 100 - pos.reduce((s,p)=>s+(p.w||0),0), cash: P.amount-total};
   }
   async function analyze(){ ANALYSIS = P.pos.length ? await computeA(P.pos, {carry:true, track:true}) : null; }
@@ -1859,7 +1926,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     t.innerHTML=`<span>${msg}</span>${withUndo?'<button data-act="undo">Вернуть</button>':''}`; void t.offsetWidth; t.classList.add('on');
     clearTimeout(TOAST_T); TOAST_T=setTimeout(()=>{ t.classList.remove('on'); }, withUndo?6500:2600);
   }
-  const snapP = () => JSON.parse(JSON.stringify({amount:P.amount,term:P.term,profile:P.profile,params:P.params,cur:P.cur,account:P.account,monthly:P.monthly,reform:P.reform,qual:P.qual,pos:P.pos,carry:P.carry,warns:P.warns,exSec:P.exSec,depRate:P.depRate}));
+  const snapP = () => JSON.parse(JSON.stringify({amount:P.amount,term:P.term,profile:P.profile,params:P.params,cur:P.cur,account:P.account,monthly:P.monthly,reform:P.reform,ldv:P.ldv,qual:P.qual,pos:P.pos,carry:P.carry,warns:P.warns,exSec:P.exSec,depRate:P.depRate}));
   const remember = () => { UNDO=snapP(); };
   async function undo(){ if(!UNDO) return; Object.assign(P, UNDO); UNDO=null; const t=$('toast'); if(t) t.classList.remove('on'); savePort(); hap('sel'); await recompute(); }
   const profName = (k=P.profile) => PROFILES[k] ? PROFILES[k].name : 'свой профиль';
@@ -1873,7 +1940,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   function newClient(auto){
     if(P.pos.length || UI.scen) store.set('b_prev', JSON.stringify({t:Date.now(), label:curLabel(), p:snapP(), ui:{scen:UI.scen, cdep:UI.cdep, cinc:UI.cinc}}));
     if(!auto) remember();
-    Object.assign(P,{amount:30e6, term:12, profile:'mod', params:JSON.parse(JSON.stringify(PROFILES.mod)), cur:{RUB:100,CNY:0,USD:0,EUR:0}, account:'std', monthly:false, reform:true,
+    Object.assign(P,{amount:30e6, term:12, profile:'mod', params:JSON.parse(JSON.stringify(PROFILES.mod)), cur:{RUB:100,CNY:0,USD:0,EUR:0}, account:'std', monthly:false, reform:true, ldv:true,
       depRate:null, pos:[], carry:{on:false,ltv:100,pos:[],warns:[]}, warns:[], exSec:[], exId:[]});
     UI.scen=null; UI.cdep=false; UI.cmore=false; saveUI();
     XR.text=''; XR.res=null; TRACK=null; XRSNAP=null; ANALYSIS=null; PREV=null; DELTA=null; KEYX=null; CMP.key=null; PV='main';
@@ -1918,7 +1985,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(k==='profile') return `<h3>Какой портфель собрать</h3><div class="plist">${PROF_ORDER.map(p=>`<button data-prof="${p}" class="${P.profile===p?'on':''}"><b>${PROFILES[p].name}</b><span>${PROFILES[p].d}</span></button>`).join('')}<button data-act="crit" class="${P.profile==='custom'?'on':''}"><b>Свой — по критериям клиента</b><span>валюты, доля ОФЗ, рейтинг, лимиты — соберётся сам</span></button></div>`;
     if(k==='account') return `<h3>Счёт</h3><div class="qchips big"><button data-acct="std" class="${P.account!=='iis3'?'on':''}">Брокерский</button><button data-acct="iis3" class="${P.account==='iis3'?'on':''}">ИИС-3</button></div>
       <label class="chk"><input type="checkbox" id="p_monthly" ${PAY()?'checked':''} ${P.account==='iis3'?'disabled':''}> Клиенту важны ежемесячные выплаты — купоны выводятся на руки</label>
-      ${P.account==='iis3'?'<div class="note">На ИИС-3 купоны остаются на счёте и реинвестируются без налога — вывести их нельзя.</div>':''}`;
+      ${P.account==='iis3'?'<div class="note">На ИИС-3 купоны остаются на счёте и реинвестируются без налога — вывести их нельзя.</div>':`<h3 style="margin-top:16px">Держит до погашения?</h3><div class="qchips"><button data-ldv="1" class="${P.ldv!==false?'on':''}">Да</button><button data-ldv="0" class="${P.ldv===false?'on':''}">Может продать раньше</button></div>
+      <div class="note">Необязательно. «Да» — бумаги, которые гасятся позже 3 лет, считаются с льготой долгосрочного владения (рост цены до номинала без налога), и подбор предпочтёт бумаги с низким купоном.</div>`}`;
     if(k==='dep') return `<h3>Ставка вклада клиента</h3><div class="fld big"><label>% годовых; по умолчанию — максимальная ставка топ-10 банков (ЦБ): ${nf(lastS('DEP')||12,2)}%</label><input id="p_dep" value="${P.depRate!=null?nf(P.depRate,2):''}" placeholder="${nf(lastS('DEP')||12,2)}" inputmode="decimal" enterkeyhint="done"></div>
       <div class="row-actions"><button class="btn acc" data-act="depok">Готово</button><button class="btn ghost" data-act="depreset">Не знаю — лучшая ставка топ-10 (${nf(lastS('DEP')||12,2)}%)</button></div>`;
     if(k==='more') return moreParamsHtml();
@@ -2059,6 +2127,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   // проверка портфеля: профиль, шанс обогнать вклад, запас прочности, ожидаемые потери, ближайшие оферты, отчётность
   function checkItems(A){
     const viol=profileCheck(A.rows,A.total,P.params), S=A.stress, M=S&&S.mc, E=portEL(A), elm=elMaxOf(P.params), it=[];
+    { const T=A.total||1, sh={}, tot=CURS.reduce((a,[c])=>a+(num(P.cur[c])||0),0)||100; A.rows.forEach(x=>sh[x.r.cur]=(sh[x.r.cur]||0)+x.cost/T*100);
+      const off=P.params.ofzOnly?[]:CURS.map(([c])=>[c,(num(P.cur[c])||0)/tot*100,sh[c]||0]).filter(([c,want,got])=>c!=='RUB' && want-got>5);
+      if(off.length) it.push({w:1, chip:'Валюта меньше заданной', html:`<b>Валютная доля меньше заданной</b> — ${off.map(([c,want,got])=>`${({CNY:'юани',USD:'доллары',EUR:'евро'})[c]||c} ${nf(got,0)}% вместо ${nf(want,0)}%`).join(', ')}: бумаг под критерии в этой валюте на рынке мало, остаток положен в рублёвые ОФЗ. Можно ослабить рейтинг или лимит на эмитента`, info:'notes'}); }
     { const cash=P.amount-A.total; if(cash>P.amount*0.02){ const fx=(P.warns||[]).filter(w=>/не распределено|нет бумаг/.test(w)).map(w=>w.split(':')[0]).filter(c=>/^[A-Z]{3}$/.test(c));
       it.push({w:1, chip:`Не вложено ${mshort(cash)}`, html:`<b>Не вложено ${mshort(cash)}</b> — ${fx.length?`бумаг в ${fx.map(c=>({CNY:'юанях',USD:'долларах',EUR:'евро',RUB:'рублях'})[c]||c).join(' и ')} под эти критерии не хватило`:'бумаг под эти критерии не хватило'}. Можно поднять лимит на эмитента, снизить долю этой валюты или допустить рейтинг ниже — шестерёнка в строке параметров`, info:'notes'}); } }
     it.push(viol.length ? {w:1, chip:`Не всё в рамках профиля (${viol.length})`, html:`<b>Не всё в рамках «${esc(profName())}»</b> — ${esc(viol[0])}${viol.length>1?` и ещё ${viol.length-1}`:''}`, info:'notes'}
@@ -2138,6 +2209,32 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     for(const c of A.main.calendar){ if(!c.coupon) continue; const k=c.date.slice(0,7); m[k]=(m[k]||0)+c.coupon*(A.acc==='std'?0.87:1); }
     const ks=[]; for(let i=0;i<months;i++) ks.push(addMonths(A.settle,i+1).slice(0,7));
     const vals=ks.map(k=>m[k]||0); return {months, ks, vals, avg:vals.reduce((a,b)=>a+b,0)/months}; }
+  // ---------------- налоги: свёрнутая карточка во вкладке «Доходы» — открыл, если нужно, иначе пропустил
+  function taxHint(A){                              // одна замена, которая заметно снижает налог при той же надёжности
+    if(!NETMODE || P.account==='iis3') return null; let best=null;
+    for(const x of A.rows){ const r=x.r; if(x.p.pin || x.p.lev || !r.net) continue;
+      const t0=BS.taxOf(r,netO()), n0=BS.netOf(r,netO());
+      for(const c of similarList(r.id,5)){ if(!c.net) continue; const dt=t0-BS.taxOf(c,netO()), dn=BS.netOf(c,netO())-n0;
+        if(dt>=0.005 && dn>=0.003 && rS(c)<=rS(r) && (!best || dn*x.cost>best.dn*best.amt)) best={r, c, dt, dn, amt:x.cost}; } }
+    return best && best.amt*best.dn*Math.max(1,P.term/12) >= Math.max(50e3, P.amount*0.001) ? best : null;
+  }
+  function taxHtml(A){
+    const T=A.taxI; if(!T || CLIENT) return '';
+    const yrs=Math.max(1,P.term/12), eff=T.inc>0?T.paid/T.inc:0, open=!!UI.sec.tax;
+    const tl=x=>BS.taxOf(x.r,netO());
+    const low=A.rows.filter(x=>x.r.net && tl(x)!=null && (x.r.net.tax-tl(x)>=0.002 || x.r.price<90)).sort((a,b)=>tl(a)-tl(b)).slice(0,4);
+    const cpnT=A.rows.filter(x=>x.r.net && x.r.price>=97 && x.r.kind!=='float').map(tl).filter(v=>v!=null).sort((a,b)=>a-b);
+    const ref=cpnT.length?cpnT[Math.floor(cpnT.length/2)]:null;
+    const h=open?taxHint(A):null;
+    const body = open ? `<div class="txk"><div><span>Налог за срок</span><b>${mshort(T.paid)}</b></div><div><span>Это от дохода</span><b>${nf(eff*100,1)}%</b></div></div>
+      ${T.ldv>1000?`<div class="sline">Льгота долгосрочного владения уже учтена: <b>−${mshort(T.ldv)}</b> налога — бумаги гасятся позже 3 лет, рост цены до номинала без налога.</div>`:''}
+      ${low.length?`<table class="txt"><tr><td class="mut">Бумаги с низким налогом</td><td class="mut">налог, п.п. в год</td></tr>${low.map(x=>`<tr><td>${esc(x.r.name)} ${rTag(x.r.rating)}<small>купон ${x.r.cpn!=null?nf(x.r.cpn,1)+'%':'—'}, цена ${nf(x.r.price,1)}%${x.r.net.tax-tl(x)>=0.002?' — льгота: держим больше 3 лет':' — часть дохода в росте цены, налог при погашении'}</small></td><td>${nf(tl(x)*100,2)}</td></tr>`).join('')}${ref!=null?`<tr><td>Обычная купонная бумага<small>для сравнения, по портфелю</small></td><td>${nf(ref*100,2)}</td></tr>`:''}</table>`:''}
+      ${h?`<div class="txh"><b>Можно платить меньше налога.</b> ${esc(h.r.name)} → ${esc(h.c.name)} ${rTag(h.c.rating)}: налог ниже на ${nf(h.dt*100,1)} п.п. в год, чистая доходность +${nf(h.dn*100,2)} п.п. — ≈ +${mshort(h.amt*h.dn*yrs)} за срок.
+        <div class="row-actions"><button class="btn acc" data-simpick="${h.c.id}" data-simfor="${h.r.id}">Применить</button><button class="btn ghost" data-why="${h.c.id}">Что за бумага</button></div></div>`:''}
+      ${T.iis>1000?`<div class="txh"><b>На ИИС-3 — ещё +${mshort(T.iis)}.</b> Срок от 5 лет: купоны и рост цены без налога (до 30 млн ₽ дохода), деньги на счёте до конца срока.<div class="row-actions"><button class="btn ghost" data-acct="iis3">Посчитать на ИИС-3</button></div></div>`:''}
+      <div class="note">Льгота долгосрочного владения — п. 17.2 ст. 217 НК: доход от погашения или продажи бумаги, которую держали больше 3 лет, не облагается в пределах 3 млн ₽ за каждый год; купоны облагаются всегда. ${P.ldv===false?'Сейчас льгота не учитывается: клиент может продать раньше. ':''}<button class="lnk" data-pill="account">Счёт и налоги ✎</button> Не является налоговой консультацией.</div>` : '';
+    return `<details class="card txc" data-sec="tax" ${open?'open':''}><summary><b>Налоги</b><span>${mshort(T.paid)} <small>за срок</small></span><em>›</em></summary>${body}</details>`;
+  }
   function moneyHtml(A){
     const S=salaryData(A), cf=cashflowMonths(A,60), sumC=cf.slice(0,12).reduce((s,x)=>s+x.c,0);
     const view = S.avg>0 ? UI.money : 'all', mx=Math.max(...S.vals,1), z=S.vals.filter(v=>v===0).length;
@@ -2193,7 +2290,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   let KEYX=null;
   function keyScen(A, X){
     const d=(X-A.keyNow)/100;
-    const r=BM.simulate(A.positions,{settle:A.settle,horizon:A.H,reinvest:A.reinv,withdraw:PAY(),reform:P.reform,account:A.acc,shift:d});
+    const r=BM.simulate(A.positions,{settle:A.settle,horizon:A.H,reinvest:A.reinv,withdraw:PAY(),reform:P.reform,ldv:P.ldv!==false,account:A.acc,shift:d});
     const path=A.depPath.map((v,i)=>i===0?v:Math.max(0.005,v+d));
     const dp=BM.depositNet(A.total,{settle:A.settle,horizon:A.H,rates:path,payout:PAY()?'monthly':'end',reform:P.reform,exempt:A.exempt});
     return {port:r.profit, dep:dp.profit};
@@ -2235,7 +2332,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const ok=(c,dr,dy)=>!seen.has(c.id) && !inPort(c.id) && passBase(c) && c.cur===r.cur && !c.flag && !c.sub && !c.mbs && c.ytm!=null
       && (c.kind==='float')===(r.kind==='float') && c.years!=null && Math.abs(c.years-yrs)<=Math.max(0.5,yrs*dy)
       && (r.ofz ? c.ofz : (!c.ofz && c.em!==r.em && !others.has(c.em) && Math.abs(rS(c)-rs)<=dr && rS(c)<=Math.max(rs,rScore(pp.minRating))
-        && !(pp.maxRating && rS(c)<rScore(pp.maxRating)) && !(P.exSec||[]).includes(c.sector) && c.price>=(pp.priceMin||70) && (c.tv||0)>0));
+        && !(pp.maxRating && rS(c)<rScore(pp.maxRating)) && !(P.exSec||[]).includes(c.sector) && (c.price>=(pp.priceMin||70) || (!pp.priceMin && lowCpn(c))) && (c.tv||0)>0));
     for(const [dr,dy] of [[1,0.3],[2,0.5],[3,0.8]]){ const c=U.filter(x=>ok(x,dr,dy)).sort((a,b)=>(b.cs||0)-(a.cs||0))[0]; if(c) return c; }
     return null;
   }
@@ -2248,7 +2345,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   }
   function simSheetHtml(id){
     const r=BYID[id], p=P.pos.find(x=>x.id===id); if(!r||!p) return '';
-    const list=similarList(id, 5), tax=P.account!=='iis3', val=x=>NETMODE&&x.net?BS.netOf(x,{tax}):x.ytm;
+    const list=similarList(id, 5), tax=P.account!=='iis3', val=x=>NETMODE&&x.net?BS.netOf(x,netO()):x.ytm;
     const v0=val(r);
     const rows=list.map(c=>{ const d=(val(c)??0)-(v0??0); return `<button class="simr" data-simpick="${c.id}" data-simfor="${id}"><span><b>${esc(c.name)}</b> ${rTag(c.rating)}<small>${c.ofz?'ОФЗ':esc((c.emName||'').slice(0,36))} · до ${fmtD(c.end)} · купон ${c.cpn!=null?nf(c.cpn,1)+'%':c.kind==='float'?'плав.':'—'}</small></span><em>${pc(val(c))}<small class="${d>=0?'up':'down'}">${d>=0?'+':'−'}${nf(Math.abs(d*100),2)} п.п.</small></em></button>`; }).join('');
     return `<h3>Заменить ${esc(r.name)}</h3><div class="note">сейчас: ${rTag(r.rating)} · до ${fmtD(r.end)} · ${NETMODE?'чистая доходность':'доходность'} ${pc(v0)} · доля ${nf(p.w,1)}% — у замены доля та же</div>
@@ -2268,7 +2365,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       if(bad.length){ openSheet(`<h3>Проверьте ${esc(c.name)}</h3><ul class="warns">${bad.map(n=>`<li class="bad">${esc(n)}</li>`).join('')}</ul><div class="note">По данным Мосбиржи. Заменить всё равно?</div>
         <div class="row-actions" style="margin-top:12px"><button class="btn ghost" data-sim="${id}">← Другие варианты</button><button class="btn acc" data-swapforce="${cid}" data-swapfor="${id}">Заменить всё равно</button></div>`); return; } }
     remember(); P.exId=[...new Set([...(P.exId||[]), id])].filter(x=>x!==cid); p.id=cid; p.pin=false; savePort(); hap('sel'); closeSheet();
-    toast(`${esc(r?r.name:'')} → <b>${esc(c.name)}</b> · ${esc(c.rating||'н/р')} · ${pc(NETMODE&&c.net?BS.netOf(c):c.ytm,1)}`, true);
+    toast(`${esc(r?r.name:'')} → <b>${esc(c.name)}</b> · ${esc(c.rating||'н/р')} · ${pc(NETMODE&&c.net?BS.netOf(c,netO()):c.ytm,1)}`, true);
     await recompute();
   }
   function amtSheetHtml(id){
@@ -2328,11 +2425,11 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       if((c.kind==='float')!==fl || c.years==null || Math.abs(c.years-yrs)>tol) continue;
       if(c.est) continue;
       if(NETMODE){            // чистая доходность (после налога и ожидаемых потерь) выше на 0,5 п.п.; рейтинг может быть и ниже — риск уже вычтен
-        const nr=BS.netOf(r), nc=BS.netOf(c); if(nr==null || nc==null || nc < nr+0.005) continue;
-        if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || c.price<70 || rS(c)>rScore(P.params.minRating||'BB-') || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
-        if(!best || nc>BS.netOf(best)) best=c; continue; }
+        const nr=BS.netOf(r,netO()), nc=BS.netOf(c,netO()); if(nr==null || nc==null || nc < nr+0.005) continue;
+        if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || (c.price<70 && !lowCpn(c)) || rS(c)>rScore(P.params.minRating||'BB-') || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
+        if(!best || nc>BS.netOf(best,netO())) best=c; continue; }
       if(c.ytm < r.ytm+0.005) continue;
-      if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || rS(c)>rs || c.price<70 || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
+      if(r.ofz){ if(!c.ofz) continue; } else if(!c.ofz){ if(c.em===r.em || rS(c)>rs || (c.price<70 && !lowCpn(c)) || !((c.tv||0)>=Math.max(1e6, 0.5*(r.tv||0)))) continue; }
       if(!best || c.ytm>best.ytm) best=c;
     }
     return ALTC[r.id]=best;
@@ -2342,7 +2439,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   function altSheetHtml(id){
     const r=BYID[id], c=betterAlt(r); if(!c) return '';
     const col=(x,lab,cls)=>{ const at=BS.afterTax(x,BM,SETTLE); return `<div class="altc ${cls}"><span class="altl">${lab}</span><b>${esc(x.name)}</b> ${rTag(x.rating)}<small>${x.ofz?'ОФЗ':esc((x.emName||'').slice(0,40))}</small>
-      <dl>${NETMODE&&x.net?`<dt>Чистая доходность</dt><dd><b>${pc(BS.netOf(x,{tax:P.account!=='iis3'}))}</b></dd>`:''}<dt>Доходность</dt><dd>${pc(x.ytm)}</dd><dt>После НДФЛ</dt><dd>${at!=null?pc(at):'—'}</dd>${NETMODE&&x.net&&!x.ofz?`<dt>Ожид. потери</dt><dd>−${nf(x.net.el*100,2)} п.п.</dd>`:''}<dt>${x.off?'Оферта':'Погашение'}</dt><dd>${fmtD(x.end)}</dd><dt>Купон</dt><dd>${x.cpn!=null?nf(x.cpn,2)+'%':x.kind==='float'?'плав.':'—'} · ${freqName(x.freq)}</dd><dt>Оборот в день</dt><dd>${x.tv?nf(x.tv/1e6,1)+' млн ₽':'—'}</dd></dl></div>`; };
+      <dl>${NETMODE&&x.net?`<dt>Чистая доходность</dt><dd><b>${pc(BS.netOf(x,netO()))}</b></dd>`:''}<dt>Доходность</dt><dd>${pc(x.ytm)}</dd><dt>После НДФЛ</dt><dd>${at!=null?pc(at):'—'}</dd>${NETMODE&&x.net&&!x.ofz?`<dt>Ожид. потери</dt><dd>−${nf(x.net.el*100,2)} п.п.</dd>`:''}<dt>${x.off?'Оферта':'Погашение'}</dt><dd>${fmtD(x.end)}</dd><dt>Купон</dt><dd>${x.cpn!=null?nf(x.cpn,2)+'%':x.kind==='float'?'плав.':'—'} · ${freqName(x.freq)}</dd><dt>Оборот в день</dt><dd>${x.tv?nf(x.tv/1e6,1)+' млн ₽':'—'}</dd></dl></div>`; };
     const d=c.ytm-r.ytm;
     return `<h3>Есть лучшая альтернатива</h3><div class="sub">надёжность ${rScore(c.rating)<rScore(r.rating)?'выше':'та же'}, срок близкий, тот же тип купона — доходность выше на <b class="up">${nf(d*100,2)} п.п.</b> ≈ +${mshort(10e6*d*0.87)} в год после налога на каждые 10 млн</div>
       <div class="altg">${col(r,'выбрана','')}${col(c,'лучше','best')}</div>
@@ -2372,7 +2469,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const priceLine = (r, ytm) => `цена ${nf(r.price,2)}%${curY(r)!=null?` · тек. дох. ${pc(curY(r))}`:''}${ytm!=null?` · к погаш. ${pc(ytm)}`:''}`;
   function posRows(A, ro){
     const tax=P.account!=='iis3', wide=WIDE();
-    return `<div class="kl ${ro?'ro':''} ${wide&&!ro?'wide':''}">${A.rows.map(x=>{ const id=x.r.id, pin=!!x.p.pin, open=!ro&&(wide||OPENROW===id), net=NETMODE&&x.r.net?BS.netOf(x.r,{tax}):null, end=x.a.end||x.r.end;
+    return `<div class="kl ${ro?'ro':''} ${wide&&!ro?'wide':''}">${A.rows.map(x=>{ const id=x.r.id, pin=!!x.p.pin, open=!ro&&(wide||OPENROW===id), net=NETMODE&&x.r.net?BS.netOf(x.r,netO()):null, end=x.a.end||x.r.end;
       return `<div class="kr ${pin?'pin':''} ${open?'open':''}"><div class="kr-m" ${ro||wide?`data-why="${id}"`:`data-row="${id}"`}>
           <div class="kr-n"><b>${esc(x.r.name)}</b>${posFlags(x)}<small>${rTag(x.r.rating)} ${x.r.ofz?'ОФЗ':esc((x.r.emName||'').slice(0,26))} · до ${fmtD(end)}${x.a.toCall?' (колл)':x.a.toOffer?' (оферта)':''} · ${nf(x.p.w,1)}%</small><small class="kr-p num">${priceLine(x.r, x.a.ytm)}${ndTxt(x.r)?' · '+ndTag(x.r):''}</small></div>
           <div class="kr-v num"><b>${mshort(x.cost)}</b><small>${net!=null?pc(net)+' чистая':x.a.ytm!=null?pc(x.a.ytm):'нет данных'}</small></div></div>
@@ -2384,7 +2481,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       ${A.rows.map(x=>{ const pin=!!x.p.pin; return `<div class="pr ${pin?'pin':''}">
         <div class="pr-n" data-why="${x.r.id}"><b>${esc(x.r.name)}</b> ${posFlags(x)}<small>${x.r.ofz?'ОФЗ':esc((x.r.emName||'').slice(0,38))}${x.r.cur!=='RUB'?' · '+x.r.cur:''} · ${esc(x.r.isin)}</small></div>
         <div class="pr-r">${rTag(x.r.rating)}</div>
-        <div class="pr-y num">${x.a.ytm!=null?pc(x.a.ytm):'<span class="down">нет данных</span>'}${NETMODE&&x.r.net?`<small class="netl">чистая ${pc(BS.netOf(x.r,{tax:P.account!=='iis3'}))}</small>`:''}<small>${x.r.cpn!=null?'купон '+nf(x.r.cpn,1)+'%':x.r.kind==='float'?'плав. купон':''}${x.r.freq?' · '+freqName(x.r.freq):''}</small></div>
+        <div class="pr-y num">${x.a.ytm!=null?pc(x.a.ytm):'<span class="down">нет данных</span>'}${NETMODE&&x.r.net?`<small class="netl">чистая ${pc(BS.netOf(x.r,netO()))}</small>`:''}<small>${x.r.cpn!=null?'купон '+nf(x.r.cpn,1)+'%':x.r.kind==='float'?'плав. купон':''}${x.r.freq?' · '+freqName(x.r.freq):''}</small></div>
         <div class="pr-e num">${fmtD(x.a.end||x.r.end)}<small>${x.a.toCall?'колл':x.a.toOffer?'оферта':'погашение'}</small></div>
         <div class="pr-w">${ro?`<b>${nf(x.p.w,1)}%</b>`:`<button class="wb" data-wd="${x.r.id}" data-d="-1" aria-label="меньше">−</button><input class="qty wqty" data-w="${x.r.id}" value="${nf(x.p.w,1)}" inputmode="decimal"><button class="wb" data-wd="${x.r.id}" data-d="1" aria-label="больше">+</button>`}</div>
         <div class="pr-s num" ${ro?'':`data-amtpos="${x.r.id}" title="задать сумму в рублях"`}>${ro?mshort(x.cost):`<u>${mshort(x.cost)}</u>`}<small>${x.qty?x.qty.toLocaleString('ru-RU')+' шт':'<span class="tag w" title="на эту долю не хватает даже на один лот">меньше лота</span>'}</small></div>
@@ -2505,10 +2602,10 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       const tabs = `<div class="ptabs" role="tablist">${[['s',`Состав <i>${A.rows.length}</i>`],['d','Доходы'],['r',`Риски${warn?' <em></em>':''}`]].map(([k,n])=>`<button role="tab" class="${tab===k?'on':''}" data-ptab="${k}">${n}</button>`).join('')}</div>`;
       const mapb = `<button class="card mapopen" data-act="mapfs"><b>Портфель на карте рынка</b><span>где ваши бумаги среди всех облигаций — на весь экран</span><em>⤢</em></button>`;
       const body = tab==='s' ? sostavHtml(A)
-        : tab==='d' ? (wide?'':compareHtml(A))+moneyHtml(A)+eventsHtml(A)+carryTeaserHtml(A)
+        : tab==='d' ? (wide?'':compareHtml(A))+moneyHtml(A)+taxHtml(A)+eventsHtml(A)+carryTeaserHtml(A)
         : (wide?'':checkHtml(A))+mapb+shieldHtml(A)+ladderHtml(A)+ratesHtml(A)+how;
-      if(wide) return `<div class="kab"><div class="kcol">${barHtml('port')}${trackHtml(A)}${todoHtml(A)}${sumHtml(A)}${depFixHtml(A)}${compareHtml(A)}${checkHtml(A)}</div><div class="kcol">${tabs}${body}</div></div>`;
-      return barHtml('port')+trackHtml(A)+todoHtml(A)+sumHtml(A)+sumBarHtml(A)+depFixHtml(A)+tabs+body;
+      if(wide) return `<div class="kab"><div class="kcol">${barHtml('port')}${sanityHtml(A)}${trackHtml(A)}${todoHtml(A)}${sumHtml(A)}${depFixHtml(A)}${compareHtml(A)}${checkHtml(A)}</div><div class="kcol">${tabs}${body}</div></div>`;
+      return barHtml('port')+sanityHtml(A)+trackHtml(A)+todoHtml(A)+sumHtml(A)+sumBarHtml(A)+depFixHtml(A)+tabs+body;
     } finally { FLAT=false; }
   }
   // ---------------- ссылка «для клиента»: только просмотр
@@ -2634,7 +2731,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const emWord = n => (n%10===1&&n%100!==11)?'эмитент':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?'эмитента':'эмитентов';
   // проблемы портфеля в стиле «Разбора»: риск, ликвидность, концентрация на эмитенте и отрасли
   function issuesOf(items){ const T=items.reduce((s_,x)=>s_+(x.amt||0),0)||1, em={}, sc={}; let n=0;
-    for(const x of items){ const r=x.r; if(r.flag||r.ytm==null||['linker','struct','conv'].includes(r.kind)) n++; if(!r.ofz && r.tv>0 && x.amt>r.tv*3) n++; if(r.prem!=null && r.prem<-0.01 && !r.ofz) n++;
+    for(const x of items){ const r=x.r; if(r.flag||r.ytm==null||['linker','struct','conv','io'].includes(r.kind)) n++; if(!r.ofz && r.tv>0 && x.amt>r.tv*3) n++; if(r.prem!=null && r.prem<-0.01 && !r.ofz) n++;
       if(!r.ofz){ em[r.em]=(em[r.em]||0)+x.amt/T; sc[r.sector]=(sc[r.sector]||0)+x.amt/T; } }
     return n+Object.values(em).filter(v=>v>0.15+1e-9).length+Object.values(sc).filter(v=>v>0.35+1e-9).length; }
   function slidesFor(A){
@@ -2642,7 +2739,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const yrs=R.years, ann=p=>PAY()?p/T/yrs:Math.pow(1+p/T,1/yrs)-1;
     const out=[];
     out.push(`<div class="sl-k">Ваш портфель облигаций · ${termName()}</div><div class="sl-h">Вложили ${mshort(T)}<br>→ получите <span class="sl-acc">${mshort(T+R.profit)}</span></div>
-      <div class="sl-s">после налогов · ${pc(R.annual)} годовых${vs>0?` · <b>на ${mshort(vs)} больше, чем во вкладе</b>`:''}${(()=>{ const E=portEL(A); return E.y>0.00005?`<br>ожидаемые потери от дефолтов по статистике — ≈ ${nf(E.y*100,2)}% в год (≈ ${mshort(E.rub)} за срок)`:''; })()}</div>`);
+      <div class="sl-s">после налогов · ${pc(R.annual)} годовых${vs>0?` · <b>на ${mshort(vs)} больше, чем во вкладе</b>`:''}${(()=>{ const E=portEL(A); return E.y>0.00005?`<br>ожидаемые потери от дефолтов по статистике — ≈ ${nf(E.y*100,2)}% в год (≈ ${mshort(E.rub)} за срок)`:''; })()}${A.taxI&&A.taxI.paid>0?`<br>налог ${mshort(A.taxI.paid)} уже вычтен${A.taxI.ldv>1000?` · льгота долгосрочного владения −${mshort(A.taxI.ldv)}`:''}`:A.acc==='iis3'?'<br>ИИС-3: без налога':''}</div>`);
     const cmp=[['Портфель',R.profit,1],['Лучший вклад',A.dep,0],['ОФЗ',A.ofz,0]], mx=Math.max(...cmp.map(c=>c[1]),1);
     out.push(`<div class="sl-k">Сравнение на ${termName()} — доход на руки</div>${cmp.map(([n,v,me])=>`<div class="sl-bar ${me?'me':''}"><span>${n}</span><i style="width:${Math.max(3,v/mx*100)}%"></i><b>+${mshort(v)}</b><em>${pc(ann(v))}</em></div>`).join('')}
       <div class="sl-s">вклад — по лучшей ставке топ-10 банков на весь срок; облигации — по цене покупки сегодня</div>`);
@@ -2863,6 +2960,41 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     countUp(); if(ANALYSIS){ DELTA=null; PREV=null; } syncBack();
   }
   let anlToken=0;
+  // ---------------- самопроверка портфеля: очевидные несуразности, которые нельзя показывать клиенту (видит только советник)
+  // err — показывать нельзя, пока не разобрались; warn — стоит посмотреть
+  function sanityIssues(A){
+    const out=[], err=t=>out.push({lvl:'err', t}), warn=t=>out.push({lvl:'warn', t});
+    if(!A || A.empty || !A.rows || !A.rows.length) return out;
+    const T=A.total, R=A.main||{}, fin=v=>typeof v==='number' && isFinite(v);
+    if(![T, R.profit, R.annual, A.dep].every(fin)) err('в расчёте есть пустые значения (NaN) — итог показывать нельзя');
+    if(!MANUAL && T < P.amount*0.97) err(`вложено ${mshort(T)} из ${mshort(P.amount)} (${nf(T/P.amount*100,0)}%)`);
+    const wsum=P.pos.reduce((a,p)=>a+(p.w||0),0); if(!MANUAL && Math.abs(wsum-100)>2.5) warn(`доли бумаг в сумме ${nf(wsum,1)}%, а не 100%`);
+    const ids=P.pos.map(p=>p.id); if(new Set(ids).size!==ids.length) err('одна и та же бумага в портфеле дважды');
+    if(fin(R.annual) && (R.annual>0.35 || R.annual< -0.05)) err(`итог ${pc(R.annual)} годовых — неправдоподобно, проверьте бумаги`);
+    if(fin(R.annual) && A.py && fin(A.py.ytm) && P.account!=='iis3' && R.annual > A.py.ytm+0.01) err(`итог после налога (${pc(R.annual)}) выше доходности бумаг до налога (${pc(A.py.ytm)})`);
+    if(fin(A.dep) && A.dep<=0) err('доход по вкладу для сравнения не посчитался');
+    for(const x of A.rows){ const r=x.r, nm=esc(r.name);
+      if(!(x.qty>0)) err(`${nm}: на эту долю не хватает даже одного лота`);
+      if(r.ytm!=null && (r.ytm<0 || r.ytm>0.4)) err(`${nm}: доходность ${pc(r.ytm)} — похоже на ошибку цены`);
+      if(!r.ofz && r.price<70 && !lowCpn(r)) err(`${nm}: цена ${nf(r.price,1)}% — бумага в стрессе`);
+      if(r.flag) err(`${nm}: рынок требует необычно высокую доходность (метка «риск»)`);
+      if(x.bz && x.bz.def) err(`${nm}: эмитент в дефолте`);
+      if(!r.ofz && r.tv>0 && x.cost > r.tv*(r.cur==='RUB'?3:5)) warn(`${nm}: позиция ${mshort(x.cost)} — ${nf(x.cost/r.tv,0)} дневных оборотов, набирать её придётся долго`);
+      if(!r.ofz && !(r.tv>0)) warn(`${nm}: сделок почти нет — купить может быть сложно`);
+      if(x.a && x.a.est && r.kind!=='float') warn(`${nm}: часть купонов неизвестна — расчёт по ней приблизительный`);
+    }
+    if(!P.params.ofzOnly){ const tot=CURS.reduce((a,[c])=>a+(num(P.cur[c])||0),0)||100, sh={}; A.rows.forEach(x=>sh[x.r.cur]=(sh[x.r.cur]||0)+x.cost/T*100);
+      for(const [c] of CURS){ const want=(num(P.cur[c])||0)/tot*100, got=sh[c]||0; if(!MANUAL && Math.abs(want-got)>5) warn(`${({RUB:'рубли',CNY:'юани',USD:'доллары',EUR:'евро'})[c]}: ${nf(got,0)}% вместо ${nf(want,0)}%`); } }
+    if(OFFLINE) warn('нет связи с Мосбиржей — цены не сегодняшние');
+    const age=iso=>iso?(Date.now()-new Date(String(iso).replace(' ','T')+'+03:00').getTime())/864e5:null;
+    const ma=age(META&&META.updated); if(ma!=null && ma>3.5) warn(`рейтинги обновлялись ${nf(ma,0)} дн. назад`);
+    const fa=age(FUND&&FUND.updated); if(fa!=null && fa>45) warn(`отчётность компаний обновлялась ${nf(fa,0)} дн. назад`);
+    return out;
+  }
+  function sanityHtml(A){ if(CLIENT) return ''; const it=sanityIssues(A); if(!it.length) return '';
+    const e=it.filter(x=>x.lvl==='err'), w=it.filter(x=>x.lvl==='warn');
+    return `<div class="card pchk sanity ${e.length?'bad':''}"><div class="sech"><h2>${e.length?'Проверьте перед показом':'Стоит посмотреть'}</h2><span class="aside">видите только вы</span></div>
+      ${[...e,...w].slice(0,8).map(x=>`<div class="ckr ${x.lvl==='err'?'e':'w'}"><i>!</i><span>${x.t}</span></div>`).join('')}${it.length>8?`<div class="note">и ещё ${it.length-8}</div>`:''}</div>`; }
   // ---------------- «обогнать вклад»: если портфель по критериям проигрывает вкладу — пробуем ослабить по одному критерию и показываем, что даст
   let DEPFIX={key:null, busy:false, items:[]};
   const depKey = () => JSON.stringify([P.params, P.cur, P.amount, P.term, P.account, P.monthly, P.depRate, P.pos.map(p=>p.id).sort()]);
@@ -2965,7 +3097,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   // раскрывающиеся блоки: состояние запоминается
   document.addEventListener('toggle',ev=>{
     const d=ev.target; if(!d || d.tagName!=='DETAILS') return;
-    if(d.dataset.sec){ UI.sec[d.dataset.sec]=d.open; saveUI(); }
+    if(d.dataset.sec){ UI.sec[d.dataset.sec]=d.open; saveUI(); if(d.dataset.sec==='tax' && d.open && !d.querySelector('.txk')) render(); }
     if(d.id==='fdet'){ UI.filt=d.open; saveUI(); }
     if(d.id==='mapdet'){ UI.map=d.open; saveUI(); kill(); if(d.open) drawMap(); }
   }, true);
@@ -3007,6 +3139,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const pl=ev.target.closest('[data-pill]'); if(pl){ SHEET_KIND=pl.dataset.pill; if(pl.dataset.pill==='more') critWatch(); openSheet(pillSheet(pl.dataset.pill)); const i=$('p_amount')||(pl.dataset.pill==='dep'&&$('p_dep')); if(i&&DESK()) setTimeout(()=>{ i.focus(); i.select(); },60); return; }
     const am=ev.target.closest('[data-amt]'); if(am){ P.amount=+am.dataset.amt; savePort(); AMT_DIRTY=true; closeSheet(); return; }
     const tm=ev.target.closest('[data-term]'); if(tm){ const nt=+tm.dataset.term; if(nt===P.term){ closeSheet(); return; } const snap=snapP(); P.term=nt; savePort(); SHEET_KIND=null; _closeSheet(); await afterParams(true, snap); return; }
+    const lv=ev.target.closest('[data-ldv]'); if(lv){ const v=lv.dataset.ldv==='1'; if(v===(P.ldv!==false)){ closeSheet(); return; } const snap=snapP(); P.ldv=v; savePort(); SHEET_KIND=null; _closeSheet();
+      if(TAB==='port' && P.pos.length && !MANUAL) await rebuild(v?'Портфель пересобран с льготой долгосрочного владения':'Портфель пересобран без льготы', snap); else await afterParams(false); return; }
     const ac=ev.target.closest('[data-acct]'); if(ac){ P.account=ac.dataset.acct; savePort(); SHEET_KIND=null; _closeSheet(); await afterParams(false); return; }
     const dfx=ev.target.closest('[data-depfix]'); if(dfx){ const x=DEPFIX.items[+dfx.dataset.depfix]; if(!x) return; const snap=snapP();
       if(x.ch){ Object.assign(P.params, x.ch); P.profile='custom'; } if(x.cur) P.cur=Object.assign({}, x.cur); savePort(); await rebuild('Критерий ослаблен: '+x.label, snap); return; }
@@ -3058,7 +3192,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       if(TAB==='screen') screen(); else { SCORE(U.filter(u=>passBase(u)&&u.cur===r.cur&&!u.sub&&!u.mbs)); where='на рынке в '+({RUB:'рублях',CNY:'юанях',USD:'долларах',EUR:'евро'}[r.cur]||r.cur); }
       const alt=TAB==='screen'?altOf(r.id):null;
       if(CLIENT){ openSheet(`<h3>${esc(r.name)} ${rTag(r.rating)}</h3>${aboutHtml(r)}<div class="cobond num">${priceLine(r, r.ytm)} · ${r.cpn!=null?'купон '+nf(r.cpn,2)+'%, '+freqName(r.freq):r.kind==='float'?'плавающий купон':''} · до ${fmtD(r.end)}${r.off?' (оферта)':''}</div>`); aboutFill(r); return; }
-      openSheet(`<h3>${esc(r.name)} ${rTag(r.rating)}</h3>${aboutHtml(r)}${alt?`<button class="altnote" data-alt="${r.id}">Есть лучше: <b>${esc(alt.name)}</b> · ${esc(alt.rating||'')} · ${NETMODE?'чистая '+pc(BS.netOf(alt))+' (+'+nf((BS.netOf(alt)-BS.netOf(r))*100,2)+' п.п.)':pc(alt.ytm)+' (+'+nf((alt.ytm-r.ytm)*100,2)+' п.п.)'} <span>сравнить →</span></button>`:''}${whyHtml(r, BS.afterTax(r,BM,SETTLE), where)}${TAB==='screen'?`<div class="row-actions" style="margin-top:12px"><button class="btn ${inPort(r.id)?'ghost':'acc'}" data-add="${r.id}">${inPort(r.id)?'Убрать из портфеля':'+ В портфель'}</button></div>`:TAB==='port'&&inPort(r.id)&&!CLIENT?`<div class="row-actions" style="margin-top:12px"><button class="btn ghost" data-sim="${r.id}">↻ Заменить…</button><button class="btn ghost" data-amtpos="${r.id}">₽ Сумма</button><button class="btn ghost" data-pin="${r.id}">${P.pos.find(p=>p.id===r.id).pin?'Открепить':'Закрепить'}</button><button class="btn ghost danger" data-del="${r.id}">✕ Убрать</button></div>`:''}`); aboutFill(r); return; }
+      openSheet(`<h3>${esc(r.name)} ${rTag(r.rating)}</h3>${aboutHtml(r)}${alt?`<button class="altnote" data-alt="${r.id}">Есть лучше: <b>${esc(alt.name)}</b> · ${esc(alt.rating||'')} · ${NETMODE?'чистая '+pc(BS.netOf(alt,netO()))+' (+'+nf((BS.netOf(alt,netO())-BS.netOf(r,netO()))*100,2)+' п.п.)':pc(alt.ytm)+' (+'+nf((alt.ytm-r.ytm)*100,2)+' п.п.)'} <span>сравнить →</span></button>`:''}${whyHtml(r, BS.afterTax(r,BM,SETTLE), where)}${TAB==='screen'?`<div class="row-actions" style="margin-top:12px"><button class="btn ${inPort(r.id)?'ghost':'acc'}" data-add="${r.id}">${inPort(r.id)?'Убрать из портфеля':'+ В портфель'}</button></div>`:TAB==='port'&&inPort(r.id)&&!CLIENT?`<div class="row-actions" style="margin-top:12px"><button class="btn ghost" data-sim="${r.id}">↻ Заменить…</button><button class="btn ghost" data-amtpos="${r.id}">₽ Сумма</button><button class="btn ghost" data-pin="${r.id}">${P.pos.find(p=>p.id===r.id).pin?'Открепить':'Закрепить'}</button><button class="btn ghost danger" data-del="${r.id}">✕ Убрать</button></div>`:''}`); aboutFill(r); return; }
     const ad=ev.target.closest('[data-add]'); if(ad){ const id=ad.dataset.add;
       if(!inPort(id) && !addChecked(id,'screen')) return;
       if(inPort(id)) P.pos=P.pos.filter(p=>p.id!==id); else addToPort(id);
@@ -3104,7 +3238,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         XRSNAP={n:R_.issues.length, wy:R_.wy, ids:P.pos.map(p=>p.id).sort().join()};
         TRACK=null; TAB='port'; PV='main'; store.set('b_tab2',TAB); savePort(); pushRecent(); window.scrollTo({top:0}); await recompute(); } }
     if(act==='xvs'){ const R_=XR.res; if(R_&&R_.items.length){ TAB='port'; PV='vs'; store.set('b_tab2',TAB); VS.a=null; VS.b=null; render(); VS.a=await vsVariant('xr'); VS.a.isXr=true; VS.bk='xr2'; VS.b=await vsVariant('xr2'); render(); } }
-    if(act==='present'){ if(!ANALYSIS||ANALYSIS.empty) return; DECK=a.dataset.deck||'main'; SLIDE=0; await loadQR(); presShow(); hap('medium'); try{ const e=document.documentElement; if(e.requestFullscreen && !IN_TG) await e.requestFullscreen(); }catch(e){} }
+    if(act==='present'){ if(!ANALYSIS||ANALYSIS.empty) return;
+      { const e=sanityIssues(ANALYSIS).filter(x=>x.lvl==='err'); if(e.length && !a.dataset.force){ openSheet(`<h3>Перед показом клиенту</h3><div class="sub">В портфеле есть то, что лучше поправить до показа:</div><div class="pchk">${e.map(x=>`<div class="ckr e"><i>!</i><span>${x.t}</span></div>`).join('')}</div>
+        <div class="row-actions" style="margin-top:12px"><button class="btn acc" data-act="shclose">Поправить</button><button class="btn ghost" data-act="present" data-force="1" ${a.dataset.deck?`data-deck="${a.dataset.deck}"`:''}>Показать всё равно</button></div>`); return; } if(a.dataset.force) closeSheet(); } DECK=a.dataset.deck||'main'; SLIDE=0; await loadQR(); presShow(); hap('medium'); try{ const e=document.documentElement; if(e.requestFullscreen && !IN_TG) await e.requestFullscreen(); }catch(e){} }
     if(['clientlink','print'].includes(act) && $('pres')) await presClose();
     if(act==='reload'){ a.disabled=true; try{ await load(); ANALYSIS=null; render(); if(TAB==='port'&&P.pos.length) recompute(); toast(OFFLINE?'Связи всё ещё нет':'Цены обновлены'); }catch(e){ toast('Связи нет'); } }
     if(act==='crit'){  if(!CRITB.includes(P.profile) && P.profile!=='custom'){ P.profile='mod'; P.params=JSON.parse(JSON.stringify(PROFILES.mod)); savePort(); } critWatch(); openSheet(critSheetHtml()); }
@@ -3143,14 +3279,14 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
 
   // для автоматических проверок (ничего не меняет в работе страницы)
   window.__BONDS = { P, F, UI, get A(){ return ANALYSIS; }, get U(){ return U; }, get FX(){ return FX; }, get RF(){ return RF; }, get SETTLE(){ return SETTLE; }, get CMP(){ return CMP; }, get VS(){ return VS; },
-    analyze, autoBuildChecked, buildPos, buildChecked, computeA, carryBuild, screen, render, recompute, profileCheck, fitProfile, horizonISO, loanAmount, collateralRub, suggestions, similarFor, parseAmount, PROFILES,
+    sanity:()=>sanityIssues(ANALYSIS), sanityOf:A=>sanityIssues(A), analyze, autoBuildChecked, buildPos, buildChecked, computeA, carryBuild, screen, render, recompute, profileCheck, fitProfile, horizonISO, loanAmount, collateralRub, suggestions, similarFor, parseAmount, PROFILES,
     portLink, readPortLink, slides:()=>slidesFor(ANALYSIS), carrySlides:()=>carrySlides(ANALYSIS), setSettle: d => { SETTLE=d; }, setNet: v => { NETMODE=!!v; }, pdYearS, get LGD(){ return LGD; } };
 
   // ---------------- портфель в ссылке (?p=…): состав и параметры, без данных клиента; cv=1 — вид «для клиента»
   const b64e = str => btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   const b64d = str => decodeURIComponent(escape(atob(str.replace(/-/g,'+').replace(/_/g,'/'))));
   function portLink(view, track, client){
-    const o={a:P.amount,t:P.term,pr:P.profile,c:P.cur,ac:P.account,m:P.monthly?1:0,r:P.reform?1:0,q:P.qual===false?0:1,d:P.depRate,
+    const o={a:P.amount,t:P.term,pr:P.profile,c:P.cur,ac:P.account,m:P.monthly?1:0,r:P.reform?1:0,l:P.ldv===false?0:1,q:P.qual===false?0:1,d:P.depRate,
       ps:P.pos.map(p=>p.pin?[p.id,p.w,1]:[p.id,p.w]), x:(P.exSec||[]).length?P.exSec:undefined, cy:P.carry&&P.carry.on?{l:P.carry.ltv,ps:P.carry.pos.map(p=>[p.id,p.w])}:null, dt:SETTLE};
     if(P.profile==='custom') o.pp=P.params;
     if(track && ANALYSIS && !ANALYSIS.empty){ const A=ANALYSIS, qr=A.rows.filter(x=>x.qty>0&&x.a.ytm!=null);
@@ -3165,7 +3301,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const raw=qs.get('p'); if(!raw) return false;
     try{ const o=JSON.parse(b64d(raw));
       CLIENT = qs.get('cv')==='1';
-      Object.assign(P,{amount:+o.a||P.amount, term:+o.t||P.term, profile:o.pr==='agg'?'inc':(o.pr||'mod'), cur:o.c||P.cur, account:o.ac==='iis3'?'iis3':'std', monthly:!!o.m, reform:o.r!==0, qual:o.q!==0,
+      Object.assign(P,{amount:+o.a||P.amount, term:+o.t||P.term, profile:o.pr==='agg'?'inc':(o.pr||'mod'), cur:o.c||P.cur, account:o.ac==='iis3'?'iis3':'std', monthly:!!o.m, reform:o.r!==0, ldv:o.l!==0, qual:o.q!==0,
         depRate:o.d??null, pos:(o.ps||[]).map(([id,w,pin])=>pin?{id,w:+w,pin:true}:{id,w:+w}), exSec:Array.isArray(o.x)?o.x:[], warns:[],
         carry:o.cy?{on:true,ltv:+o.cy.l||100,pos:(o.cy.ps||[]).map(([id,w])=>({id,w:+w})),warns:[]}:{on:false,ltv:100,pos:[],warns:[]}});
       P.params=o.pp||JSON.parse(JSON.stringify(PROFILES[P.profile]||PROFILES.mod));

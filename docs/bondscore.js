@@ -62,14 +62,16 @@
 
   /** Доходность после НДФЛ 13% (брокер удерживает с купонов, с дисконта — при погашении; купоны реинвестируются
    *  по той же доходности). Только для фикс. купона без амортизации — по текущей ставке купона. */
-  function afterTax(r, BM, settle) {
-    if (r._at !== undefined) return r._at;
-    if (!['fixed', 'disc', 'amort', 'float'].includes(r.kind) || !r.end || r.ytm == null || !r.price) return (r._at = null);
+  function afterTax(r, BM, settle, ldv) {
+    const ck = ldv ? '_atL' : '_at';
+    if (r[ck] !== undefined) return r[ck];
+    const ret = v => (r[ck] = v);
+    if (!['fixed', 'disc', 'amort', 'float'].includes(r.kind) || !r.end || r.ytm == null || !r.price) return ret(null);
     const per = r.couponPeriod > 0 ? r.couponPeriod : 182;
     // амортизация и флоатер — приближённо: как бумага с тем же купоном (у флоатера — текущим или оценкой) без амортизации
     let cpn = r.kind === 'disc' ? 0 : (r.cpn != null ? r.cpn : (r.cpnVal && per ? r.cpnVal / r.face * 365 / per * 100 : null));
     if (cpn == null && r.kind === 'float') cpn = r.ytm * 100 * r.price / 100;
-    if (cpn == null) return (r._at = null);
+    if (cpn == null) return ret(null);
     const s = BM.toMs(settle), end = BM.toMs(r.end), D = 864e5;
     const flows = [];
     for (let t = end; t > s; t -= per * D) flows.push({ ms: t, amt: cpn / 100 * 100 * per / 365, kind: 'c', date: BM.iso(t) });
@@ -79,11 +81,11 @@
     for (const f of flows) f.t = (f.ms - s) / D / 365;
     const ai = r.ai != null && r.face ? r.ai / r.face * 100 : 0;
     const y = BM.irr(flows, r.price + ai);
-    if (y == null) return (r._at = null);
+    if (y == null) return ret(null);
     const res = BM.simulate([{ id: r.id, qty: 1, bond: { face: 100 }, flows, clean: r.price, accrued: ai, fx: 1, ytm: y }],
-      { settle, account: 'std', reinvest: y, reform: false });
+      { settle, account: 'std', reinvest: y, reform: false, ldv: !!ldv });
     // налоговая «потеря» на модельном потоке, перенесённая на биржевую доходность бумаги
-    return (r._at = r.ytm - (y - res.annual));
+    return ret(r.ytm - (y - res.annual));
   }
 
   /** Сводная оценка 0–100 — «по сумме показателей» среди переданных бумаг (обычно — после фильтров):
@@ -157,6 +159,12 @@
       }
       const at = afterTax(r, BM, opts.settle);
       const tax = at != null ? Math.max(0, r.ytm - at) : 0.13 * Math.max(0, r.ytm);
+      // ЛДВ: если бумага гасится больше чем через 3 года — доход от роста цены до номинала без налога (держим до погашения)
+      let taxL = null;
+      if (r.end && (BM.days(opts.settle, r.end) || 0) >= 3 * 365.25 + 1) {
+        const al = afterTax(r, BM, opts.settle, true);
+        taxL = al != null ? Math.max(0, r.ytm - al) : null;
+      }
       const step = opts.downStep ? opts.downStep(r) : 0;
       const pd = opts.pdYear(r, step);
       const el = r.ofz ? 0 : pd * lgd * (opts.ra || 1);
@@ -171,14 +179,20 @@
         if (!(r.bid > 0)) pen = 0.003;
         else { const sp = (r.ask - r.bid) / r.ask * 100; if (sp > 1) pen = Math.min(0.003, 0.001 + 0.001 * (sp - 1)); }
       }
-      r.net = { y0: r.ytm, call, fl: flAdj, tax, el, bonus, pen, pd, step };
+      r.net = { y0: r.ytm, call, fl: flAdj, tax, taxL, el, bonus, pen, pd, step };
     }
     return rows;
   }
-  /** Итог по частям: tax=false — ИИС-3 (налога нет). */
+  /** Налог в п.п. по выбранному режиму: tax=false — ИИС-3 (0); ldv — держим до погашения, льгота долгосрочного владения. */
+  function taxOf(r, o) {
+    const n = r && r.net; if (!n) return null;
+    if (o && o.tax === false) return 0;
+    return o && o.ldv && n.taxL != null ? Math.min(n.tax, n.taxL) : n.tax;
+  }
+  /** Итог по частям: tax=false — ИИС-3 (налога нет); ldv — с льготой долгосрочного владения. */
   function netOf(r, o) {
     const n = r && r.net; if (!n) return null;
-    return n.y0 + n.call + n.fl - (o && o.tax === false ? 0 : n.tax) - n.el + n.bonus - n.pen;
+    return n.y0 + n.call + n.fl - taxOf(r, o) - n.el + n.bonus - n.pen;
   }
   /** Оценка для сортировки в режиме «чистая доходность»: r.cs = чистая доходность в % (с двумя знаками). */
   function netComposite(rows, o) {
@@ -190,5 +204,5 @@
     return rows;
   }
 
-  return { computeFair, afterTax, composite, rScore, wmedian, netParts, netOf, netComposite };
+  return { computeFair, afterTax, composite, rScore, wmedian, netParts, netOf, taxOf, netComposite };
 }));
