@@ -6,37 +6,54 @@
 <title>Рынки сегодня</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="bondmath.js"></script>
 <style>
+/* ---------- дизайн «Цветовые поля»: тёмно-синий, песок, бумага; оранжевый — только действие ---------- */
+@font-face{font-family:'Onest';font-weight:400;font-display:swap;src:url(fonts/onest-cyrillic-400-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Onest';font-weight:400;font-display:swap;src:url(fonts/onest-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+20BD,U+2122,U+2191-2193,U+2212,U+2215}
+@font-face{font-family:'Onest';font-weight:500;font-display:swap;src:url(fonts/onest-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Onest';font-weight:500;font-display:swap;src:url(fonts/onest-latin-500-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+20BD,U+2122,U+2191-2193,U+2212,U+2215}
+@font-face{font-family:'Onest';font-weight:600;font-display:swap;src:url(fonts/onest-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Onest';font-weight:600;font-display:swap;src:url(fonts/onest-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+20BD,U+2122,U+2191-2193,U+2212,U+2215}
+@font-face{font-family:'Onest';font-weight:700;font-display:swap;src:url(fonts/onest-cyrillic-700-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Onest';font-weight:700;font-display:swap;src:url(fonts/onest-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+20BD,U+2122,U+2191-2193,U+2212,U+2215}
+@font-face{font-family:'Literata';font-weight:400;font-display:swap;src:url(fonts/literata-cyrillic-400-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Literata';font-weight:400;font-display:swap;src:url(fonts/literata-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+20BD,U+2122,U+2191-2193,U+2212,U+2215}
+@font-face{font-family:'Literata';font-weight:500;font-display:swap;src:url(fonts/literata-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Literata';font-weight:500;font-display:swap;src:url(fonts/literata-latin-500-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+20BD,U+2122,U+2191-2193,U+2212,U+2215}
+@font-face{font-family:'Literata';font-weight:600;font-display:swap;src:url(fonts/literata-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Literata';font-weight:600;font-display:swap;src:url(fonts/literata-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+20BD,U+2122,U+2191-2193,U+2212,U+2215}
 :root{
   color-scheme: light;
-  --bg:#eef1f6; --card:#ffffff; --line:#e6eaf1; --soft:#f4f6fa;
-  --ink:#101828; --ink2:#667085; --ink3:#98a2b3;
-  --acc:#5b5bf7; --acc2:#8b5cf6; --up:#12b76a; --down:#f04438;
-  --s1:#5b5bf7; --s2:#f79009; --s3:#12b76a; --s4:#ee46bc;
-  --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
-  --nav:#101828; --navink:#ffffff;
+  --bg:#f4f0e8; --card:#fcfaf6; --line:#e5ded1; --soft:#efe9de;
+  --ink:#16202b; --ink2:#5d6670; --ink3:#8f969d;
+  --acc:#1b2f45; --acc2:#1b2f45; --act:#8f6e3c; --act-ink:#fff; --navy:#1b2f45; --navy2:#26405c; --mint:#9fe0c4;
+  --up:#2d6a4f; --down:#a3392b; --warn:#9a5a12;
+  --s1:#1b2f45; --s2:#8f6e3c; --s3:#2d6a4f; --s4:#b98a3c;
+  --shadow:none; --lift:0 12px 36px rgba(22,32,43,.16);
+  --nav:#1b2f45; --navink:#ffffff;
+  --disp:Literata,Georgia,serif;
+  --ease-out:cubic-bezier(0.23,1,0.32,1); --ease-drawer:cubic-bezier(0.32,0.72,0,1);
 }
 @media (prefers-color-scheme: dark){
   :root:where(:not([data-theme="light"])){
     color-scheme: dark;
-    --bg:#0c111d; --card:#161b26; --line:#232a38; --soft:#1d2433;
-    --ink:#f5f7fa; --ink2:#a0aabb; --ink3:#6b7587;
-    --acc:#7a7aff; --acc2:#a07bff; --up:#32d583; --down:#f97066;
-    --s1:#7a7aff; --s2:#fdb022; --s3:#32d583; --s4:#f670c7;
-    --shadow:0 1px 2px rgba(0,0,0,.3); --nav:#1d2433; --navink:#f5f7fa;
+    --bg:#0f151c; --card:#171f28; --line:#26313d; --soft:#1e2833;
+    --ink:#ece7de; --ink2:#a7adb3; --ink3:#737b83;
+    --acc:#a9c1db; --acc2:#a9c1db; --act:#b48d55; --navy:#1b2f45; --navy2:#26405c; --mint:#9fe0c4;
+    --up:#6cbf94; --down:#e07a6b; --warn:#d9a05b;
+    --s1:#a9c1db; --s2:#b48d55; --s3:#6cbf94; --s4:#d9b26a; --lift:0 12px 36px rgba(0,0,0,.5); --nav:#171f28; --navink:#ece7de;
   }
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
-  --bg:#0c111d; --card:#161b26; --line:#232a38; --soft:#1d2433;
-  --ink:#f5f7fa; --ink2:#a0aabb; --ink3:#6b7587;
-  --acc:#7a7aff; --acc2:#a07bff; --up:#32d583; --down:#f97066;
-  --s1:#7a7aff; --s2:#fdb022; --s3:#32d583; --s4:#f670c7;
-  --shadow:0 1px 2px rgba(0,0,0,.3); --nav:#1d2433; --navink:#f5f7fa;
+  --bg:#0f151c; --card:#171f28; --line:#26313d; --soft:#1e2833;
+    --ink:#ece7de; --ink2:#a7adb3; --ink3:#737b83;
+    --acc:#a9c1db; --acc2:#a9c1db; --act:#b48d55; --navy:#1b2f45; --navy2:#26405c; --mint:#9fe0c4;
+    --up:#6cbf94; --down:#e07a6b; --warn:#d9a05b;
+    --s1:#a9c1db; --s2:#b48d55; --s3:#6cbf94; --s4:#d9b26a; --lift:0 12px 36px rgba(0,0,0,.5); --nav:#171f28; --navink:#ece7de;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
@@ -198,6 +215,19 @@ tr:last-child td{border:0}
 .ycl{font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:4px}.ycl b{color:var(--ink);margin-left:4px}.ycl span{margin-left:6px;font-size:12px}
 .ycv{height:170px;position:relative}
 .ycl .muted{color:var(--ink3)}
+
+/* ===== «Кабинет» (как на странице облигаций): бумажный фон, Onest для текста, Literata для чисел и заголовков ===== */
+body{font-family:Onest,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--disp);font-weight:500;letter-spacing:-.01em}
+.card,.tile,.icon-btn,.tab,.seg button{box-shadow:none}
+.tab.on{background:var(--navy)!important;color:#fff!important}
+.tile.hero{background:var(--navy);color:#fff}
+.tile .v,.big .v{font-family:var(--disp);font-weight:500;letter-spacing:-.02em}
+.cbar.best .ct i{background:var(--act)}
+.grp td{text-transform:none;letter-spacing:0;font-size:12.5px}
+.bnav{box-shadow:var(--lift)}
+.btn.acc,.acc-btn{background:var(--act);color:#fff}
+@media (prefers-reduced-motion: reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -233,7 +263,7 @@ tr:last-child td{border:0}
     RGBITR:'ОФЗ с купонами',RUCBTRNS:'Корп. облигации',RGBI_Y:'Доходность ОФЗ',CORP_Y:'Доходность корп.',
     USD:'Доллар, ₽',EUR:'Евро, ₽',CNY:'Юань, ₽',IMOEX:'Индекс Мосбиржи',BRENT:'Нефть Brent, $',GOLD:'Золото, $',BTC:'Bitcoin, $',UST10:'UST 10Y'};
   const STEP = new Set(['KEY','DEP']);
-  const FONT = 'Manrope, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  const FONT = 'Onest, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
   Chart.defaults.font.family = FONT;
   const RANGES = [['1m','1М'],['3m','3М'],['ytd','YTD'],['1y','1Г'],['3y','3Г']];
 
@@ -454,11 +484,11 @@ tr:last-child td{border:0}
     if(sel){ SEL=sel.dataset.k; FOCUS=null; store.set('sel',SEL); render(); const b=$('bigCard'); if(b) b.scrollIntoView({behavior:'smooth',block:'center'}); }
   });
   $('themeBtn').addEventListener('click',()=>{
-    const dark=tok('--bg')==='#0c111d'; const t=dark?'light':'dark';
+    const dark=getComputedStyle(document.documentElement).colorScheme.includes('dark'); const t=dark?'light':'dark';
     document.documentElement.dataset.theme=t; store.set('theme',t); if(DATA) render();
   });
   $('tabs').innerHTML=TABS.map(t=>`<button class="tab" data-tab="${t.id}">${t.name}</button>`).join('')+
-    `<a class="tab" href="bonds.html" style="text-decoration:none;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff">Подбор облигаций ↗</a>`;
+    `<a class="tab" href="bonds.html" style="text-decoration:none;background:var(--act);color:#fff">Подбор облигаций ↗</a>`;
   $('bnav').innerHTML=TABS.map(t=>`<button data-tab="${t.id}"><i>${t.icon}</i>${t.name}</button>`).join('');
 
   // ---------- переход по кнопке из Telegram: #IMOEX, #USD, #CURVE, #RATES, #PERF ...

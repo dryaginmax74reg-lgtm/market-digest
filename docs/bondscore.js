@@ -117,5 +117,78 @@
     return rows;
   }
 
-  return { computeFair, afterTax, composite, rScore, wmedian };
+  /** Чистая доходность — сколько клиент в среднем оставит себе, % годовых (доля):
+   *    доходность к худшему исходу (при call-опционе дешевле номинала — к дате call)
+   *    − налог (по модели afterTax; на ИИС-3 — 0)
+   *    − ожидаемые потери от дефолта: вероятность дефолта в год по рейтингу × потери при дефолте (lgd, по умолчанию 75%)
+   *    + премия к рынку: половина премии к норме своего рейтинга и срока, не больше +0,5 п.п.;
+   *      ближе к порогу метки «риск» добавка плавно уходит в ноль (большая премия — это не подарок, а сигнал)
+   *    − штраф за широкий спред в стакане: 0,1…0,3 п.п. при спреде больше 1% (цена срочного выхода)
+   *  Флоатер: его доходность — оценка при сегодняшней ставке; переводится в «фиксированный эквивалент»
+   *  по ожиданиям рынка: − (доходность ОФЗ-ПК сейчас − доходность ОФЗ с фикс. купоном того же срока).
+   *  opts: {BM, settle, pdYear(r) → доля в год, lgd, downStep(r) → ступеней на понижение (этап 2)}.
+   *  Пишет r.net = {y, call, fl, tax, el, bonus, pen, pd} (всё — доли). Сам итог — netOf(r, {tax}). */
+  function netParts(rows, opts) {
+    const BM = opts.BM, lgd = opts.lgd != null ? opts.lgd : 0.75;
+    const fix = rows.filter(r => r.ofz && r.kind === 'fixed' && r.ytm != null && r.years > 0.25 && r.price >= 50);
+    const ofzFix = yrs => {
+      if (!fix.length) return null;
+      const h = Math.max(0.5, 0.35 * yrs);
+      return wmedian(fix.map(r => r.ytm), fix.map(r => Math.exp(-0.5 * Math.pow((r.years - yrs) / h, 2)) + 1e-9));
+    };
+    const fl = rows.filter(r => r.ofz && r.kind === 'float' && r.ytm != null).map(r => r.ytm).sort((a, b) => a - b);
+    const ofzFloat = fl.length ? fl[Math.floor(fl.length / 2)] : null;
+    for (const r of rows) {
+      r.net = null;
+      if (r.ytm == null || r.flag) continue;
+      let y = r.ytm, call = 0, flAdj = 0;
+      // call-опцион эмитента: если бумага дороже номинала, худший исход — погашение по call
+      if (r.call && r.end && r.call < r.end && r.kind === 'fixed' && r.cpn > 0 && r.price > 100) {
+        const yc = (BM.days(opts.settle, r.call) || 0) / 365;
+        if (yc > 0.05) {
+          const f = r.freq || 2, nom = (r.cpn + (100 - r.price) / yc) / ((100 + r.price) / 2);
+          const ytc = Math.pow(1 + nom / f, f) - 1;
+          if (ytc < y) { call = ytc - y; y = ytc; }
+        }
+      }
+      if (r.kind === 'float' && ofzFloat != null && r.years > 0) {
+        const fx = ofzFix(r.years);
+        if (fx != null) { flAdj = -(ofzFloat - fx); y += flAdj; }
+      }
+      const at = afterTax(r, BM, opts.settle);
+      const tax = at != null ? Math.max(0, r.ytm - at) : 0.13 * Math.max(0, r.ytm);
+      const step = opts.downStep ? opts.downStep(r) : 0;
+      const pd = opts.pdYear(r, step);
+      const el = r.ofz ? 0 : pd * lgd * (opts.ra || 1);
+      let bonus = 0;
+      if (r.prem != null && r.prem > 0) {
+        const thr = Math.max(0.03, 3 * (r.mad || 0)), knee = thr / 2;
+        const b = Math.min(0.005, 0.5 * r.prem);
+        bonus = r.prem <= knee ? b : Math.max(0, Math.min(0.005, 0.5 * knee) * (thr - r.prem) / (thr - knee));
+      }
+      let pen = 0;
+      if (!r.ofz && r.ask > 0) {
+        if (!(r.bid > 0)) pen = 0.003;
+        else { const sp = (r.ask - r.bid) / r.ask * 100; if (sp > 1) pen = Math.min(0.003, 0.001 + 0.001 * (sp - 1)); }
+      }
+      r.net = { y0: r.ytm, call, fl: flAdj, tax, el, bonus, pen, pd, step };
+    }
+    return rows;
+  }
+  /** Итог по частям: tax=false — ИИС-3 (налога нет). */
+  function netOf(r, o) {
+    const n = r && r.net; if (!n) return null;
+    return n.y0 + n.call + n.fl - (o && o.tax === false ? 0 : n.tax) - n.el + n.bonus - n.pen;
+  }
+  /** Оценка для сортировки в режиме «чистая доходность»: r.cs = чистая доходность в % (с двумя знаками). */
+  function netComposite(rows, o) {
+    for (const r of rows) {
+      const v = netOf(r, o);
+      r.cs = v == null ? 0 : Math.round(v * 10000) / 100;
+      r.csParts = null;
+    }
+    return rows;
+  }
+
+  return { computeFair, afterTax, composite, rScore, wmedian, netParts, netOf, netComposite };
 }));

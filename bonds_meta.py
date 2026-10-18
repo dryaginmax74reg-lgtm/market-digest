@@ -288,7 +288,7 @@ def main():
                 changes.append({"secid": sec, "name": names.get(sec, sec), "from": old_r[sec], "to": r,
                                 "date": now.date().isoformat()})
                 log(f"рейтинг {sec}: {old_r[sec]} → {r}")
-    changes = [c for c in changes if (now.date() - datetime.fromisoformat(c["date"]).date()).days <= 30]
+    changes = [c for c in changes if (now.date() - datetime.fromisoformat(c["date"]).date()).days <= 90]   # 90 дней — для штрафа в оценке бумаг
 
     b, emn = {}, {}
     for sec, (eid, title, isin) in em.items():
@@ -300,8 +300,16 @@ def main():
             b[sec].append(sy)
         if eid is not None:
             emn[str(eid)] = title
+    # понижения рейтинга за 90 дней: по выпуску и по эмитенту (страница считает такие бумаги на ступень ниже)
+    dg, dge = {}, {}
+    for c in changes:
+        if rscore(c["to"]) > rscore(c["from"]):
+            dg[c["secid"]] = [c["from"], c["to"], c["date"]]
+            eid = (em.get(c["secid"]) or (None,))[0]
+            if eid is not None:
+                dge[str(eid)] = max(dge.get(str(eid), ""), c["date"])
     meta = {"updated": now.strftime("%Y-%m-%d %H:%M"), "tv_days": len(days), "rated": len(ratings), "b": b, "em": emn,
-            "top": top}
+            "top": top, "dg": dg, "dge": dge}
     os.makedirs(os.path.dirname(META), exist_ok=True)
     with open(META, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))

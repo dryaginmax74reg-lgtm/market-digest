@@ -58,6 +58,9 @@ CORP[0][0] = ("RU000A101000", "AA+")
 st["days"] = ["2026-10-13"]; json.dump(st, open(bm.STATE, "w"))
 bm.main()
 st = json.load(open(bm.STATE))
+m = json.load(open(bm.META))
+assert m["dg"].get("RU000A101000", [None])[:2] == ["AAA", "AA+"], m.get("dg")   # понижение — штраф в оценке на странице
+assert m["dge"], m.get("dge")
 ch = st["rating_changes"]
 assert ch and ch[-1]["secid"] == "RU000A101000" and ch[-1]["from"] == "AAA" and ch[-1]["to"] == "AA+", ch
 assert st["days"] == ["2026-10-13", "2026-10-14"] and len(st["tv"]["RU000A101000"]) == 2
