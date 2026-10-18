@@ -1353,8 +1353,9 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const qtyFor = (r, w, base=P.amount) => { const u=dirtyRub(r)*r.lot; return u>0 ? Math.floor(w/100*base/u)*r.lot : 0; };
   // окно сроков под срок клиента: бумага гасится (или оферта) не раньше 40% срока и не позже конца срока + месяц;
   // короткие ВДО — от 1,5 месяцев до 1,5 года (дальше деньги реинвестируются); relax — без нижней границы (мало бумаг)
+  let WINEXT=0;      // валютная часть: если бумаг под срок мало — берём и длиннее (в конце срока продаются по рынку)
   function inWindow(r, pp, relax){
-    const H=horizonISO(); let lo=addDays(SETTLE, relax?30:Math.max(30, Math.round(P.term*30.4*0.4))), hi=addDays(H,31);
+    const H=horizonISO(); let lo=addDays(SETTLE, relax?30:Math.max(30, Math.round(P.term*30.4*0.4))), hi=addDays(H,31+WINEXT);
     if(pp && pp.maxYears){ lo=addDays(SETTLE,45); const h2=addDays(SETTLE, Math.round(pp.maxYears*365)); if(h2<hi) hi=h2; }
     return r.end && r.end>=lo && r.end<=hi;
   }
@@ -1411,7 +1412,15 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         got.sort((a,b)=>a.end<b.end?-1:1).forEach(r=>{ pos.push({id:r.id, w:share/got.length*100}); used.add(r.id); });
         continue;
       }
+      // валюта: эмитентов под срок клиента мало — расширяем окно погашений на полгода, год, два (такие бумаги в конце продаются по рынку)
+      // валютных выпусков мало и обороты меньше — позиция до 3 дневных оборотов (в рублях — по профилю)
+      const LQ = {liq: c==='RUB' ? pp.liq : Math.max(pp.liq||1, 3)};
+      let ext=0;
+      if(c!=='RUB'){ const needN=Math.min(pp.minIssuers,4, Math.max(1,Math.ceil(share*100/pp.issuerMax-1e-9)));
+        for(const d of [0,183,365,730]){ WINEXT=d; const ems=new Set(U.filter(r=>eligible(r,pp,c) && !r.ofz && (pp.liq>0 ? liqOk(r, share/Math.max(1,needN)*A, LQ) : true)).map(r=>r.em)); ext=d; if(ems.size>=Math.max(needN, Math.ceil(share*100/pp.issuerMax-1e-9))) break; } }
       const pool = SCORE(U.filter(r=>eligible(r,pp,c)));
+      WINEXT=0;
+      if(ext) warns.push(`${c}: бумаг, которые гасятся до конца срока, мало — добавлены выпуски на ${ext<365?'полгода':ext<730?'год':'до двух лет'} длиннее срока (в конце срока продаются по рынку)`);
       const ofzShare = c==='RUB' ? Math.max(0, curShare[c]/tot*Math.min(100,pp.ofzMin)/100 - (pinCur.RUB?pos.filter(p=>p.pin&&BYID[p.id].ofz).reduce((s_,p)=>s_+p.w/100,0):0)) : 0;
       const pick = (list, w, n, isOfz) => {
         const best={}; for(const r of list){ if(used.has(r.id)) continue; const k=isOfz?r.id:r.em; if(!isOfz && emW[r.em]>=pp.issuerMax/100-1e-9) continue; if(!best[k]||sc(r)>sc(best[k])) best[k]=r; }
@@ -1419,7 +1428,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
         const out=[], per=w/n;
         for(const r of cand){
           if(out.length>=n) break;
-          if(pp.liq>0 && !liqOk(r, per*A, pp)) continue;
+          if(pp.liq>0 && !liqOk(r, per*A, LQ)) continue;
           const band=rBand(r.rating);
           if(pp.bandCap[band]!=null && ((bandW[band]||0)+per)*100 > pp.bandCap[band]+1e-9) continue;
           if(r.kind==='float' && (floatW+per)*100 > pp.floaterMax+1e-9) continue;
@@ -1453,7 +1462,14 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
           for(const [b,cap] of Object.entries(pp.bandCap||{})) if(cap!=null) capGroup(r=>rBand(r.rating)===b, cap, done(r=>rBand(r.rating)===b));
           capGroup(r=>r.kind==='float', pp.floaterMax, done(r=>r.kind==='float'));
           for(const sc_ of new Set(got.map(r=>r.sector))) capGroup(r=>r.sector===sc_, (pp.sectorMax??100), done(r=>!r.ofz && r.sector===sc_));
-          got.forEach(r=>pos.push({id:r.id, w:ws.get(r)*100}));
+          // два выпуска одного эмитента — можно, если это лесенка: сроки отличаются от полугода, второй почти так же выгоден (не хуже на 0,5 п.п.),
+          // ликвидности хватает на половину доли; доля на эмитента при этом не растёт — она делится между выпусками
+          for(const r of got){ const w0=ws.get(r);
+            if(r.ofz || w0<0.06) { pos.push({id:r.id, w:w0*100}); continue; }
+            const two=pool.filter(x=>x.em===r.em && x.id!==r.id && !used.has(x.id) && x.kind===r.kind && x.end && r.end && Math.abs(BM.days(x.end, r.end))>=180
+              && sc(x)>=sc(r)-0.5 && (pp.liq>0 ? liqOk(x, w0/2*A, LQ) : true)).sort((a,b)=>sc(b)-sc(a))[0];
+            if(two){ pos.push({id:r.id, w:w0/2*100}); pos.push({id:two.id, w:w0/2*100}); used.add(two.id); }
+            else pos.push({id:r.id, w:w0*100}); }
           const left=corpShare-[...ws.values()].reduce((a,b)=>a+b,0);
           if(pp.vdo && left>0.001){        // короткие ВДО: что не разложилось по правилам — в короткие ОФЗ как резерв, а не в более рискованные бумаги
             const H_=horizonISO(), res=SCORE(U.filter(r=>r.ofz && r.cur==='RUB' && r.kind==='fixed' && passBase(r) && !used.has(r.id) && r.end>=addDays(SETTLE,45) && r.end<=addDays(H_,31)));
@@ -1754,7 +1770,12 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     void r.offsetWidth; r.classList.add('on'); document.body.classList.add('noscroll'); syncBack();
   }
   const sheetOpen = () => { const r=$('sheetroot'); return !!(r && r.classList.contains('on')); };
-  function closeSheet(){ const r=$('sheetroot'); if(!sheetOpen()) return false; r.classList.remove('on'); document.body.classList.remove('noscroll');
+  let CRITSNAP=null;
+  const critKey = () => JSON.stringify([P.params, P.cur, P.qual, P.monthly]);
+  function critWatch(){ CRITSNAP={key:critKey(), snap:snapP()}; }
+  function critCheck(){ const c=CRITSNAP; CRITSNAP=null; if(!c || c.key===critKey() || CLIENT) return;
+    if(TAB==='port' && P.pos.length){ P.pos=P.pos.filter(p=>p.pin); setTimeout(()=>rebuild('Портфель пересобран по новым критериям', c.snap),0); } }
+  function closeSheet(){ const r=$('sheetroot'); if(!sheetOpen()) return false; setTimeout(critCheck,0); r.classList.remove('on'); document.body.classList.remove('noscroll');
     setTimeout(()=>{ if(!r.classList.contains('on')) r.innerHTML=''; },230); syncBack(); return true; }
   // свайп шторки вниз — закрыть
   let shY=null, shDy=0;
@@ -1823,7 +1844,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       <div class="qchips">${QUICK.map(v=>`<button class="${Math.abs(P.amount-v)<1?'on':''}" data-amt="${v}">${amtShort(v)}</button>`).join('')}</div><button class="btn acc wide" data-act="amtok">Готово</button>`;
     if(k==='term') return `<h3>Срок вложения</h3><div class="qchips big">${TERMS.map(([m,n])=>`<button data-term="${m}" class="${P.term===m?'on':''}">${n}</button>`).join('')}</div>
       <div class="note" style="margin-top:10px">При смене срока портфель пересобирается под новый срок; закреплённые бумаги остаются.</div>`;
-    if(k==='profile') return `<h3>Какой портфель собрать</h3><div class="plist">${PROF_ORDER.map(p=>`<button data-prof="${p}" class="${P.profile===p?'on':''}"><b>${PROFILES[p].name}</b><span>${PROFILES[p].d}</span></button>`).join('')}</div>`;
+    if(k==='profile') return `<h3>Какой портфель собрать</h3><div class="plist">${PROF_ORDER.map(p=>`<button data-prof="${p}" class="${P.profile===p?'on':''}"><b>${PROFILES[p].name}</b><span>${PROFILES[p].d}</span></button>`).join('')}<button data-act="crit" class="${P.profile==='custom'?'on':''}"><b>Свой — по критериям клиента</b><span>валюты, доля ОФЗ, рейтинг, лимиты — соберётся сам</span></button></div>`;
     if(k==='account') return `<h3>Счёт</h3><div class="qchips big"><button data-acct="std" class="${P.account!=='iis3'?'on':''}">Брокерский</button><button data-acct="iis3" class="${P.account==='iis3'?'on':''}">ИИС-3</button></div>
       <label class="chk"><input type="checkbox" id="p_monthly" ${PAY()?'checked':''} ${P.account==='iis3'?'disabled':''}> Клиенту важны ежемесячные выплаты — купоны выводятся на руки</label>
       ${P.account==='iis3'?'<div class="note">На ИИС-3 купоны остаются на счёте и реинвестируются без налога — вывести их нельзя.</div>':''}`;
@@ -1841,7 +1862,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       <div class="fld" style="margin-top:12px"><label>Основа — правила профиля${P.profile==='custom'?' (изменены)':''}</label><div class="qchips">${CRITB.map(k=>`<button data-critbase="${k}" class="${base===k?'on':''}">${PROFILES[k].name}</button>`).join('')}</div></div>
       <div class="fld" style="margin-top:10px"><label>Валюты, % от суммы</label></div>
       <div class="cur">${CURS.map(([c,n])=>`<div class="fld"><label>${n}${c!=='RUB'&&FX[c]?` · ${nf(FX[c],2)}`:''}</label><input data-cur="${c}" value="${P.cur[c]||0}" inputmode="decimal"></div>`).join('')}</div>
-      <div class="pgrid" style="margin-top:6px">${fld('ofzMin','ОФЗ не меньше, %')}
+      <div class="pgrid" style="margin-top:6px">${fld('ofzMin','ОФЗ не меньше, % от рублёвой части')}
         <div class="fld"><label>Рейтинг не ниже</label><select data-pp="minRating">${RAT.slice(0,13).map(r=>`<option ${pp.minRating===r?'selected':''}>${r}</option>`).join('')}</select></div>
         ${fld('issuerMax','На эмитента до, %')}${fld('sectorMax','На отрасль до, %')}${fld('floaterMax','Флоатеры до, %')}</div>
       <label class="chk"><input type="checkbox" id="c_monthly" ${P.monthly?'checked':''} ${P.account==='iis3'?'disabled':''}> купоны клиенту на руки каждый месяц</label>
@@ -1857,13 +1878,13 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       <div class="cur">${CURS.map(([c,n])=>`<div class="fld"><label>${n}${c!=='RUB'&&FX[c]?` · ${nf(FX[c],2)}`:''}</label><input data-cur="${c}" value="${P.cur[c]||0}" inputmode="decimal"><div class="note" style="margin-top:4px">${(num(P.cur[c])||0)>0?curSum(c):''}</div></div>`).join('')}</div>
       <details class="params" open><summary>Ограничения профиля «${esc(profName())}»</summary>
         <div class="pgrid">${pp.ofzOnly?fld('issuerMax','На выпуск до, %')+fld('minIssuers','Выпусков не меньше')+`<label class="chk" style="grid-column:1/-1"><input type="checkbox" id="p_ofzfl" ${pp.floaterMax>0?'checked':''}> добавлять ОФЗ с плавающим купоном (ОФЗ-ПК)</label>`:`
-          ${fld('ofzMin','ОФЗ не меньше, %')}
+          ${fld('ofzMin','ОФЗ не меньше, % от рублёвой части')}
           <div class="fld"><label>Рейтинг не ниже</label><select data-pp="minRating">${RAT.slice(0,13).map(r=>`<option ${pp.minRating===r?'selected':''}>${r}</option>`).join('')}</select></div>
           ${fld('issuerMax','На эмитента до, %')}${fld('durMax','Дюрация бумаги до, лет')}${fld('floaterMax','Флоатеры до, %')}
-          ${fld('minIssuers','Эмитентов не меньше')}${fld('sectorMax','На отрасль до, %')}${fld('liq','Позиция ≤ дневного оборота ×')}
+          ${fld('minIssuers','Эмитентов не меньше')}${fld('sectorMax','На отрасль до, %')}${fld('liq','Позиция ≤ дневного оборота × (валюта — от 3)')}
           <div class="fld"><label>Лимит группы A, %</label><input data-band="A" value="${pp.bandCap.A??''}" placeholder="нет"></div>
           <div class="fld"><label>Лимит группы BBB, %</label><input data-band="BBB" value="${pp.bandCap.BBB??''}" placeholder="нет"></div>`}
-        </div><div class="note" style="margin-top:6px">Изменения применятся при пересборке («↻ Пересобрать» в «Составе»).</div></details>
+        </div><div class="note" style="margin-top:6px">Портфель пересоберётся по новым критериям, как только закроете это окно (закреплённые бумаги останутся).</div></details>
       <label class="chk"><input type="checkbox" id="p_reform" ${P.reform?'checked':''}> доход с 2027 года — по налоговой реформе 13–22% (законопроект № 617-9)</label>
       <label class="chk"><input type="checkbox" id="p_qual" ${P.qual!==false?'checked':''}> клиент — квалифицированный инвестор</label>
       <div class="fld" style="margin-top:12px;max-width:320px"><label>Ставка вклада для сравнения, %</label><input id="p_dep" value="${P.depRate!=null?nf(P.depRate,2):''}" placeholder="${nf(lastS('DEP')||12,2)} — лучшая топ-10" inputmode="decimal"></div>`;
@@ -1967,6 +1988,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   // проверка портфеля: профиль, шанс обогнать вклад, запас прочности, ожидаемые потери, ближайшие оферты, отчётность
   function checkItems(A){
     const viol=profileCheck(A.rows,A.total,P.params), S=A.stress, M=S&&S.mc, E=portEL(A), elm=elMaxOf(P.params), it=[];
+    { const cash=P.amount-A.total; if(cash>P.amount*0.02){ const fx=(P.warns||[]).filter(w=>/не распределено|нет бумаг/.test(w)).map(w=>w.split(':')[0]).filter(c=>/^[A-Z]{3}$/.test(c));
+      it.push({w:1, chip:`Не вложено ${mshort(cash)}`, html:`<b>Не вложено ${mshort(cash)}</b> — ${fx.length?`бумаг в ${fx.map(c=>({CNY:'юанях',USD:'долларах',EUR:'евро',RUB:'рублях'})[c]||c).join(' и ')} под эти критерии не хватило`:'бумаг под эти критерии не хватило'}. Можно поднять лимит на эмитента, снизить долю этой валюты или допустить рейтинг ниже — шестерёнка в строке параметров`, info:'notes'}); } }
     it.push(viol.length ? {w:1, chip:`Не всё в рамках профиля (${viol.length})`, html:`<b>Не всё в рамках «${esc(profName())}»</b> — ${esc(viol[0])}${viol.length>1?` и ещё ${viol.length-1}`:''}`, info:'notes'}
       : {chip:'В рамках профиля', html:`<b>В рамках «${esc(profName())}»</b>${PROFILES[P.profile]?' — '+esc(PROFILES[P.profile].d):''}`, info:'notes'});
     if(S && S.n && M){ it.push({w:M.beat<0.6?1:0, chip:`${pfP(M.beat)} обогнать вклад`, html:`<b>${pfP(M.beat)}</b> — шанс обогнать вклад · плохой сценарий (1 из 20): <b>${M.p5>=0?'+':'−'}${mshort(Math.abs(M.p5))}</b>`});
@@ -2794,7 +2817,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     const gap=A.dep-A.main.profit, depA=Math.pow(1+A.dep/A.total,1/A.main.years)-1;
     const it=DEPFIX.items, ok=it.filter(x=>x.beat>0);
     return `<div class="card pchk depfix"><div class="sech"><h2>Не обгоняет вклад</h2><span class="aside">на ${mshort(gap)}</span></div>
-      <div class="sub" style="margin:0 0 6px">По этим критериям — ${pc(A.main.annual)} годовых после налога против ${pc(depA)} у вклада.${DEPFIX.busy?' Проверяю, какой критерий мешает…':''}</div>
+      <div class="sub" style="margin:0 0 6px">По этим критериям — ${pc(A.main.annual)} годовых после налога против ${pc(depA)} у вклада.${DEPFIX.busy?' Проверяю, какой критерий мешает…':''}${A.rows.some(x=>x.r.cur!=='RUB')?' Валютная часть посчитана по неизменному курсу: если рубль ослабнет, она заработает больше, — с рублёвым вкладом её сравнивать напрямую не совсем корректно.':''}</div>
       ${it.map((x,i)=>`<div class="ckr ${x.beat>0?'':'w'}"><i>${x.beat>0?'✓':'–'}</i><span>Если ${esc(x.label)}: <b>${pc(x.annual)}</b> — ${x.beat>0?`обгоняет вклад на ${mshort(x.beat)}`:`всё ещё на ${mshort(-x.beat)} меньше`}</span>${x.beat>0?`<button class="kb" data-depfix="${i}">Применить</button>`:''}</div>`).join('')}
       ${!DEPFIX.busy && it.length && !ok.length?`<div class="note" style="margin-top:6px">Ослабление одного критерия не помогает: на сроке ${termName()} вклад сейчас объективно выгоднее при такой надёжности. Можно увеличить срок или допустить более низкий рейтинг вместе с другими изменениями.</div>`:''}
       ${!DEPFIX.busy && !it.length?`<div class="note" style="margin-top:6px">Ослаблять нечего — критерии и так минимальные; на этом сроке вклад сейчас объективно выгоднее.</div>`:''}</div>`;
@@ -2907,7 +2930,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(!ev.target.closest('.ac')) document.querySelectorAll('.acl').forEach(b=>{ if(b.innerHTML) b.innerHTML=''; });
     const tb=ev.target.closest('[data-tab]'); if(tb){ closeSheet(); TAB=tb.dataset.tab; PV='main'; store.set('b_tab2',TAB); if(TAB==='port'&&!ANALYSIS&&P.pos.length) recompute(); else render(); window.scrollTo({top:0}); return; }
     const ib=ev.target.closest('[data-info]'); if(ib){ ev.preventDefault(); ev.stopPropagation(); const x=INFO[ib.dataset.info]; if(x) openSheet(`<h3>${esc(x.title)}</h3><div class="infob">${x.html}</div>`); return; }
-    const pl=ev.target.closest('[data-pill]'); if(pl){ SHEET_KIND=pl.dataset.pill; openSheet(pillSheet(pl.dataset.pill)); const i=$('p_amount')||(pl.dataset.pill==='dep'&&$('p_dep')); if(i&&DESK()) setTimeout(()=>{ i.focus(); i.select(); },60); return; }
+    const pl=ev.target.closest('[data-pill]'); if(pl){ SHEET_KIND=pl.dataset.pill; if(pl.dataset.pill==='more') critWatch(); openSheet(pillSheet(pl.dataset.pill)); const i=$('p_amount')||(pl.dataset.pill==='dep'&&$('p_dep')); if(i&&DESK()) setTimeout(()=>{ i.focus(); i.select(); },60); return; }
     const am=ev.target.closest('[data-amt]'); if(am){ P.amount=+am.dataset.amt; savePort(); AMT_DIRTY=true; closeSheet(); return; }
     const tm=ev.target.closest('[data-term]'); if(tm){ const nt=+tm.dataset.term; if(nt===P.term){ closeSheet(); return; } const snap=snapP(); P.term=nt; savePort(); SHEET_KIND=null; _closeSheet(); await afterParams(true, snap); return; }
     const ac=ev.target.closest('[data-acct]'); if(ac){ P.account=ac.dataset.acct; savePort(); SHEET_KIND=null; _closeSheet(); await afterParams(false); return; }
@@ -3009,8 +3032,8 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
     if(act==='present'){ if(!ANALYSIS||ANALYSIS.empty) return; DECK=a.dataset.deck||'main'; SLIDE=0; await loadQR(); presShow(); hap('medium'); try{ const e=document.documentElement; if(e.requestFullscreen && !IN_TG) await e.requestFullscreen(); }catch(e){} }
     if(['clientlink','print'].includes(act) && $('pres')) await presClose();
     if(act==='reload'){ a.disabled=true; try{ await load(); ANALYSIS=null; render(); if(TAB==='port'&&P.pos.length) recompute(); toast(OFFLINE?'Связи всё ещё нет':'Цены обновлены'); }catch(e){ toast('Связи нет'); } }
-    if(act==='crit'){ if(!CRITB.includes(P.profile) && P.profile!=='custom'){ P.profile='mod'; P.params=JSON.parse(JSON.stringify(PROFILES.mod)); savePort(); } openSheet(critSheetHtml()); }
-    if(act==='critbuild'){ const snap=snapP(); closeSheet(); P.pos=P.pos.filter(p=>p.pin); TAB='port'; PV='main'; store.set('b_tab2',TAB); window.scrollTo({top:0}); await rebuild('Портфель собран по критериям', snap); }
+    if(act==='crit'){  if(!CRITB.includes(P.profile) && P.profile!=='custom'){ P.profile='mod'; P.params=JSON.parse(JSON.stringify(PROFILES.mod)); savePort(); } critWatch(); openSheet(critSheetHtml()); }
+    if(act==='critbuild'){ CRITSNAP=null; const snap=snapP(); closeSheet(); P.pos=P.pos.filter(p=>p.pin); TAB='port'; PV='main'; store.set('b_tab2',TAB); window.scrollTo({top:0}); await rebuild('Портфель собран по критериям', snap); }
     if(act==='mapfs'){ closeSheet(); await mapfsOpen(); }
     if(act==='mapclose'){ mapfsClose(); }
     if(act==='pnext'){ SLIDE++; presShow(); }
