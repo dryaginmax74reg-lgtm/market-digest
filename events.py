@@ -148,6 +148,37 @@ def ofz_auctions():
     return header("📄", "АУКЦИОНЫ ОФЗ") + "\n" + "\n".join(news_lines(items))
 
 
+AUCT_RE = re.compile(r"(?=.*ОФЗ)(?=.*(разместил|размещен|размещено|спрос|итог))", re.IGNORECASE)
+
+
+def _bln(num, unit):
+    v = float(num.replace("\xa0", "").replace(" ", "").replace(",", "."))
+    return v * 1000 if unit.lower().startswith("трлн") else v
+
+
+def parse_auction_title(t):
+    """Из заголовка «Минфин разместил ОФЗ на 96,4 млрд руб. при спросе 133,4 млрд руб.» — (размещено, спрос) в млрд ₽."""
+    num = r"(\d[\d\s\xa0]*(?:[,.]\d+)?)\s*(млрд|трлн)"
+    pl = re.search(r"(?:разместил\w*|размещ\w*)[^.]*?(?:на|в)\s+" + num, t, re.IGNORECASE)
+    dm = (re.search(r"спрос\w*\s+(?:(?:в|на|составил\w*)\s+)?" + num, t, re.IGNORECASE)
+          or re.search(r"спрос\w*[^.]*?(?:в|на|составил\w*)\s+" + num, t, re.IGNORECASE))
+    return (_bln(*pl.groups()) if pl else None), (_bln(*dm.groups()) if dm else None)
+
+
+def ofz_auction_results(today):
+    """Четверг: итоги вчерашних аукционов ОФЗ — заголовки лент (Интерфакс, РБК, Коммерсантъ) + объём и спрос из заголовка."""
+    items = news(4, AUCT_RE, hours=40, per_source=2, cbr_all=False, skip_exclude=True)
+    items = [x for x in items if "ОФЗ" in x[1] and not re.search(r"проведет|проведёт|предложит|объявил\w* аукцион", x[1], re.IGNORECASE)]
+    if not items:
+        return None
+    best = None
+    for src, t, link in items:
+        pl, dm = parse_auction_title(t)
+        if pl and (best is None or (dm and not best[1])):
+            best = (pl, dm, t, link, src)
+    return {"news": items[:3], "placed": best[0] if best else None, "demand": best[1] if best else None}
+
+
 def weekly_inflation():
     """Четверг: недельная инфляция (Росстат публикует в среду ~19:00) - заголовки из новостей."""
     pat = re.compile(r"инфляц\w*.*(недел|с \d+ по \d+)|недельн\w* инфляц|цены за неделю|с начала года.*инфляц", re.IGNORECASE)

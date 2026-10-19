@@ -20,7 +20,7 @@ import events
 from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
                     cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, coingecko_btc,
                     ddmm, deliver, market_view, dividends_calendar, e, fnum, fpct, fpp, header, last_on_or_before, log,
-                    moex_imoex_constituents, moex_index, moex_index_hist, moex_mmix, moex_zcyc, moex_zcyc_back,
+                    moex_cny_tom, moex_imoex_constituents, moex_index, moex_index_hist, moex_mmix, moex_zcyc, moex_zcyc_back,
                     news, news_lines, next_meeting, pack, pages_url, parallel, pct, pcts, table, yahoo_quote)
 
 ZCYC_POINTS = (1, 2, 5, 10)
@@ -48,6 +48,9 @@ def collect(today):
         "gold": (yahoo_quote, "GC=F"),
         "ust": (yahoo_quote, "^TNX"),
         "btc_y": (yahoo_quote, "BTC-USD"),
+        "spx": (yahoo_quote, "^GSPC"),
+        "hsi": (yahoo_quote, "^HSI"),
+        "cny_tom": (moex_cny_tom,),
         "btc": (coingecko_btc,),
         "divs": (dividends_calendar,),
         "imoex_list": (moex_imoex_constituents,),
@@ -70,6 +73,10 @@ def collect(today):
             log(f"[warn] размещения bonds-lab: {ex}")
             d["placements"] = None
     d["watch_news"] = events.watch_news(d["watch"], exclude=[t for _s, t, _l in macro + money])
+    # справочник облигаций (bonds_meta.py запускается перед дайджестом): рейтинги за сутки, валютные облигации
+    d["bmeta"], d["bstate"] = bondsweek._load(bondsweek.META), bondsweek._load(bondsweek.STATE)
+    if today.weekday() == 3 or os.environ.get("AUCTIONS") == "1":
+        d["auctions"] = events.ofz_auction_results(today)
     apply_sanity(d)
     return d
 
@@ -88,6 +95,11 @@ def apply_sanity(d):
     for k, n in (("brent", "BRENT"), ("gold", "GOLD"), ("btc_y", "BTC")):
         if d.get(k) and sane(n, d[k][0]) is None:
             d[k] = None
+    for k, n in (("spx", "SPX"), ("hsi", "HSI")):
+        if d.get(k) and sane(n, d[k][0]) is None:
+            d[k] = None
+    if d.get("cny_tom") and sane("CNY", d["cny_tom"][0]) is None:
+        d["cny_tom"] = None
     if d.get("btc") and sane("BTC", d["btc"][0]) is None:
         d["btc"] = None
     if d.get("ust") and sane("UST10", d["ust"][0]) is None:
@@ -121,6 +133,19 @@ def demo_data():
         "ust": (4.12, 4.08, 4.57),
         "btc_y": (83400.0, 83100.0, 87000.0),
         "btc": (83400.0, 0.35),
+        "spx": (6650.0, 6610.0, 5880.0),
+        "hsi": (25300.0, 25550.0, 20060.0),
+        "cny_tom": (12.52, 0.4),
+        "bmeta": {"fxy": {"CNY": {"n": 24, "med": 0.072, "best": [{"name": "Акрон Б1P7", "rating": "AA", "ytm": 0.096},
+                                                                {"name": "ФосАгро Б2", "rating": "AAA", "ytm": 0.081}]},
+                          "USD": {"n": 9, "med": 0.074, "best": [{"name": "ГазКЗ-34Д", "rating": "AAA", "ytm": 0.083}]}}},
+        "bstate": {"rating_changes": [
+            {"secid": "RU000A1", "name": "Сегежа3P2R", "issuer": "Сегежа Групп", "em": 1, "from": "A-", "to": "BBB+", "date": date.today().isoformat()},
+            {"secid": "RU000A2", "name": "Сегежа3P5R", "issuer": "Сегежа Групп", "em": 1, "from": "A-", "to": "BBB+", "date": date.today().isoformat()},
+            {"secid": "RU000A3", "name": "Монопол1Р3", "issuer": "Монополия", "em": 2, "from": "BB", "to": "D", "date": date.today().isoformat()},
+            {"secid": "RU000A4", "name": "ПКТ 2P2", "issuer": "Первая Грузовая Компания", "em": 3, "from": "AA-", "to": "AA", "date": date.today().isoformat()}]},
+        "auctions": {"news": [("Интерфакс", "Минфин РФ разместил ОФЗ на 96,4 млрд руб. при спросе 133,4 млрд руб.", "https://www.interfax.ru/")],
+                     "placed": 96.4, "demand": 133.4},
         "divs": [
             {"name": "Мать и Дитя", "ticker": "MDMG", "period": "2кв 2026", "div": "38", "yld": "2,8%",
              "buy_by": "2026-10-16", "registry": "2026-10-19", "pay_by": "2026-10-29"},
@@ -226,7 +251,25 @@ def build_fx(d):
         y = pct(cross, cross0)
         ch = pct(cross, cross_p)
         rows.append((f"{dot(ch)} USD/CNY", fnum(cross, 3), pc(ch), "" if y is None else fpct(y, 1)))
-    return header("💱", "ВАЛЮТЫ", f"ЦБ на {cur['date'][:5]} · день · с начала года") + "\n" + table(rows)
+    out = header("💱", "ВАЛЮТЫ", f"ЦБ на {cur['date'][:5]} · день · с начала года") + "\n" + table(rows)
+    extra = []
+    ct, cbr_c = d.get("cny_tom"), cur["rates"]["CNY"][0]
+    if ct and ct[0] and cbr_c:
+        gap = pct(ct[0], cbr_c)
+        extra.append(f"Биржа CNY {fnum(ct[0], 3)} ₽ ({fpct(ct[1], 2) if ct[1] is not None else 'н/д'} за день) — "
+                     f"{'выше' if gap >= 0 else 'ниже'} курса ЦБ на {fnum(abs(gap), 2)}%")
+    fxy = (d.get("bmeta") or {}).get("fxy") or {}
+    names = {"CNY": "юанях", "USD": "долларах", "EUR": "евро"}
+    for c in ("CNY", "USD", "EUR"):
+        v = fxy.get(c)
+        if not v:
+            continue
+        best = " · ".join(f"{e(b['name'])} {fnum(b['ytm'] * 100, 1)}%" for b in v.get("best") or [])
+        extra.append(f"Облигации в {names[c]}, AA− и выше, 0,5–5 лет: медиана {fnum(v['med'] * 100, 1)}% годовых в валюте"
+                     + (f" · лучшие: {best}" if best else ""))
+    if extra:
+        out += "\n" + "\n".join(("▪️ " + x) if not x.startswith("▪️") else x for x in extra)
+    return out
 
 
 def build_rates(d, today):
@@ -312,6 +355,12 @@ def build_markets(d):
             rows.append((f"{dot(ch)} {label}", fnum(p, 0 if p > 1000 else 2), pc(ch), "" if y is None else fpct(y, 1)))
         else:
             rows.append((f"⚪ {label}", "н/д"))
+    for key, label in (("spx", "S&P 500"), ("hsi", "Hang Seng")):
+        q = d.get(key)
+        if q and q[0]:
+            p, prev, y0 = q
+            ch, y = pct(p, prev), pct(p, y0)
+            rows.append((f"{dot(ch)} {label}", fnum(p, 0), pc(ch), "" if y is None else fpct(y, 1)))
     b, by = d.get("btc"), d.get("btc_y")
     if b or by:
         price = b[0] if b else by[0]
@@ -326,6 +375,48 @@ def build_markets(d):
         else:
             note += f"; биржа — закрытие {ddmm(im['date'])}"
     return header("📈", "РЫНКИ", note) + "\n" + table(rows)
+
+
+def rating_day(d, today):
+    """Изменения сводного рейтинга облигаций за сутки (smart-lab; bonds_meta.py сравнивает с прошлым днём), по эмитентам.
+    [(знак, эмитент, было, стало, выпусков)] — сначала дефолты, потом понижения, потом повышения."""
+    from bondscore import rscore
+    ch = [c for c in ((d.get("bstate") or {}).get("rating_changes") or []) if c.get("date") == today.isoformat()]
+    if not ch:
+        return []
+    by = {}
+    for c in ch:
+        k = c.get("em") or c.get("issuer") or c.get("name") or c["secid"]
+        g = by.setdefault(k, {"name": c.get("issuer") or c.get("name") or c["secid"], "from": c["from"], "to": c["to"], "n": 0})
+        g["n"] += 1
+        if rscore(c["to"]) > rscore(g["to"]):        # худший итог по эмитенту
+            g["from"], g["to"] = c["from"], c["to"]
+    out = []
+    for g in by.values():
+        down = rscore(g["to"]) > rscore(g["from"])
+        dflt = g["to"] == "D" or g["to"].startswith("C")
+        out.append(("🔴" if dflt else "⬇️" if down else "⬆️", g["name"], g["from"], g["to"], g["n"], dflt, down))
+    out.sort(key=lambda x: (not x[5], not x[6], -rscore(x[3])))
+    return out
+
+
+def _short_issuer(name):
+    import re as _re
+    n = _re.sub(r"^(Публичное|Акционерное|Общество)[^«\"]*", "", name or "").strip(" «»\"")
+    n = _re.sub(r"\s*\((ПАО|АО|ООО|МКПАО)\)\s*$", "", n)
+    return n[:40] or name
+
+
+def build_ratings(d, today):
+    items = rating_day(d, today)
+    if not items:
+        return ""
+    lines = [f"{i} {e(_short_issuer(n))}: {e(a)} → {e(b)}" + (f" · {k} {'выпуск' if k == 1 else 'выпуска' if k < 5 else 'выпусков'}" if k > 1 else "")
+             for i, n, a, b, k, _df, _dn in items[:12]]
+    if len(items) > 12:
+        lines.append(f"… и ещё {len(items) - 12}")
+    nd = sum(1 for x in items if x[6]); nu = len(items) - nd
+    return header("🧾", "РЕЙТИНГИ ЗА СУТКИ", f"сводные, smart-lab · ↓ {nd} · ↑ {nu}") + "\n" + "\n".join(lines)
 
 
 def build_watch(d, today):
@@ -393,6 +484,17 @@ def build_events(d, today):
     return fold(header("🗓", "ДЕНЕЖНЫЕ СОБЫТИЯ", f"{n} шт. · нажмите, чтобы раскрыть" if n else None), parts)
 
 
+def build_auctions(d):
+    """Четверг: итоги аукционов ОФЗ (Минфин проводит по средам)."""
+    a = d.get("auctions")
+    if not a or not a.get("news"):
+        return ""
+    sub = None
+    if a.get("placed"):
+        sub = f"размещено {fnum(a['placed'], 1)} млрд ₽" + (f" при спросе {fnum(a['demand'], 1)} млрд (×{fnum(a['demand'] / a['placed'], 1)})" if a.get("demand") else "")
+    return header("📄", "АУКЦИОНЫ ОФЗ: ИТОГИ", sub) + "\n" + "\n".join(news_lines(a["news"]))
+
+
 def build_news(d):
     items = d.get("news") or []
     if not items:
@@ -411,7 +513,7 @@ def build_blocks(d, now):
     blocks.append(build_watch(d, today))
     if d.get("bondsweek"):
         blocks.append(bondsweek.block(d["bondsweek"], today))
-    return blocks + [build_fx(d), build_rates(d, today), build_yields(d, today),
+    return blocks + [build_ratings(d, today), build_auctions(d), build_fx(d), build_rates(d, today), build_yields(d, today),
                      build_markets(d), build_events(d, today), build_news(d)]
 
 
@@ -431,6 +533,10 @@ def caption(d, now):
     if hooks:
         lines.append("💡 <b>Повод для звонка</b>")
         lines += [f"• {e(h)}" for h in hooks[:2]]
+    rd = [x for x in rating_day(d, now.date()) if x[6]]          # только понижения и дефолты
+    if rd:
+        lines.append("🧾 <b>Рейтинги</b>: " + ", ".join(f"{i} {e(_short_issuer(n))} {e(a)}→{e(b)}" for i, n, a, b, *_ in rd[:3])
+                     + (f" и ещё {len(rd) - 3}" if len(rd) > 3 else ""))
     nm = next_meeting(now.date())
     if nm and nm == now.date():
         lines.append("🏦 Сегодня заседание ЦБ — флеш с решением около 13:35.")
@@ -510,7 +616,7 @@ def public_sections(d, now):
     if d.get("bondsweek"):
         bw = dict(d["bondsweek"])
         details.append(bondsweek.block(bw, today))
-    details += [build_fx(pub), build_rates(pub, today), build_yields(pub, today), build_markets(pub)]
+    details += [build_ratings(pub, today), build_auctions(pub), build_fx(pub), build_rates(pub, today), build_yields(pub, today), build_markets(pub)]
     return {
         "date": today.isoformat(), "updated": now.strftime("%Y-%m-%d %H:%M"),
         "details": [b for b in details if b],

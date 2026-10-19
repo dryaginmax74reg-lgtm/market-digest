@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
 from common import (ASSET_LINES_MAX, ASSET_MOVE_PCT, BOND_BOARDS, BOND_MIN_TRADES, BOND_MIN_TURNOVER, MOVE_THRESHOLDS,
-                    MSK, SHARE_MIN_TURNOVER, coingecko_btc, deliver, fail, dividends_calendar, e, fnum, fpct, iss_json, log,
+                    FX_CBR_TOMORROW_PCT, RATING_ALERT_HOURS, MSK, SHARE_MIN_TURNOVER, cbr_rates, coingecko_btc, deliver, fail, dividends_calendar, e, fnum, fpct, iss_json, log,
                     moex_cny_tom, moex_index, pack, parallel, pct, safe, yahoo_quote, http_get)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -87,8 +87,50 @@ def bond_rows():
     return rows
 
 
+def cbr_tomorrow(now):
+    """Официальный курс ЦБ на следующий рабочий день, если уже опубликован (ЦБ устанавливает около 15:30 МСК):
+    {код: (завтра, сегодня)} и дата; иначе None."""
+    if now.hour < 15:
+        return None
+    nxt = now.date() + timedelta(days=1)
+    d1, r1 = cbr_rates(nxt)
+    d0, r0 = cbr_rates(now.date())
+    if not d1 or d1 == d0:
+        return None
+    return {"date": d1, "rates": {c: (r1.get(c), r0.get(c)) for c in ("USD", "EUR", "CNY")}}
+
+
+def rating_moves(now):
+    """Понижения и дефолты по сводному рейтингу (smart-lab) к утреннему справочнику docs/bonds_meta.json, по эмитентам."""
+    if now.hour not in RATING_ALERT_HOURS:
+        return None
+    from bonds_meta import sl_ratings
+    from bondscore import rscore
+    meta = load_meta()
+    b, em = meta.get("b") or {}, meta.get("em") or {}
+    if not b:
+        return None
+    new = sl_ratings()
+    if sum(1 for v in new.values() if v) < 500:          # сайт не ответил целиком — не сравниваем
+        raise ValueError(f"smart-lab: мало рейтингов ({len(new)})")
+    by = {}
+    for sec, row in b.items():
+        old, eid, isin = row[0], row[1], (row[3] if len(row) > 3 else "") or sec
+        r = new.get(isin) or new.get(sec)
+        if not old or not r or r == old or rscore(r) <= rscore(old):
+            continue
+        k = str(eid) if eid is not None else sec
+        g = by.setdefault(k, {"name": em.get(str(eid)) or sec, "from": old, "to": r, "n": 0})
+        g["n"] += 1
+        if rscore(r) > rscore(g["to"]):
+            g["from"], g["to"] = old, r
+    return by
+
+
 def collect():
+    now = datetime.now(MSK)
     return parallel({
+        "CBRT": (cbr_tomorrow, now), "RATINGS": (rating_moves, now),
         "IMOEX": (moex_index, "IMOEX"), "RGBITR": (moex_index, "RGBITR"), "RUCBTRNS": (moex_index, "RUCBTRNS"),
         "CNY": (moex_cny_tom,), "BRENT": (yahoo_quote, "BZ=F"), "GOLD": (yahoo_quote, "GC=F"),
         "BTC": (coingecko_btc,), "KEYNEWS": (cbr_keyrate_news,),
@@ -191,6 +233,9 @@ def demo():
             "RUCBTRNS": {"val": 211.0, "chg": -0.1, "ytd": 10.2, "date": "2026-10-15"},
             "CNY": (12.60, 1.2), "BRENT": (101.0, 103.0, 61.0), "GOLD": (4090.0, 4086.0, 4300.0),
             "BTC": (84000.0, 0.7),
+            "CBRT": {"date": "20.10.2026", "rates": {"USD": (83.10, 83.87), "EUR": (93.50, 93.77), "CNY": (12.71, 12.47)}},
+            "RATINGS": {"7": {"name": "Сегежа Групп", "from": "A-", "to": "BBB+", "n": 4},
+                        "9": {"name": "Монополия", "from": "BB", "to": "D", "n": 1}},
             "KEYNEWS": [("Банк России принял решение снизить ключевую ставку на 100 б.п., до 13,00% годовых",
                          "https://www.cbr.ru/press/pr/")]}
 
@@ -266,6 +311,28 @@ def main():
             if len(got) > ASSET_LINES_MAX:
                 body.append(f"… и ещё {len(got) - ASSET_LINES_MAX}")
             groups.append(f"<b>{title}</b>\n" + "\n".join(body))
+    cb = d.get("CBRT")
+    if cb:
+        for c, (v1, v0) in cb["rates"].items():
+            ch = pct(v1, v0) if v1 and v0 else None
+            if ch is None or abs(ch) < FX_CBR_TOMORROW_PCT or ("CBRT:" + cb["date"] + c) in state["titles"]:
+                continue
+            state["titles"].append("CBRT:" + cb["date"] + c)
+            lines.append(f"{'🟢' if ch > 0 else '🔴'} Курс ЦБ на {e(cb['date'][:5])}: {c} {fnum(v1, 4 if c == 'CNY' else 2)} ₽ ({e(fpct(ch, 2))} к сегодняшнему)")
+    rt = d.get("RATINGS") or {}
+    rlines = []
+    from bondscore import rscore
+    for k, g in sorted(rt.items(), key=lambda kv: -rscore(kv[1]["to"])):
+        key = f"RT:{k}:{g['to']}"
+        if key in state["titles"]:
+            continue
+        state["titles"].append(key)
+        dflt = g["to"] == "D" or g["to"].startswith("C")
+        rlines.append(f"{'🔴' if dflt else '⬇️'} {e(g['name'][:60])}: {e(g['from'])} → {e(g['to'])}"
+                      + (f" · {g['n']} вып." if g["n"] > 1 else ""))
+    if rlines:
+        groups.insert(0, "<b>Рейтинги облигаций — понижения</b> <i>(сводные, smart-lab)</i>\n" + "\n".join(rlines[:10])
+                      + (f"\n… и ещё {len(rlines) - 10}" if len(rlines) > 10 else ""))
     for title, link in d.get("KEYNEWS") or []:
         if title in state["titles"]:
             continue

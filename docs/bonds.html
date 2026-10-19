@@ -634,7 +634,7 @@ h2{font-size:18px}.sh-b h3{font-size:21px;line-height:1.2}
 .kr-m{display:flex;justify-content:space-between;gap:12px;padding:12px 2px;cursor:pointer}
 .kl.ro .kr-m{cursor:pointer}
 .kr-n{min-width:0}.kr-n b{font-weight:600;font-size:15px}.kr-n small{display:block;color:var(--ink2);font-size:12.5px;margin-top:3px;line-height:1.4}.kr-n .rt{margin-right:2px}
-.kr-v{text-align:right;flex:none}.kr-v b{display:block;font:500 16px var(--disp)}.kr-v small{display:block;font-size:12px;color:var(--ink2);margin-top:2px}
+.kr-v{text-align:right;flex:none}.kr-ed{display:inline-block;margin-top:6px;border:1px solid var(--line);background:var(--card);color:var(--ink2);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer}.kr-ed.on{background:var(--soft);color:var(--ink)}.kr-v b{display:block;font:500 16px var(--disp)}.kr-v small{display:block;font-size:12px;color:var(--ink2);margin-top:2px}
 .kr.open{background:var(--bg);margin:0 -10px;padding:0 10px;border-radius:14px;border-top-color:transparent}.kr.open+.kr{border-top-color:transparent}
 .kr-e{display:flex;align-items:center;gap:6px;padding:0 2px 12px;flex-wrap:wrap}
 .kr-e .wb{width:40px;height:40px;border-radius:11px;background:var(--card);font-size:18px}
@@ -2470,11 +2470,11 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   function posRows(A, ro){
     const tax=P.account!=='iis3', wide=WIDE();
     return `<div class="kl ${ro?'ro':''} ${wide&&!ro?'wide':''}">${A.rows.map(x=>{ const id=x.r.id, pin=!!x.p.pin, open=!ro&&(wide||OPENROW===id), net=NETMODE&&x.r.net?BS.netOf(x.r,netO()):null, end=x.a.end||x.r.end;
-      return `<div class="kr ${pin?'pin':''} ${open?'open':''}"><div class="kr-m" ${ro||wide?`data-why="${id}"`:`data-row="${id}"`}>
+      return `<div class="kr ${pin?'pin':''} ${open?'open':''}"><div class="kr-m" data-why="${id}">
           <div class="kr-n"><b>${esc(x.r.name)}</b>${posFlags(x)}<small>${rTag(x.r.rating)} ${x.r.ofz?'ОФЗ':esc((x.r.emName||'').slice(0,26))} · до ${fmtD(end)}${x.a.toCall?' (колл)':x.a.toOffer?' (оферта)':''} · ${nf(x.p.w,1)}%</small><small class="kr-p num">${priceLine(x.r, x.a.ytm)}${ndTxt(x.r)?' · '+ndTag(x.r):''}</small></div>
-          <div class="kr-v num"><b>${mshort(x.cost)}</b><small>${net!=null?pc(net)+' чистая':x.a.ytm!=null?pc(x.a.ytm):'нет данных'}</small></div></div>
+          <div class="kr-v num"><b>${mshort(x.cost)}</b><small>${net!=null?pc(net)+' чистая':x.a.ytm!=null?pc(x.a.ytm):'нет данных'}</small>${!ro&&!wide?`<button class="kr-ed ${open?'on':''}" data-row="${id}" aria-label="доля и сумма">${open?'Готово':'Доля ✎'}</button>`:''}</div></div>
         ${open?`<div class="kr-e"><button class="wb" data-wd="${id}" data-d="-1" aria-label="меньше">−</button><input class="qty wqty" data-w="${id}" value="${nf(x.p.w,1)}" inputmode="decimal" aria-label="доля, %"><button class="wb" data-wd="${id}" data-d="1" aria-label="больше">+</button>
-          <button class="kb rub" data-amtpos="${id}">${x.qty?x.qty.toLocaleString('ru-RU')+' шт':'меньше лота'}</button><button class="kb" data-sim="${id}" title="заменить на похожую">${wide?'↻':'Заменить'}</button><button class="kb more" data-why="${id}" aria-label="ещё">⋯</button></div>`:''}</div>`; }).join('')}</div>`;
+          <button class="kb rub" data-amtpos="${id}">${x.qty?x.qty.toLocaleString('ru-RU')+' шт':'меньше лота'}</button><button class="kb" data-sim="${id}" title="заменить на похожую">${wide?'↻':'Заменить'}</button></div>`:''}</div>`; }).join('')}</div>`;
   }
   function posRowsOld(A, ro){
     return `<div class="pl ${ro?'ro':''}">${ro?'':`<div class="pr ph"><span>Выпуск</span><span>Рейтинг</span><span>Доходность</span><span>Погаш.</span><span>Доля, %</span><span>Сумма</span><span></span></div>`}

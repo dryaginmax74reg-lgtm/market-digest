@@ -211,10 +211,28 @@ def best_bonds(quotes, ratings, tvavg, today, em=None):
             if len(best) >= n:
                 break
         return best
+    def fx_summary(cur):
+        """Доходности валютных облигаций надёжных эмитентов (AA− и выше, срок 0,5–5 лет): медиана и лучшие по эмитентам."""
+        xs = [r for r in good if r["cur"] == cur and 1 <= rscore(r["rating"]) <= 4 and 0.5 <= (r["dur"] or 0) <= 5 and r["ytm"] is not None]
+        if len(xs) < 3:
+            return None
+        ys = sorted(r["ytm"] for r in xs)
+        best, seen = [], set()
+        for r in sorted(xs, key=lambda r: -r["ytm"]):
+            key = (em or {}).get(r["id"], (r["id"],))[0] or r["id"]
+            if key in seen or (r["prem"] or 0) > 0.03:
+                continue
+            seen.add(key)
+            best.append({k: r[k] for k in ("id", "name", "rating", "ytm", "end")})
+            if len(best) >= 2:
+                break
+        return {"n": len(xs), "med": ys[len(ys) // 2], "best": best}
+    fxy = {c: v for c in ("CNY", "USD", "EUR") if (v := fx_summary(c))}
     top = {"AA": pick(lambda r: r["cur"] == "RUB" and 1 <= rscore(r["rating"]) <= 4, 3),
            "A": pick(lambda r: r["cur"] == "RUB" and 5 <= rscore(r["rating"]) <= 7, 3),
            "CNY": pick(lambda r: r["cur"] == "CNY" and rscore(r["rating"]) <= 7, 2)}
     names = {r["id"]: r["name"] for r in rows}
+    top["_fx"] = fxy
     return top, names
 
 
@@ -274,10 +292,11 @@ def main():
             ratings[sec] = r
     if not rat:
         ratings = old_r
-    top, names = {}, {}
+    top, names, fxy = {}, {}, {}
     try:
         tvavg = {k: sum(v) / len(v) for k, v in tv.items() if v}
         top, names = best_bonds(board_bonds(), ratings, tvavg, now.date().isoformat(), em)
+        fxy = top.pop("_fx", {}) or {}
         log("лучшие бумаги: " + ", ".join(f"{k}:{len(v)}" for k, v in top.items()))
     except Exception as ex:  # noqa: BLE001
         log(f"[warn] лучшие бумаги: {ex}")
@@ -285,8 +304,9 @@ def main():
     if rat and old_r:
         for sec, r in ratings.items():
             if old_r.get(sec) and old_r[sec] != r:
+                eid, etitle, _isin = em.get(sec) or (None, "", "")
                 changes.append({"secid": sec, "name": names.get(sec, sec), "from": old_r[sec], "to": r,
-                                "date": now.date().isoformat()})
+                                "date": now.date().isoformat(), "em": eid, "issuer": etitle or ""})
                 log(f"рейтинг {sec}: {old_r[sec]} → {r}")
     changes = [c for c in changes if (now.date() - datetime.fromisoformat(c["date"]).date()).days <= 90]   # 90 дней — для штрафа в оценке бумаг
 
@@ -309,7 +329,7 @@ def main():
             if eid is not None:
                 dge[str(eid)] = max(dge.get(str(eid), ""), c["date"])
     meta = {"updated": now.strftime("%Y-%m-%d %H:%M"), "tv_days": len(days), "rated": len(ratings), "b": b, "em": emn,
-            "top": top, "dg": dg, "dge": dge}
+            "top": top, "fxy": fxy, "dg": dg, "dge": dge}
     os.makedirs(os.path.dirname(META), exist_ok=True)
     with open(META, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
