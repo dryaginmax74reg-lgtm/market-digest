@@ -81,6 +81,14 @@ def log(msg):
     print(msg, file=sys.stderr)
 
 
+def fail(msg):
+    """Фатальная ошибка: строка в лог и аннотация GitHub Actions (видна прямо в письме о падении), выход с кодом 1."""
+    log(msg)
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print("::error::" + str(msg).replace("\n", " ")[:900], flush=True)
+    sys.exit(1)
+
+
 def http_get(url, data=None, headers=None, retries=3, timeout=25):
     h = dict(UA)
     if headers:
@@ -622,11 +630,9 @@ def tg_creds():
     token = (os.environ.get("TG_BOT_TOKEN") or "").strip()
     chat = (os.environ.get("TG_CHAT_ID") or "").strip()
     if not token:
-        log("Секрет TG_BOT_TOKEN пустой или не задан.")
-        sys.exit(1)
+        fail("Секрет TG_BOT_TOKEN пустой или не задан.")
     if not chat:
-        log("Секрет TG_CHAT_ID пустой или не задан.")
-        sys.exit(1)
+        fail("Секрет TG_CHAT_ID пустой или не задан.")
     return token, chat
 
 
@@ -642,7 +648,7 @@ def _tg_error(ex):
     return desc
 
 
-def tg_send(token, chat_id, text, html_mode=True, reply_markup=None):
+def tg_send(token, chat_id, text, html_mode=True, reply_markup=None, _retry=0):
     params = {"chat_id": chat_id, "text": text, "disable_web_page_preview": "true"}
     if html_mode:
         params["parse_mode"] = "HTML"
@@ -653,6 +659,12 @@ def tg_send(token, chat_id, text, html_mode=True, reply_markup=None):
                                    data=urllib.parse.urlencode(params).encode()))
     except urllib.error.HTTPError as ex:
         desc = _tg_error(ex)
+        if ex.code == 429 and _retry < 3:          # Telegram просит подождать (часто — когда несколько рассылок совпали по времени)
+            m = re.search(r"retry after (\d+)", desc)
+            wait = min(60, int(m.group(1)) + 1 if m else 5 * (_retry + 1))
+            log(f"[warn] Telegram: слишком часто, жду {wait} с")
+            time.sleep(wait)
+            return tg_send(token, chat_id, text, html_mode=html_mode, reply_markup=reply_markup, _retry=_retry + 1)
         if reply_markup and ("button" in desc.lower() or "web_app" in desc.lower() or "web app" in desc.lower()):
             log(f"[warn] Telegram не принял кнопки ({desc}); отправляю обычные ссылки")
             plain_kb = {"inline_keyboard": [[{"text": b["text"], "url": (b.get("web_app") or {}).get("url") or b.get("url")}
@@ -733,6 +745,5 @@ def deliver(msgs, keyboard=None, photos=()):
                 tg_photo(token, chat, p, cap)
                 time.sleep(1)
     except Exception as ex:  # noqa: BLE001
-        log(f"ОШИБКА ОТПРАВКИ: {type(ex).__name__}: {ex}")
-        sys.exit(1)
+        fail(f"ОШИБКА ОТПРАВКИ в Telegram: {type(ex).__name__}: {ex}")
     log(f"Отправлено: сообщений {len(msgs)}, картинок {len(photos)}")

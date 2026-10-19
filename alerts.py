@@ -21,8 +21,8 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
 from common import (ASSET_LINES_MAX, ASSET_MOVE_PCT, BOND_BOARDS, BOND_MIN_TRADES, BOND_MIN_TURNOVER, MOVE_THRESHOLDS,
-                    MSK, SHARE_MIN_TURNOVER, coingecko_btc, deliver, dividends_calendar, e, fnum, fpct, iss_json, log,
-                    moex_cny_tom, moex_index, pack, parallel, pct, yahoo_quote, http_get)
+                    MSK, SHARE_MIN_TURNOVER, coingecko_btc, deliver, fail, dividends_calendar, e, fnum, fpct, iss_json, log,
+                    moex_cny_tom, moex_index, pack, parallel, pct, safe, yahoo_quote, http_get)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(HERE, "alerts_state.json")
@@ -232,7 +232,7 @@ def main():
     is_demo = "--demo" in sys.argv
     now = datetime.now(MSK)
     import events
-    if not is_demo and not events.is_workday(now.date()):
+    if not is_demo and safe("WORKDAY", events.is_workday, now.date()) is False:
         log("Нерабочий день - алерты не проверяю.")
         return
     state = load_state(now.date().isoformat())
@@ -255,10 +255,11 @@ def main():
     if is_demo:
         sh, bd, gaps = demo_assets()
     else:
-        sh, bd, gaps = d.get("SHARES"), d.get("BONDS"), div_gaps(d.get("DIVS"), now.date())
+        sh, bd = d.get("SHARES"), d.get("BONDS")
+        gaps = safe("DIVGAPS", div_gaps, d.get("DIVS"), now.date()) or {}
     groups = []
-    for title, items in ((f"Акции ±{fnum(ASSET_MOVE_PCT, 0)}% и больше", share_moves(sh, gaps)),
-                         (f"Облигации ±{fnum(ASSET_MOVE_PCT, 0)}% и больше", bond_moves(bd, load_meta()))):
+    for title, items in ((f"Акции ±{fnum(ASSET_MOVE_PCT, 0)}% и больше", safe("SHARE_MOVES", share_moves, sh, gaps) or []),
+                         (f"Облигации ±{fnum(ASSET_MOVE_PCT, 0)}% и больше", safe("BOND_MOVES", bond_moves, bd, load_meta()) or [])):
         got = sorted([x for x in items if fresh(x[0], x[1], ASSET_MOVE_PCT)], key=lambda x: -abs(x[1]))
         if got:
             body = [f"{'🟢' if ch > 0 else '🔴'} {e(t)}" for _, ch, t in got[:ASSET_LINES_MAX]]
@@ -280,4 +281,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as ex:  # noqa: BLE001
+        import traceback
+        traceback.print_exc()
+        last = traceback.extract_tb(ex.__traceback__)[-1]
+        fail(f"Алерты упали: {type(ex).__name__}: {ex} (alerts.py → {last.name}, строка {last.lineno})")
