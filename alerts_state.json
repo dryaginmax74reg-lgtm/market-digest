@@ -1,15 +1,13 @@
 {
- "date": "2026-10-19",
+ "date": "2026-10-20",
  "levels": {
-  "S:AKRN": 6.58,
-  "S:HYDR": 5.34,
-  "S:NKHP": 6.13,
-  "S:OKEY": 6.36,
-  "S:TRMK": 11.33,
-  "S:WUSH": 6.19,
-  "S:UNKL": 18.06,
-  "B:RU000A10FWY1": 5.04,
-  "S:INCB": 5.95
+  "IMOEX": 1.51,
+  "S:CHMK": 11.64,
+  "S:IGSTP": 8.14,
+  "S:KOGK": 11.66,
+  "S:KROT": 7.95,
+  "S:URKZ": 18.33,
+  "B:RU000A10BLP1": 28.22
  },
  "titles": []
 }
