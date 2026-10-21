@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta
 
 import bondsweek
 import events
+import insights
 
 from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
                     cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, coingecko_btc,
@@ -27,6 +28,24 @@ ZCYC_POINTS = (1, 2, 5, 10)
 
 
 # ---------------------------------------------------------------- сбор
+
+def prev_workday(today):
+    d = today - timedelta(days=1)
+    for _ in range(10):
+        if events.is_workday(d):
+            return d
+        d -= timedelta(days=1)
+    return today - timedelta(days=1)
+
+
+def prev_public():
+    """Вчерашний docs/digest.json (до перезаписи): для «новых размещений со вчера»."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "digest.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:  # noqa: BLE001
+        return {}
+
 
 def collect(today):
     y0 = date(today.year - 1, 12, 31)
@@ -40,6 +59,7 @@ def collect(today):
         "rusfarcny0": (moex_index_hist, "RUSFARCNY", y0 - timedelta(days=14), y0),
         "zcyc": (moex_zcyc,),
         "zcyc0": (moex_zcyc_back, y0),
+        "zcyc1": (moex_zcyc_back, prev_workday(today)),
         "RGBITR": (moex_index, "RGBITR"),
         "RUCBTRNS": (moex_index, "RUCBTRNS"),
         "IMOEX": (moex_index, "IMOEX"),
@@ -73,6 +93,7 @@ def collect(today):
             log(f"[warn] размещения bonds-lab: {ex}")
             d["placements"] = None
     d["watch_news"] = events.watch_news(d["watch"], exclude=[t for _s, t, _l in macro + money])
+    d["_prev_public"] = prev_public()
     # справочник облигаций (bonds_meta.py запускается перед дайджестом): рейтинги за сутки, валютные облигации
     d["bmeta"], d["bstate"] = bondsweek._load(bondsweek.META), bondsweek._load(bondsweek.STATE)
     if today.weekday() == 3 or os.environ.get("AUCTIONS") == "1":
@@ -122,8 +143,9 @@ def demo_data():
         "dep": [("2025-12-21", 14.9), ("2026-09-21", 13.055), ("2026-10-01", 13.055)],
         "mmix": {"RUSFAR": 13.83, "RUSFARCNY": 0.43, "date": "2026-10-14"},
         "rusfarcny0": [("2025-12-29", 3.1, None, None)],
-        "zcyc": {"date": "2026-10-14", "points": {1.0: 13.1, 2.0: 13.9, 5.0: 14.6, 10.0: 14.4}},
+        "zcyc": {"date": "2026-10-14", "points": {0.5: 12.9, 1.0: 13.1, 2.0: 13.9, 3.0: 14.2, 5.0: 14.6, 10.0: 14.4}},
         "zcyc0": {"date": "2025-12-30", "points": {1.0: 13.14, 2.0: 13.92, 5.0: 14.58, 10.0: 14.44}},
+        "zcyc1": {"date": "2026-10-13", "points": {0.5: 13.0, 1.0: 13.25, 2.0: 14.0, 3.0: 14.3, 5.0: 14.65, 10.0: 14.42}},
         "RGBITR": {"val": 768.36, "chg": 0.35, "ytd": 3.45, "date": "2026-10-14"},
         "RUCBTRNS": {"val": 211.30, "chg": -0.01, "ytd": 10.39, "date": "2026-10-14"},
         "IMOEX": {"val": 2417.91, "chg": -0.04, "ytd": -12.6, "date": "2026-10-14"},
@@ -216,6 +238,28 @@ def pc(ch, d=2):
     return "" if ch is None else fpct(ch, d)
 
 
+def _sp(d, key, days=30):
+    """Мини-график за 30 дней для строки таблицы (если есть история рядов)."""
+    return insights.spark(d.get("_series"), key, datetime.now(MSK).date(), days) if d.get("_series") else ""
+
+
+def build_since(d):
+    items = d.get("_since")
+    if items is None or not d.get("_series"):
+        return ""
+    if not items:
+        return header("🔄", "СО ВЧЕРА") + "\nНичего существенного: ставки, кривая ОФЗ и курсы почти не изменились."
+    return header("🔄", "СО ВЧЕРА") + "\n" + "\n".join(f"▪️ {e(full)}" for _s, full, _i in items)
+
+
+def build_answers(d):
+    qa = d.get("_answers") or []
+    if not qa:
+        return ""
+    body = "\n\n".join(f"<b>{e(q)}</b>\n{e(a)}" for q, a in qa)
+    return (header("💬", "ЧТО СКАЗАТЬ КЛИЕНТУ", "цифры на сегодня · ориентир для разговора, не рекомендация") + "\n" + body)
+
+
 def fold(title_html, lines):
     """Заголовок + сворачиваемый блок (в Telegram раскрывается по нажатию)."""
     if not lines:
@@ -242,7 +286,7 @@ def build_fx(d):
             rows.append((f"⚪ {code}/RUB", "н/д"))
             continue
         y, ch = pct(v, base.get(code)), pct(v, p)
-        rows.append((f"{dot(ch)} {code}/RUB", fnum(v, 2), pc(ch), "" if y is None else fpct(y, 1)))
+        rows.append((f"{dot(ch)} {code}/RUB", fnum(v, 2), pc(ch), "" if y is None else fpct(y, 1), _sp(d, code)))
     (u, up), (c, cp) = cur["rates"]["USD"], cur["rates"]["CNY"]
     if u and c:
         cross = u / c
@@ -251,7 +295,7 @@ def build_fx(d):
         y = pct(cross, cross0)
         ch = pct(cross, cross_p)
         rows.append((f"{dot(ch)} USD/CNY", fnum(cross, 3), pc(ch), "" if y is None else fpct(y, 1)))
-    out = header("💱", "ВАЛЮТЫ", f"ЦБ на {cur['date'][:5]} · день · с начала года") + "\n" + table(rows)
+    out = header("💱", "ВАЛЮТЫ", f"ЦБ на {cur['date'][:5]} · день · с начала года" + (" · 30 дн." if d.get("_series") else "")) + "\n" + table(rows)
     extra = []
     ct, cbr_c = d.get("cny_tom"), cur["rates"]["CNY"][0]
     if ct and ct[0] and cbr_c:
@@ -277,18 +321,18 @@ def build_rates(d, today):
     rows = []
     key = key_now(d)
     key0 = last_on_or_before(d.get("key"), y0)
-    rows.append(("Ключевая ЦБ", pcts(key), fpp(key - key0) if key is not None and key0 is not None else ""))
+    rows.append(("Ключевая ЦБ", pcts(key), fpp(key - key0) if key is not None and key0 is not None else "", _sp(d, "KEY", 90)))
     mm = d.get("mmix") or {}
     for sid, label in (("RUSFARCNY", "RUSFAR CNY"),):
         v = mm.get(sid)
         h = d.get(sid.lower() + "0") or []
         b = h[-1][1] if h else None
-        rows.append((label, pcts(v), fpp(v - b) if v is not None and b is not None else ""))
+        rows.append((label, pcts(v), fpp(v - b) if v is not None and b is not None else "", _sp(d, sid)))
     ru = d.get("ruonia") or []
     if ru:
         v, b = ru[-1][1], last_on_or_before(ru, y0)
-        rows.append((f"RUONIA {ddmm(ru[-1][0])}", pcts(v), fpp(v - b) if b is not None else ""))
-    out = header("🏦", "СТАВКИ") + "\n" + table(rows, ("", "", "YTD п.п."))
+        rows.append((f"RUONIA {ddmm(ru[-1][0])}", pcts(v), fpp(v - b) if b is not None else "", _sp(d, "RUONIA")))
+    out = header("🏦", "СТАВКИ") + "\n" + table(rows, ("", "", "YTD п.п.", "30 дн." if d.get("_series") else ""))
 
     lines = []
     nm = next_meeting(today)
@@ -344,7 +388,7 @@ def build_markets(d):
         r = d.get(sid)
         if r:
             rows.append((f"{dot(r['chg'])} {label}", fnum(r["val"], 0 if r["val"] > 1000 else 2), pc(r["chg"]),
-                         "" if r["ytd"] is None else fpct(r["ytd"], 1)))
+                         "" if r["ytd"] is None else fpct(r["ytd"], 1), _sp(d, sid)))
         else:
             rows.append((f"⚪ {label}", "н/д"))
     for key, label in (("brent", "Brent $"), ("gold", "Золото $")):
@@ -352,7 +396,8 @@ def build_markets(d):
         if q and q[0]:
             p, prev, y0 = q
             ch, y = pct(p, prev), pct(p, y0)
-            rows.append((f"{dot(ch)} {label}", fnum(p, 0 if p > 1000 else 2), pc(ch), "" if y is None else fpct(y, 1)))
+            rows.append((f"{dot(ch)} {label}", fnum(p, 0 if p > 1000 else 2), pc(ch), "" if y is None else fpct(y, 1),
+                         _sp(d, {"brent": "BRENT", "gold": "GOLD"}[key])))
         else:
             rows.append((f"⚪ {label}", "н/д"))
     for key, label in (("spx", "S&P 500"), ("hsi", "Hang Seng")):
@@ -366,7 +411,7 @@ def build_markets(d):
         price = b[0] if b else by[0]
         ch = b[1] if b else pct(by[0], by[1])
         y = pct(price, by[2]) if by else None
-        rows.append((f"{dot(ch)} BTC $", fnum(price, 0), pc(ch), "" if y is None else fpct(y, 1)))
+        rows.append((f"{dot(ch)} BTC $", fnum(price, 0), pc(ch), "" if y is None else fpct(y, 1), _sp(d, "BTC")))
     im = d.get("IMOEX") or {}
     note = "день · с начала года"
     if im.get("date"):
@@ -374,7 +419,7 @@ def build_markets(d):
             note += f"; биржа на {im['time'][:5]} МСК"
         else:
             note += f"; биржа — закрытие {ddmm(im['date'])}"
-    return header("📈", "РЫНКИ", note) + "\n" + table(rows)
+    return header("📈", "РЫНКИ", note + (" · 30 дн." if d.get("_series") else "")) + "\n" + table(rows)
 
 
 def rating_day(d, today):
@@ -513,7 +558,7 @@ def build_blocks(d, now):
     blocks.append(build_watch(d, today))
     if d.get("bondsweek"):
         blocks.append(bondsweek.block(d["bondsweek"], today))
-    return blocks + [build_ratings(d, today), build_auctions(d), build_fx(d), build_rates(d, today), build_yields(d, today),
+    return blocks + [build_since(d), build_ratings(d, today), build_auctions(d), build_fx(d), build_rates(d, today), build_yields(d, today),
                      build_markets(d), build_events(d, today), build_news(d)]
 
 
@@ -522,12 +567,20 @@ def card_ok(d):
 
 
 def caption(d, now):
-    """Подпись к карточке дня: дата, сильные движения, повод для звонка, ваш список (только в чате — на сайт не публикуется)."""
+    """Подпись к карточке дня: светофор, что изменилось со вчера, сильные движения, повод для звонка, ваш список (только в чате)."""
     lines = [f"<b>Рынки · {now.day} {MONTHS[now.month - 1]}</b>"]
+    st = d.get("_status")
+    if st:
+        lines.append(f"{['🟢', '🟡', '🔴'][st[0]]} <b>{st[1]}</b>" + (f" — {e(_lc(st[2][0]))}" if st[0] and st[2] else ""))
+    since = d.get("_since") or []
+    if since:
+        sh_ = [sh for sh, _f, _i in since if not sh.startswith("рейтинги")][:3]
+        if sh_:
+            lines.append("🔄 Со вчера: " + e(", ".join(sh_)))
     moves = strong_moves(d, now.date())
     if moves:
         lines += [f"{i} {e(t)}" for i, t in moves[:4]]
-    else:
+    elif not st:
         lines.append("Спокойное утро: сильных движений нет.")
     hooks = d.get("_hooks") or []
     if hooks:
@@ -550,6 +603,10 @@ def caption(d, now):
             extra += "\n" + w
         out += extra
     return out
+
+
+def _lc(t):
+    return t[:1].lower() + t[1:] if t[1:2].islower() else t
 
 
 def _plain(html):
@@ -577,10 +634,11 @@ def keyboard():
         base = dash if dash.endswith("/") else dash + "/"
         rows = [
             # полные подписи: длинные — по одной в строке, чтобы Telegram их не обрезал на телефоне
+            [("▶ Утро за 30 секунд", base + "?v=stories")],
             [(VIEWS[0][0], base + "?v=details"), (VIEWS[1][0], base + "?v=news")],
             [(VIEWS[2][0], base + "?v=money")],
             [(VIEWS[3][0], base + "?v=placements")],
-            [("📊 Дашборд рынка", base + "?v=overview"), ("⚖ Сравнение", base + "bonds.html?v=compare")],
+            [("📊 Дашборд рынка", base + "?v=overview"), ("💬 Клиенту", base + "?v=answers")],
             [("🧾 Подбор облигаций и портфель", base + "bonds.html")],
         ]
         return {"inline_keyboard": [[{"text": t, "web_app": {"url": u}} for t, u in r] for r in rows]}
@@ -604,6 +662,32 @@ def placements_soon(pl, today, days=14):
     return {"items": soon, "days": days, "source_last": last, "total": len(pl)}
 
 
+def week_strip(d, today, days=7):
+    """Полоса недели для дашборда: по дням — события с типом (cbr, div, book, auc, macro). Только публичное."""
+    from common import CBR_MEETINGS
+    out = []
+    pl = (placements_soon(d.get("placements"), today, days + 1) or {}).get("items") or []
+    for i in range(days):
+        dd = today + timedelta(days=i)
+        iso = dd.isoformat()
+        it = []
+        if dd in CBR_MEETINGS:
+            it.append({"t": "cbr", "x": "Заседание ЦБ по ключевой ставке, решение в 13:30"})
+        for x in d.get("divs") or []:
+            if x.get("buy_by") == iso:
+                it.append({"t": "div", "x": f"Последний день купить {x['name']} под дивиденд {x['div']} ₽ ({x.get('yld', '')})"})
+        for p in pl:
+            if p.get("book") == iso:
+                it.append({"t": "book", "x": f"Книга заявок: {p['name']}" + (f" · {p['coupon']}" if p.get("coupon") and "позднее" not in p["coupon"].lower() else "")})
+        if dd.weekday() == 2 and events.is_workday(dd):
+            it.append({"t": "auc", "x": "Аукционы ОФЗ Минфина (если объявлены)"})
+            it.append({"t": "macro", "x": "Недельная инфляция Росстата (вечером)"})
+        if dd.day in (1, 11, 21):
+            it.append({"t": "macro", "x": "ЦБ: новая ставка по вкладам топ-10 банков"})
+        out.append({"d": iso, "work": events.is_workday(dd), "items": it})
+    return out
+
+
 def public_sections(d, now):
     """То, что раньше шло текстом под карточкой, — для страницы дашборда (docs/digest.json).
     Список наблюдения (WATCHLIST) сюда НЕ попадает: сайт публичный."""
@@ -616,6 +700,7 @@ def public_sections(d, now):
     if d.get("bondsweek"):
         bw = dict(d["bondsweek"])
         details.append(bondsweek.block(bw, today))
+    details.insert(0, build_since(pub))
     details += [build_ratings(pub, today), build_auctions(pub), build_fx(pub), build_rates(pub, today), build_yields(pub, today), build_markets(pub)]
     return {
         "date": today.isoformat(), "updated": now.strftime("%Y-%m-%d %H:%M"),
@@ -623,6 +708,9 @@ def public_sections(d, now):
         "money": build_events(pub, today).replace(" · нажмите, чтобы раскрыть", ""),
         "news": build_news(pub).replace(" · нажмите, чтобы раскрыть", ""),
         "placements": placements_soon(d.get("placements"), today),
+        "answers": build_answers(pub),
+        "week": week_strip(pub, today),
+        "story": d.get("_story"),
     }
 
 
@@ -645,10 +733,34 @@ def make_visuals(d, now, demo=False):
             if series:
                 charts.write_dashboard_data(series, curves, now)
         d["_hooks"] = events.call_hooks(series or {}, now.date())
+        d["_series"] = series or {}
+        add_insights(d, now)
         path = card.render_card(d, series or {}, now, strong_moves(d, now.date()))
         d["_card"] = path
     except Exception as ex:  # noqa: BLE001
         log(f"[warn] карточка/графики: {type(ex).__name__}: {ex}")
+
+
+def add_insights(d, now):
+    """Светофор, «со вчера», ответы клиенту, данные историй и текст для голоса. Ошибка здесь не ломает дайджест."""
+    today = now.date()
+    try:
+        prev = d.get("_prev_public") or {}
+        if prev.get("date") and prev["date"] < today.isoformat():
+            old = {p.get("name") for p in ((prev.get("placements") or {}).get("items") or [])}
+            cur = (placements_soon(d.get("placements"), today) or {}).get("items") or []
+            d["_new_placements"] = [p["name"] for p in cur if p.get("name") and p["name"] not in old]
+        d["_rating_day"] = rating_day(d, today)
+        moves = strong_moves(d, today)
+        d["_since"] = insights.since_yesterday(d, today, strong_keys={k for k in ("USD", "EUR", "CNY") if any(k in t for _i, t in moves)})
+        d["_status"] = insights.day_status(d, today, moves, d["_since"])
+        d["_answers"] = insights.client_answers(d, today)
+        d["_story"] = insights.story(d, today, now, d["_status"], d["_since"], d["_answers"])
+        d["_voice"] = insights.voice_text(d, today, now, d["_status"], d["_since"])
+    except Exception as ex:  # noqa: BLE001
+        import traceback
+        traceback.print_exc()
+        log(f"[warn] светофор/со вчера/ответы: {type(ex).__name__}: {ex}")
 
 
 def now_msk():
@@ -692,7 +804,14 @@ def main():
             write_public(data, now)
         except Exception as ex:  # noqa: BLE001
             log(f"[warn] digest.json: {type(ex).__name__}: {ex}")
-        state = {"card": data.get("_card"), "caption": caption(data, now), "charts": data.get("_charts"),
+        vpath = None
+        if data.get("_voice") and not demo and os.environ.get("NO_VOICE") != "1":
+            try:
+                import voice
+                vpath = voice.make_voice(data["_voice"])
+            except Exception as ex:  # noqa: BLE001
+                log(f"[warn] голос: {type(ex).__name__}: {ex}")
+        state = {"card": data.get("_card"), "caption": caption(data, now), "charts": data.get("_charts"), "voice": vpath,
                  "fallback": None if data.get("_card") else "\n\n".join(build_blocks(data, now))}
         with open(SEND_STATE, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False)
@@ -707,6 +826,17 @@ def main():
             deliver_card(st["card"], st["caption"], kb)
         else:   # карточка не нарисовалась — как раньше, текстом
             deliver(pack([st["caption"], st.get("fallback") or ""]), keyboard=kb)
+        # голосовая сводка — следом за карточкой; если не отправилась, дайджест всё равно считается отправленным
+        if st.get("voice") and os.path.exists(st["voice"]):
+            if os.environ.get("DRY_RUN") == "1" or "--demo" in sys.argv:
+                print(f"[голос] {st['voice']}")
+            else:
+                try:
+                    from common import tg_creds, tg_voice
+                    token, chat = tg_creds()
+                    tg_voice(token, chat, st["voice"], "🎧 Утро за минуту")
+                except Exception as ex:  # noqa: BLE001
+                    log(f"[warn] голос не отправился: {ex}")
         # «Графики за год» больше не приходят отдельной картинкой — они в «Подробнее», в раскрывающемся блоке
 
 

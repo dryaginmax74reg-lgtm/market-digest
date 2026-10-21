@@ -1,0 +1,16 @@
+{
+  "name": "Рынки сегодня",
+  "short_name": "Рынки",
+  "description": "Утренний дайджест рынка, ставки, облигации и подбор портфеля",
+  "start_url": "./?v=today",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f0e8",
+  "theme_color": "#1b2f45",
+  "lang": "ru",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

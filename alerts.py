@@ -36,6 +36,9 @@ def load_state(today):
             s = json.load(f)
         if s.get("date") == today:
             return s
+        old = (s.get("live") or {})
+        if old.get("id") and not old.get("closed"):
+            return {"date": today, "levels": {}, "titles": [], "unpin": old["id"]}   # вчерашнее живое сообщение открепим
     except Exception:  # noqa: BLE001
         pass
     return {"date": today, "levels": {}, "titles": []}
@@ -100,9 +103,9 @@ def cbr_tomorrow(now):
     return {"date": d1, "rates": {c: (r1.get(c), r0.get(c)) for c in ("USD", "EUR", "CNY")}}
 
 
-def rating_moves(now):
+def rating_moves(now, force=False):
     """Понижения и дефолты по сводному рейтингу (smart-lab) к утреннему справочнику docs/bonds_meta.json, по эмитентам."""
-    if now.hour not in RATING_ALERT_HOURS:
+    if not force and now.hour not in RATING_ALERT_HOURS:
         return None
     from bonds_meta import sl_ratings
     from bondscore import rscore
@@ -178,9 +181,42 @@ def _move(r, min_val, min_trades=0):
     return pct(last, prev), (pct(wap, prev) if wap else None)
 
 
-def _confirmed(ch, wch, gap=0.0):
+PCT = {"SHARE": ASSET_MOVE_PCT, "BOND": ASSET_MOVE_PCT, "CBRT": FX_CBR_TOMORROW_PCT}   # могут переопределяться командой /porog
+
+
+def load_cfg():
+    """Пороги из бота (/porog → Cloudflare KV): WORKER_URL + WORKER_KEY. Нет ответа — пороги по умолчанию из common.py."""
+    url, key = (os.environ.get("WORKER_URL") or "").strip().rstrip("/"), (os.environ.get("WORKER_KEY") or "").strip()
+    if not url or not key:
+        return {}
+    try:
+        import urllib.parse
+        cfg = json.loads(http_get(f"{url}/cfg?key={urllib.parse.quote(key)}", retries=2, timeout=10))
+    except Exception as ex:  # noqa: BLE001
+        log(f"[warn] настройки бота: {type(ex).__name__}: {ex} — пороги по умолчанию")
+        return {}
+    used = {}
+    for k, v in (cfg or {}).items():
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            continue
+        if not 0 < v <= 50:
+            continue
+        if k in MOVE_THRESHOLDS:
+            MOVE_THRESHOLDS[k] = v
+            used[k] = v
+        elif k in PCT:
+            PCT[k] = v
+            used[k] = v
+    if used:
+        log("пороги из бота: " + ", ".join(f"{k}={v}" for k, v in used.items()))
+    return used
+
+
+def _confirmed(ch, wch, gap=0.0, thr=None):
     """Средневзвешенная цена дня сдвинулась в ту же сторону хотя бы на половину порога (одна сделка — не движение)."""
-    return wch is not None and (wch + gap) * ch > 0 and abs(wch + gap) >= ASSET_MOVE_PCT / 2
+    return wch is not None and (wch + gap) * ch > 0 and abs(wch + gap) >= (thr or ASSET_MOVE_PCT) / 2
 
 
 def share_moves(rows, gaps):
@@ -192,7 +228,7 @@ def share_moves(rows, gaps):
         ch, wch = mv
         g = gaps.get(r["SECID"], 0) / r["PREVPRICE"] * 100 if r["SECID"] in gaps else 0.0
         adj = ch + g                               # без дивидендного гэпа
-        if abs(adj) < ASSET_MOVE_PCT or not _confirmed(adj, wch, g):
+        if abs(adj) < PCT["SHARE"] or not _confirmed(adj, wch, g, PCT["SHARE"]):
             continue
         note = f" · без учёта дивидендного гэпа {fpct(-g, 1)}" if g else ""
         out.append(("S:" + r["SECID"], adj, f"{r['SHORTNAME']} ({r['SECID']}) {fpct(adj, 1)} → {fprice(r['LAST'])} ₽"
@@ -217,7 +253,7 @@ def bond_moves(rows, meta):
         if not mv:
             continue
         ch, wch = mv
-        if abs(ch) < ASSET_MOVE_PCT or not _confirmed(ch, wch):
+        if abs(ch) < PCT["BOND"] or not _confirmed(ch, wch, 0.0, PCT["BOND"]):
             continue
         seen.add(r["SECID"])
         m = b.get(r["SECID"]) or []
@@ -281,6 +317,8 @@ def main():
         log("Нерабочий день - алерты не проверяю.")
         return
     state = load_state(now.date().isoformat())
+    if not is_demo:
+        load_cfg()
     d = demo() if is_demo else collect()
     def fresh(key, ch, thr):
         """Впервые за день или движение усилилось ещё на половину порога."""
@@ -290,59 +328,66 @@ def main():
         state["levels"][key] = round(abs(ch), 2)
         return True
 
-    lines = []
+    # всё, что случилось: (срочно?, строка). Срочное — отдельным сообщением со звуком; всё — в живое сообщение дня.
+    from bondscore import rscore
+    watch = events.load_watchlist()
+    items = []
     for key, ch, text in moves(d):
         thr = MOVE_THRESHOLDS.get(key)
         if thr is None or ch is None or abs(ch) < thr:
             continue
         if fresh(key, ch, thr):
-            lines.append(f"{'🟢' if ch > 0 else '🔴'} {e(text)}")
+            items.append((abs(ch) >= 2 * thr, f"{'🟢' if ch > 0 else '🔴'} {e(text)}", False))
     if is_demo:
         sh, bd, gaps = demo_assets()
     else:
         sh, bd = d.get("SHARES"), d.get("BONDS")
         gaps = safe("DIVGAPS", div_gaps, d.get("DIVS"), now.date()) or {}
-    groups = []
-    for title, items in ((f"Акции ±{fnum(ASSET_MOVE_PCT, 0)}% и больше", safe("SHARE_MOVES", share_moves, sh, gaps) or []),
-                         (f"Облигации ±{fnum(ASSET_MOVE_PCT, 0)}% и больше", safe("BOND_MOVES", bond_moves, bd, load_meta()) or [])):
-        got = sorted([x for x in items if fresh(x[0], x[1], ASSET_MOVE_PCT)], key=lambda x: -abs(x[1]))
-        if got:
-            body = [f"{'🟢' if ch > 0 else '🔴'} {e(t)}" for _, ch, t in got[:ASSET_LINES_MAX]]
-            if len(got) > ASSET_LINES_MAX:
-                body.append(f"… и ещё {len(got) - ASSET_LINES_MAX}")
-            groups.append(f"<b>{title}</b>\n" + "\n".join(body))
+    meta_b = (load_meta().get("b") or {})
+    for kind, got_all, thr in (("S", safe("SHARE_MOVES", share_moves, sh, gaps) or [], PCT["SHARE"]),
+                               ("B", safe("BOND_MOVES", bond_moves, bd, load_meta()) or [], PCT["BOND"])):
+        got = sorted([x for x in got_all if fresh(x[0], x[1], thr)], key=lambda x: -abs(x[1]))
+        for i, (key, ch, t) in enumerate(got):
+            if i >= ASSET_LINES_MAX:
+                items.append((False, f"… и ещё {len(got) - ASSET_LINES_MAX} {'акций' if kind == 'S' else 'облигаций'} ±{fnum(thr, 0)}%", False))
+                break
+            rat = ((meta_b.get(key[2:]) or [""])[0] or "") if kind == "B" else ""
+            wl = events.is_watched(t, watch)
+            urgent = wl or abs(ch) >= 2 * thr or (kind == "B" and ch < 0 and rat and rscore(rat) <= rscore("A-"))
+            items.append((urgent, f"{'🟢' if ch > 0 else '🔴'} {e(t)}", wl))
     cb = d.get("CBRT")
     if cb:
         for c, (v1, v0) in cb["rates"].items():
             ch = pct(v1, v0) if v1 and v0 else None
-            if ch is None or abs(ch) < FX_CBR_TOMORROW_PCT or ("CBRT:" + cb["date"] + c) in state["titles"]:
+            if ch is None or abs(ch) < PCT["CBRT"] or ("CBRT:" + cb["date"] + c) in state["titles"]:
                 continue
             state["titles"].append("CBRT:" + cb["date"] + c)
-            lines.append(f"{'🟢' if ch > 0 else '🔴'} Курс ЦБ на {e(cb['date'][:5])}: {c} {fnum(v1, 4 if c == 'CNY' else 2)} ₽ ({e(fpct(ch, 2))} к сегодняшнему)")
+            items.append((abs(ch) >= 2 * PCT["CBRT"],
+                          f"{'🟢' if ch > 0 else '🔴'} Курс ЦБ на {e(cb['date'][:5])}: {c} {fnum(v1, 4 if c == 'CNY' else 2)} ₽ ({e(fpct(ch, 2))} к сегодняшнему)", False))
     rt = d.get("RATINGS") or {}
-    rlines = []
-    from bondscore import rscore
     for k, g in sorted(rt.items(), key=lambda kv: -rscore(kv[1]["to"])):
         key = f"RT:{k}:{g['to']}"
         if key in state["titles"]:
             continue
         state["titles"].append(key)
         dflt = g["to"] == "D" or g["to"].startswith("C")
-        rlines.append(f"{'🔴' if dflt else '⬇️'} {e(g['name'][:60])}: {e(g['from'])} → {e(g['to'])}"
-                      + (f" · {g['n']} вып." if g["n"] > 1 else ""))
-    if rlines:
-        groups.insert(0, "<b>Рейтинги облигаций — понижения</b> <i>(сводные, smart-lab)</i>\n" + "\n".join(rlines[:10])
-                      + (f"\n… и ещё {len(rlines) - 10}" if len(rlines) > 10 else ""))
+        wl = events.is_watched(g["name"], watch)
+        items.append((dflt or wl or rscore(g["from"]) <= rscore("BBB-"),
+                      f"{'🔴' if dflt else '⬇️'} Рейтинг {e(g['name'][:60])}: {e(g['from'])} → {e(g['to'])}"
+                      + (f" · {g['n']} вып." if g["n"] > 1 else ""), wl))
     for title, link in d.get("KEYNEWS") or []:
         if title in state["titles"]:
             continue
         state["titles"].append(title)
-        lines.append(f'🏦 <a href="{e(link)}">{e(title)}</a>')
-    if not lines and not groups:
+        items.append((True, f'🏦 <a href="{e(link)}">{e(title)}</a>', False))
+
+    urgent = [(ln, wl) for u, ln, wl in items if u]
+    if urgent:
+        deliver(pack([f"🚨 <b>СРОЧНО · {now:%H:%M} МСК</b>\n" + "\n".join(("⭐ " if wl else "") + ln for ln, wl in urgent)]))
+    if not items:
         log("Сильных движений нет.")
-    else:
-        blocks = [f"⚡ <b>АЛЕРТ · {now:%H:%M} МСК</b>" + ("\n" + "\n".join(lines) if lines else "")] + groups
-        deliver(pack(blocks))
+    import live
+    live.update(state, now, [("❗ " if u and not wl else "") + ln for u, ln, wl in items])   # без пометок «ваш список»: состояние публичное
     if not is_demo:
         save_state(state)
 

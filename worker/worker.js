@@ -15,6 +15,7 @@ const COMMANDS = [
   ["divs", "Ближайшие дивидендные отсечки"],
   ["bonds", "Подбор облигаций и портфель"],
   ["dash", "Открыть дашборд"],
+  ["porog", "Пороги алертов: /porog юань 1.5"],
   ["help", "Что умеет бот"],
 ];
 
@@ -22,6 +23,11 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     if (url.pathname === "/setup") return setup(url, env);
+    // настройки алертов для GitHub Actions (alerts.py): только с ключом
+    if (url.pathname === "/cfg") {
+      if (url.searchParams.get("key") !== env.SETUP_KEY) return new Response("forbidden", { status: 403 });
+      return new Response(JSON.stringify(await cfgGet(env)), { headers: { "content-type": "application/json; charset=utf-8" } });
+    }
     if (url.pathname === "/tg" && req.method === "POST") {
       if (req.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.SETUP_KEY) return new Response("forbidden", { status: 403 });
       const upd = await req.json();
@@ -118,15 +124,47 @@ async function handle(upd, env) {
     case "/rates": return reply(env, chat, await cmdRates(D), kb("?v=RATES", "🏦 Ставки на дашборде"));
     case "/fx": return reply(env, chat, await cmdFx(D), kb("?v=CNY", "🇨🇳 Юань на дашборде"));
     case "/curve": return reply(env, chat, await cmdCurve(D), kb("?v=CURVE", "📉 Кривая на дашборде"));
-    case "/calc": return reply(env, chat, cmdCalc(D, args), kb("bonds.html?v=compare", "⚖ Быстрое сравнение"));
+    case "/calc": return reply(env, chat, cmdCalc(D, args), kb("bonds.html", "🧾 Подбор облигаций"));
     case "/divs": return reply(env, chat, await cmdDivs(), undefined);
     case "/dash": return reply(env, chat, "Дашборд:", kb("", "📊 Открыть"));
+    case "/porog": case "/пороги": case "/порог": return reply(env, chat, await cmdPorog(env, args));
     case "/bonds": return reply(env, chat, "Подбор облигаций: фильтры по рейтингу, сроку, доходности, валюте; сборка портфеля по профилю риска, налоги, сценарии ставок, отчёт клиенту.",
       dash ? { inline_keyboard: [[{ text: "🧾 Подбор", web_app: { url: dash + "bonds.html" } }, { text: "💼 Портфель", web_app: { url: dash + "bonds.html?v=port" } }]] } : undefined);
     default:
-      if (/^\d/.test(cmdRaw)) return reply(env, chat, cmdCalc(D, [cmdRaw, ...args]), kb("bonds.html?v=compare", "⚖ Быстрое сравнение"));
+      if (/^\d/.test(cmdRaw)) return reply(env, chat, cmdCalc(D, [cmdRaw, ...args]), kb("bonds.html", "🧾 Подбор облигаций"));
       return reply(env, chat, "Не понял. /help — список команд. Можно просто написать сумму и срок: «50млн 6м».");
   }
+}
+
+// ---------------------------------------------------------------- пороги алертов (хранятся в Cloudflare KV, привязка CFG)
+// Ключи совпадают с MOVE_THRESHOLDS / ASSET_MOVE_PCT в common.py; значения — в %.
+const POROG = [
+  ["USD", "доллар", 1.0, "курс USD/RUB за день"], ["EUR", "евро", 1.0, "курс EUR/RUB за день"], ["CNY", "юань", 1.0, "биржевой юань за день"],
+  ["IMOEX", "индекс", 1.5, "индекс Мосбиржи"], ["RGBITR", "офз", 0.5, "ОФЗ (RGBI TR)"], ["RUCBTRNS", "корп", 0.3, "корпоративные облигации TR"],
+  ["BRENT", "нефть", 3.0, "Brent"], ["GOLD", "золото", 2.0, "золото"], ["BTC", "биткоин", 5.0, "Bitcoin"],
+  ["SHARE", "акции", 5.0, "любая акция TQBR к закрытию"], ["BOND", "облигации", 5.0, "любая облигация к закрытию"],
+  ["CBRT", "курсцб", 1.0, "курс ЦБ на завтра к сегодняшнему"],
+];
+async function cfgGet(env) {
+  if (!env.CFG) return {};
+  try { return JSON.parse(await env.CFG.get("thresholds") || "{}"); } catch (e) { return {}; }
+}
+async function cmdPorog(env, args) {
+  if (!env.CFG) return "Хранилище настроек не подключено: в настройках воркера добавьте KV-привязку с именем <b>CFG</b> (см. README воркера).";
+  const cur = await cfgGet(env);
+  const list = () => "<b>Пороги алертов</b> (изменение, при котором придёт сообщение)\n" + POROG.map(([k, n, def, d]) =>
+    `${esc(n)} — <b>${nf(cur[k] ?? def, 1)}%</b>${cur[k] != null ? "" : " (по умолчанию)"} · ${esc(d)}`).join("\n")
+    + "\n\nИзменить: <code>/porog юань 1.5</code> · вернуть всё: <code>/porog сброс</code>\nДействует со следующей проверки (каждый час 10–18).";
+  if (!args.length) return list();
+  const a0 = args[0].toLowerCase();
+  if (["сброс", "reset", "default"].includes(a0)) { await env.CFG.put("thresholds", "{}"); return "Пороги сброшены на значения по умолчанию.\n\n" + (await (async () => list())()); }
+  const row = POROG.find(([k, n]) => n === a0 || k.toLowerCase() === a0);
+  if (!row) return "Не знаю такой показатель. Есть: " + POROG.map(r => r[1]).join(", ") + ".";
+  const v = parseFloat(String(args[1] || "").replace(",", ".").replace("%", ""));
+  if (!(v > 0 && v <= 50)) return `Укажите порог в %, например: <code>/porog ${row[1]} 1.5</code>`;
+  cur[row[0]] = Math.round(v * 100) / 100;
+  await env.CFG.put("thresholds", JSON.stringify(cur));
+  return `Готово: ${esc(row[1])} — алерт при движении от <b>${nf(cur[row[0]], 1)}%</b>.`;
 }
 
 async function cmdNow(D) {

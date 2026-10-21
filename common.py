@@ -651,8 +651,11 @@ def _tg_error(ex):
     return desc
 
 
-def tg_send(token, chat_id, text, html_mode=True, reply_markup=None, _retry=0):
+def tg_send(token, chat_id, text, html_mode=True, reply_markup=None, _retry=0, silent=False):
+    """Отправить сообщение; возвращает объект сообщения Telegram (с message_id)."""
     params = {"chat_id": chat_id, "text": text, "disable_web_page_preview": "true"}
+    if silent:
+        params["disable_notification"] = "true"
     if html_mode:
         params["parse_mode"] = "HTML"
     if reply_markup:
@@ -667,26 +670,39 @@ def tg_send(token, chat_id, text, html_mode=True, reply_markup=None, _retry=0):
             wait = min(60, int(m.group(1)) + 1 if m else 5 * (_retry + 1))
             log(f"[warn] Telegram: слишком часто, жду {wait} с")
             time.sleep(wait)
-            return tg_send(token, chat_id, text, html_mode=html_mode, reply_markup=reply_markup, _retry=_retry + 1)
+            return tg_send(token, chat_id, text, html_mode=html_mode, reply_markup=reply_markup, _retry=_retry + 1, silent=silent)
         if reply_markup and ("button" in desc.lower() or "web_app" in desc.lower() or "web app" in desc.lower()):
             log(f"[warn] Telegram не принял кнопки ({desc}); отправляю обычные ссылки")
             plain_kb = {"inline_keyboard": [[{"text": b["text"], "url": (b.get("web_app") or {}).get("url") or b.get("url")}
                                              for b in row] for row in reply_markup["inline_keyboard"]]}
-            return tg_send(token, chat_id, text, html_mode=html_mode, reply_markup=plain_kb)
+            return tg_send(token, chat_id, text, html_mode=html_mode, reply_markup=plain_kb, silent=silent)
         if html_mode and "parse entities" in desc.lower() and "<blockquote expandable>" in text:
             log(f"[warn] Telegram не принял сворачиваемые блоки ({desc}); отправляю с обычными цитатами")
             return tg_send(token, chat_id, text.replace("<blockquote expandable>", "<blockquote>"),
-                           html_mode=True, reply_markup=reply_markup)
+                           html_mode=True, reply_markup=reply_markup, silent=silent)
         if html_mode and "parse entities" in desc.lower():
             log(f"[warn] Telegram не принял HTML ({desc}); отправляю простым текстом")
             plain = html.unescape(re.sub(r"<[^>]+>", "", text))
-            return tg_send(token, chat_id, plain, html_mode=False, reply_markup=reply_markup)
+            return tg_send(token, chat_id, plain, html_mode=False, reply_markup=reply_markup, silent=silent)
         hint = ""
         if "chat not found" in desc.lower() or "chat_id" in desc.lower():
             hint = " Проверь секрет TG_CHAT_ID (только число) и что в боте нажат Start."
         raise RuntimeError(f"Telegram ответил {ex.code}: {desc}.{hint}") from None
     if not resp.get("ok"):
         raise RuntimeError(f"Telegram: {resp}")
+    return resp.get("result") or {}
+
+
+def tg_call(token, method, **params):
+    """Любой метод Bot API (editMessageText, pinChatMessage, unpinChatMessage…): (ok, описание/результат)."""
+    data = urllib.parse.urlencode({k: (json.dumps(v) if isinstance(v, (dict, list)) else v) for k, v in params.items()}).encode()
+    try:
+        resp = json.loads(http_get(f"{_tg_base()}/bot{token}/{method}", data=data, retries=2, timeout=20))
+        return bool(resp.get("ok")), resp.get("result")
+    except urllib.error.HTTPError as ex:
+        return False, _tg_error(ex)
+    except Exception as ex:  # noqa: BLE001
+        return False, f"{type(ex).__name__}: {ex}"
 
 
 def tg_photo(token, chat_id, path, caption="", reply_markup=None):
@@ -709,6 +725,30 @@ def tg_photo(token, chat_id, path, caption="", reply_markup=None):
         raise RuntimeError(f"Telegram (фото) ответил {ex.code}: {_tg_error(ex)}") from None
     if not resp.get("ok"):
         raise RuntimeError(f"Telegram (фото): {resp}")
+
+
+def tg_voice(token, chat_id, path, caption=""):
+    """Голосовое сообщение (.ogg/Opus) или аудио (.mp3)."""
+    ogg = path.endswith(".ogg")
+    method, field, ctype = ("sendVoice", "voice", "audio/ogg") if ogg else ("sendAudio", "audio", "audio/mpeg")
+    boundary = uuid.uuid4().hex
+    fields = {"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"}
+    if not ogg:
+        fields["title"] = "Утро за минуту"
+    body = b""
+    for k, v in fields.items():
+        body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n").encode()
+    with open(path, "rb") as f:
+        data = f.read()
+    body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{field}\"; filename=\"{os.path.basename(path)}\"\r\n"
+             f"Content-Type: {ctype}\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
+    try:
+        resp = json.loads(http_get(f"{_tg_base()}/bot{token}/{method}", data=body, retries=2, timeout=60,
+                                   headers={"Content-Type": f"multipart/form-data; boundary={boundary}"}))
+    except urllib.error.HTTPError as ex:
+        raise RuntimeError(f"Telegram (голос) ответил {ex.code}: {_tg_error(ex)}") from None
+    if not resp.get("ok"):
+        raise RuntimeError(f"Telegram (голос): {resp}")
 
 
 def pack(blocks, limit=3900):

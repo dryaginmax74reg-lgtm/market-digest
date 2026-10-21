@@ -84,8 +84,20 @@ def render_card(d, series, now, moves=(), path=OUT):
     text(60, 44, "Рынки сегодня", 38, disp=True)
     text(60, 116, f"{WEEKDAYS[now.weekday()]}, {now.day} {MONTHS[now.month - 1]} · {now:%H:%M} МСК", 17, INK2)
 
-    # ---------- главная карточка: ключевая ставка
+    # ---------- светофор дня: «Спокойно» / «Внимание» / «Действовать» и главная причина
     y0 = 170
+    st = d.get("_status")
+    if st:
+        lvl, word, reasons = st
+        bg, fg = [("#e1ebe3", UP), ("#f3e6cf", WARN), ("#f3dcd6", DOWN)][lvl]
+        box(60, 160, W - 120, 76, bg, r=26)
+        fig.text(fx(96), fy(198), "●", fontsize=22, color=fg, ha="left", va="center", family=sans)
+        fig.text(fx(128), fy(197), word, fontsize=26, color=fg, fontweight=500, ha="left", va="center", family=serif)
+        why = (reasons[0] if reasons else "")
+        if why:
+            fig.text(fx(360), fy(198), why[:58] + ("…" if len(why) > 58 else ""), fontsize=15, color=INK2,
+                     ha="left", va="center", family=sans)
+        y0 = 256
     hero_h = 222
     box(60, y0, W - 120, hero_h, NAVY)
     key = (d.get("key") or [(None, None)])[-1][1]
@@ -209,4 +221,99 @@ def render_card(d, series, now, moves=(), path=OUT):
          ha="center")
     fig.savefig(path, facecolor=BG)
     plt.close(fig)
+    return path
+
+
+def render_evening(d, now, ups=(), downs=(), path=os.path.join(HERE, "card_evening.png")):
+    """Вечерняя карточка: тёмно-синяя палитра «Кабинета» — закрытие дня, курс ЦБ на завтра, лидеры дня."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import FancyBboxPatch
+
+    sans, serif = _fonts()
+    plt.rcParams["font.family"] = sans
+    Wv, Hv = 1080, 1240
+    NAV, TILE, CR, MUT, MINT, CORAL, GOLD = "#16273b", "#1f3550", "#f4f0e8", "#9fb0c2", "#8fd3b0", "#f0a093", "#e3c99a"
+    fig = plt.figure(figsize=(Wv / 100, Hv / 100), dpi=100, facecolor=NAV)
+
+    def fx(x):
+        return x / Wv
+
+    def fy(y):
+        return 1 - y / Hv
+
+    def text(x, y, s, size, color=CR, weight=500, ha="left", va="top", disp=False):
+        fig.text(fx(x), fy(y), s, fontsize=size, color=color, fontweight=weight, ha=ha, va=va, family=serif if disp else sans)
+
+    def box(x, y, w, h, color=TILE, r=28):
+        fig.add_artist(FancyBboxPatch((fx(x), fy(y + h)), fx(w), h / Hv, boxstyle=f"round,pad=0,rounding_size={r / Wv}",
+                                      transform=fig.transFigure, facecolor=color, edgecolor="none", mutation_aspect=Wv / Hv))
+
+    def chg_txt(ch, d_=2):
+        if ch is None:
+            return "", MUT
+        return (("▲ " if ch > 0 else "▼ " if ch < 0 else "") + fpct(ch, d_)), (MINT if ch > 0 else CORAL if ch < 0 else MUT)
+
+    text(60, 50, "Итоги дня", 40, disp=True)
+    text(60, 120, f"{WEEKDAYS[now.weekday()]}, {now.day} {MONTHS[now.month - 1]} · закрытие основной сессии", 17, MUT)
+
+    tiles = []
+    for k, lab in (("IMOEX", "Индекс Мосбиржи"), ("RGBITR", "ОФЗ (с купонами)"), ("RUCBTRNS", "Корп. облигации")):
+        r = d.get(k)
+        if r:
+            tiles.append((lab, fnum(r["val"], 0 if r["val"] > 1000 else 2), r.get("chg")))
+    c = d.get("CNY")
+    if c and c[0]:
+        tiles.append(("Юань, биржа", fnum(c[0], 3) + " ₽", c[1]))
+    for k, lab in (("BRENT", "Нефть Brent, $"), ("GOLD", "Золото, $")):
+        q = d.get(k)
+        if q and q[0]:
+            tiles.append((lab, fnum(q[0], 0 if q[0] > 1000 else 2), pct(q[0], q[1])))
+    gap, y = 18, 180
+    tw, th = (Wv - 120 - 2 * gap) / 3, 168
+    for i, (lab, val, ch) in enumerate(tiles[:6]):
+        cx, cy = 60 + (i % 3) * (tw + gap), y + (i // 3) * (th + gap)
+        box(cx, cy, tw, th)
+        text(cx + 22, cy + 20, lab, 13.5, MUT)
+        text(cx + 22, cy + 46, val, 30, CR, disp=True)
+        t, col = chg_txt(ch)
+        text(cx + 22, cy + 118, t + (" за день" if t else ""), 14, col, 600)
+    y += 2 * (th + gap) + 10
+
+    cb = d.get("CBRT")
+    if cb:
+        box(60, y, Wv - 120, 150, "#24405e")
+        text(90, y + 22, f"Курс ЦБ на {cb['date'][:5]}", 15, GOLD, 600)
+        for i, code in enumerate(("USD", "EUR", "CNY")):
+            v1, v0 = cb["rates"].get(code, (None, None))
+            if not v1:
+                continue
+            x = 90 + i * 315
+            text(x, y + 56, {"USD": "Доллар", "EUR": "Евро", "CNY": "Юань"}[code], 13.5, MUT)
+            text(x, y + 78, fnum(v1, 4 if code == "CNY" else 2) + " ₽", 26, CR, disp=True)
+            t, col = chg_txt(pct(v1, v0))
+            text(x + 190, y + 88, t, 13.5, col, 600)
+        y += 150 + gap + 4
+
+    if ups or downs:
+        box(60, y, Wv - 120, 210)
+        text(90, y + 22, "Лидеры дня среди акций", 15, GOLD, 600)
+        for col_i, (title, lst, colr) in enumerate((("рост", ups, MINT), ("падение", downs, CORAL))):
+            x = 90 + col_i * 470
+            text(x, y + 58, title, 13.5, MUT)
+            for j, (ch, name, _sec) in enumerate(lst[:3]):
+                text(x, y + 86 + j * 36, f"{name[:22]}", 18, CR)
+                text(x + 380, y + 86 + j * 36, fpct(ch, 1), 18, colr, 600, ha="right")
+        y += 210 + gap
+
+    text(Wv / 2, y + 14, "источники: Мосбиржа, Банк России, Yahoo Finance · не инвестиционная рекомендация", 12.5, MUT, ha="center")
+    fig.savefig(path, facecolor=NAV)
+    plt.close(fig)
+    try:                      # обрезать пустой низ
+        from PIL import Image
+        im = Image.open(path)
+        im.crop((0, 0, im.width, min(im.height, int((y + 60) * im.height / Hv)))).save(path)
+    except Exception:  # noqa: BLE001
+        pass
     return path
