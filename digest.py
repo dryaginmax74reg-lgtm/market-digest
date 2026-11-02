@@ -449,11 +449,11 @@ def _short_issuer(name):
     """Сохраняем смысловое название, не обрезая юридическую форму вместо имени."""
     import re
     name = (name or "").strip()
-    quoted = re.search(r'[«"]([^»"]+)[»"]', name)
-    if quoted:
-        return quoted.group(1).strip()
-    short = re.sub(r'^(?:Общество с ограниченной ответственностью|Публичное акционерное общество|Акционерное общество|Открытое акционерное общество|Закрытое акционерное общество|ООО|ПАО|АО|ОАО|ЗАО)\s+', '', name, flags=re.I).strip()
-    short = re.sub(r'\s*\((?:ПАО|АО|ООО|МКПАО)\)\s*$', '', short).strip()
+    short = re.sub(r'^(?:Международная компания публичное акционерное общество|Общество с ограниченной ответственностью|Публичное акционерное общество|Акционерное общество|Открытое акционерное общество|Закрытое акционерное общество|МКПАО|МКАО|ООО|ПАО|АО|ОАО|ЗАО)\s+', '', name, flags=re.I).strip()
+    short = re.sub(r'\s*\((?:ПАО|АО|ООО|МКПАО|МКАО)\)\s*$', '', short).strip()
+    # Strip only enclosing quotes, retaining text outside internal quotes.
+    if len(short) > 1 and (short[0], short[-1]) in (("«", "»"), ('"', '"'), ("“", "”")):
+        short = short[1:-1].strip()
     return short or name
 
 
@@ -868,3 +868,4 @@ def deliver_card(path, cap, kb=None):
 
 if __name__ == "__main__":
     main()
+

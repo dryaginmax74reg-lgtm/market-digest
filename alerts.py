@@ -10,6 +10,7 @@ python alerts.py            боевой
 python alerts.py --demo     демо-данные, печать в консоль
 """
 import json
+import math
 import os
 import re
 import sys
@@ -67,8 +68,8 @@ def cbr_keyrate_news(hours=3):
 def board_rows(market, board):
     """Бумаги режима торгов с ценой прошлого закрытия и данными дня: [dict]."""
     j = iss_json(f"engines/stock/markets/{market}/boards/{board}/securities.json?iss.meta=off"
-                 "&iss.only=securities,marketdata&securities.columns=SECID,SHORTNAME,PREVPRICE"
-                 "&marketdata.columns=SECID,LAST,WAPRICE,VALTODAY,NUMTRADES,YIELD")
+                 "&iss.only=securities,marketdata&securities.columns=SECID,SHORTNAME,SECNAME,PREVPRICE,PREVWAPRICE,YIELDATPREVWAPRICE"
+                 "&marketdata.columns=SECID,LAST,WAPRICE,VALTODAY,NUMTRADES,YIELD,YIELDATWAPRICE,VALTODAY_RUR")
     sec = {r[0]: dict(zip(j["securities"]["columns"], r)) for r in j["securities"]["data"]}
     out = []
     for row in j["marketdata"]["data"]:
@@ -152,7 +153,8 @@ def fprice(x):
 
 def _num(x):
     try:
-        return float(str(x).replace("\u00a0", "").replace(" ", "").replace(",", ".").replace("₽", ""))
+        value = float(str(x).replace("\u00a0", "").replace(" ", "").replace(",", ".").replace("₽", ""))
+        return value if math.isfinite(value) else None
     except (TypeError, ValueError):
         return None
 
@@ -304,6 +306,52 @@ def moves(d):
     return out
 
 
+def ofz_candidates(rows):
+    """All OFZ types, including CNY issues; yield compares daily weighted yields.
+
+    Only displayed signals are committed to state by main. Missing yields do not
+    disable price alerts (e.g. floating-rate OFZ); invalid data never forms a signal.
+    """
+    out, seen = [], set()
+    for r in rows or []:
+        sid = r.get("SECID")
+        name = r.get("SHORTNAME") or r.get("SECNAME") or ""
+        if r.get("BOARD") != "TQOB" or not sid or sid in seen or not name.upper().startswith("ОФЗ"):
+            continue
+        seen.add(sid)
+        turnover = _num(r.get("VALTODAY_RUR"))
+        if turnover is None:
+            turnover = _num(r.get("VALTODAY"))
+        if (turnover or 0) < BOND_MIN_TURNOVER or (_num(r.get("NUMTRADES")) or 0) < BOND_MIN_TRADES:
+            continue
+        prev, last, wap = (_num(r.get(k)) for k in ("PREVPRICE", "LAST", "WAPRICE"))
+        ch = pct(last, prev) if last and last > 0 and prev and prev > 0 else None
+        wch = pct(wap, prev) if wap and wap > 0 and prev and prev > 0 else None
+        y, py = (_num(r.get(k)) for k in ("YIELDATWAPRICE", "YIELDATPREVWAPRICE"))
+        y = y if y is not None and 0 < y < 100 else None
+        py = py if py is not None and 0 < py < 100 else None
+        dy = y - py if y is not None and py is not None else None
+        prev_wap = _num(r.get("PREVWAPRICE"))
+        wap_change = pct(wap, prev_wap) if wap and wap > 0 and prev_wap and prev_wap > 0 else None
+        signals = []
+        if ch is not None and abs(ch) + 1e-9 >= 1 and _confirmed(ch, wch, 0, 1):
+            signals.append((f"OFZ:P:{sid}:{'+' if ch > 0 else '-'}", ch, 1.0))
+        if dy is not None and abs(dy) + 1e-9 >= 0.3 and wap_change is not None and dy * wap_change < 0:
+            signals.append((f"OFZ:Y:{sid}:{'+' if dy > 0 else '-'}", dy, 0.3))
+        if not signals:
+            continue
+        detail = (f"цена {fpct(ch, 2)} → {fnum(last, 2)}% ном." if ch is not None
+                  else "цена последней сделки недоступна")
+        if y is not None:
+            detail += f" · ср.-взв. доходность {fnum(y, 2)}%"
+            if dy is not None:
+                detail += f" ({dy:+.2f} п.п. к прошлому торговому дню)"
+        direction = ch if ch else -(dy or 0)
+        line = f"{'📈' if direction > 0 else '📉'} <b>{e(name)}</b> · {detail}"
+        out.append((max(abs(v) / t for _, v, t in signals), sid, line, signals))
+    return sorted(out, key=lambda x: (-x[0], x[1]))
+
+
 def main():
     is_demo = "--demo" in sys.argv
     now = datetime.now(MSK)
@@ -315,6 +363,8 @@ def main():
     if not is_demo:
         load_cfg()
     d = demo() if is_demo else collect()
+    if is_demo:
+        d["BONDS"] = demo_assets()[1]
     def fresh(key, ch, thr):
         """Впервые за день или движение усилилось ещё на половину порога."""
         prev = state["levels"].get(key, 0)
@@ -338,34 +388,18 @@ def main():
                 continue
             state["titles"].append(key)
             items.append((False, f"💱 Курс ЦБ на {e(cb['date'][:5])}: {c} {fnum(v1, 4 if c == 'CNY' else 2)} ₽ ({e(fpct(ch, 2))})", False))
-    baseline = state.setdefault("ofz_yield_baseline", {})
     ofz_items = []
-    for r in d.get("BONDS") or []:
-        if r.get("BOARD") != "TQOB":
+    for strength, sid, line, signals in ofz_candidates(d.get("BONDS")):
+        pending = [(key, change, threshold) for key, change, threshold in signals
+                   if abs(change) + 1e-9 >= state["levels"].get(key, 0) + threshold / 2
+                   or key not in state["levels"]]
+        if not pending:
             continue
-        sid = r.get("SECID")
-        if not sid or (r.get("VALTODAY") or 0) < BOND_MIN_TURNOVER or (r.get("NUMTRADES") or 0) < BOND_MIN_TRADES:
-            continue
-        y = _num(r.get("YIELD"))
-        if y is not None and 0 < y < 100:
-            baseline.setdefault(sid, y)
-        mv = _move(r, BOND_MIN_TURNOVER, BOND_MIN_TRADES)
-        ch, wch = mv if mv else (None, None)
-        price_ok = ch is not None and abs(ch) >= 1.0 and _confirmed(ch, wch, 0, 1.0)
-        dy = y - baseline[sid] if y is not None and sid in baseline else None
-        yield_ok = dy is not None and abs(dy) >= 0.3 and ch is not None and wch is not None and ch * wch > 0
-        if not price_ok and not yield_ok:
-            continue
-        strength = max(abs(ch or 0), abs(dy or 0) / 0.3)
-        if not fresh("OFZ:" + sid, strength, 1.0):
-            continue
-        detail = f"цена {fpct(ch, 2)} → {fnum(r['LAST'], 2)}% ном."
-        if y is not None:
-            detail += f" · доходность {fnum(y, 2)}%"
-            if dy is not None:
-                detail += f" ({dy:+.2f} п.п. с первого замера)"
-        ofz_items.append((False, f"{'📈' if ch > 0 else '📉'} <b>{e(r.get('SHORTNAME') or sid)}</b> · {detail}", False))
-    items += ofz_items[:ASSET_LINES_MAX]
+        ofz_items.append((line, pending))
+    for line, signals in ofz_items[:ASSET_LINES_MAX]:
+        for key, change, threshold in signals:
+            state["levels"][key] = abs(change)
+        items.append((False, line, False))
     if len(ofz_items) > ASSET_LINES_MAX:
         items.append((False, f"… и ещё {len(ofz_items)-ASSET_LINES_MAX} выпусков ОФЗ", False))
     urgent = [(ln, wl) for u, ln, wl in items if u]
@@ -389,3 +423,4 @@ if __name__ == "__main__":
         traceback.print_exc()
         last = traceback.extract_tb(ex.__traceback__)[-1]
         fail(f"Алерты упали: {type(ex).__name__}: {ex} (alerts.py → {last.name}, строка {last.lineno})")
+
