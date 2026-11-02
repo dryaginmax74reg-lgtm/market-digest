@@ -1502,7 +1502,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       }
       // валюта: эмитентов под срок клиента мало — расширяем окно погашений на полгода, год, два (такие бумаги в конце продаются по рынку)
       // валютных выпусков мало и обороты меньше — позиция до 3 дневных оборотов (в рублях — по профилю)
-      const LQ = {liq: c==='RUB' ? pp.liq : Math.max(pp.liq||1, 3)};
+      const LQ = {liq: c==='RUB' ? pp.liq : pp.liq*3};
       let ext=0;
       if(c!=='RUB'){ const needN=Math.min(pp.minIssuers,4, Math.max(1,Math.ceil(share*100/pp.issuerMax-1e-9)));
         for(const d of [0,183,365,730]){ WINEXT=d; const ems=new Set(U.filter(r=>eligible(r,pp,c) && !r.ofz && (pp.liq>0 ? liqOk(r, share/Math.max(1,needN)*A, LQ) : true)).map(r=>r.em)); ext=d; if(ems.size>=Math.max(needN, Math.ceil(share*100/pp.issuerMax-1e-9))) break; } }
@@ -1627,16 +1627,29 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   }
   // сборка с проверкой эмитентов по Мосбирже: дефолт — эмитент исключается, «только для квалов» — если клиент не квал,
   // техдефолт в истории — исключается в «Коротких ВДО» (в остальных профилях только отмечается)
+  // Ограничения исполнения зависят от размера капитала; базовые параметры профиля не меняем.
+  // Это консервативные стартовые коэффициенты, а не оценка реальной глубины стакана.
+  function capitalAdjustedParams(pp, amount){
+    const scale = amount >= 1e9 ? {issuer:6, participation:0.25}
+      : amount >= 100e6 ? {issuer:8, participation:0.5}
+      : {issuer:Infinity, participation:1};
+    return {...pp,
+      issuerMax: Math.min(pp.issuerMax, scale.issuer),
+      liq: pp.liq > 0 ? pp.liq * scale.participation : 0};
+  }
   async function buildChecked(pp, pins, cur){
+    const effective=capitalAdjustedParams(pp, P.amount);
     EXCL=new Set(); const dropped=[]; let res=null;
     for(let i=0;i<5;i++){
-      res=buildPos(pp, {pins, cur});
+      res=buildPos(effective, {pins, cur});
       await Promise.all(res.pos.map(p=>bondization(p.id).catch(()=>null)));
-      const bad=res.pos.filter(p=>!p.pin).map(p=>[p.id,BZ[p.id]]).filter(([id,b])=>b && (b.def||(!P.qual&&b.qual)||(pp.vdo&&b.tdef)));
+      const bad=res.pos.filter(p=>!p.pin).map(p=>[p.id,BZ[p.id]]).filter(([id,b])=>b && (b.def||(!P.qual&&b.qual)||(effective.vdo&&b.tdef)));
       if(!bad.length) break;
       for(const [id,b] of bad){ const r=BYID[id]; if(b.def||b.tdef) EXCL.add('em:'+r.em); else EXCL.add(id);
         dropped.push(`${r.name} (${b.def?'дефолт':b.tdef?'техдефолт в истории':'только для квалов'})`); }
     }
+    if(effective.issuerMax < pp.issuerMax || effective.liq < pp.liq)
+      res.warns.unshift('Крупный капитал: лимит на эмитента '+effective.issuerMax+'%, участие в дневном обороте '+Math.round(effective.liq*100)+'% (валютные бумаги — до '+Math.round(effective.liq*300)+'%). При недостатке ликвидности часть капитала может остаться в ОФЗ.');
     if(dropped.length) res.warns=[...res.warns, 'исключены при сборке: '+dropped.join(', ')];
     EXCL=new Set(); return res;
   }
