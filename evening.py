@@ -13,7 +13,7 @@ python evening.py --demo     демо-данные, печать в консол
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import events
 from digest import _short_issuer
@@ -61,11 +61,13 @@ def demo():
 
 
 def tomorrow_lines(d, now):
-    t = events.next_workday(now.date())
+    t = now.date() + timedelta(days=1)
     out = []
-    nm = next_meeting(now.date())
-    if nm == t:
-        out.append("🏦 Заседание ЦБ по ключевой ставке (решение в 13:30)")
+    rows, warnings = events.calendar_events(now.date() + timedelta(days=1), {"divs": d.get("DIVS") or []})
+    for x in rows:
+        if x["date"] == t.isoformat() and x["type"] in ("cbr", "macro", "auc"):
+            out.append(e(x["importance"] + " · " + x["title"]) + (" ⚠️ дата не подтверждена" if not x["verified"] else ""))
+    out.extend("⚠️ " + e(w) for w in warnings[:1])
     for x in d.get("DIVS") or []:
         if x.get("buy_by") == t.isoformat():
             out.append(f"✂️ Последний день купить {e(x['name'])} под дивиденд {e(x['div'])} ₽ ({e(x.get('yld', ''))})")
@@ -77,8 +79,6 @@ def tomorrow_lines(d, now):
                 out.append(f"🆕 Книга заявок: {e(p['name'])}" + (f" · {e(p['coupon'])}" if p.get("coupon") else ""))
     except Exception:  # noqa: BLE001
         pass
-    if t.weekday() == 2:
-        out.append("📄 Аукционы ОФЗ Минфина (если объявлены)")
     return t, out[:6]
 
 
@@ -91,6 +91,8 @@ def caption(d, now):
     a = d.get("AUCT")
     if a and a.get("placed"):
         L.append(f"📄 Аукционы ОФЗ: {fnum(a['placed'], 1)} млрд ₽" + (f" при спросе {fnum(a['demand'], 1)} млрд" if a.get("demand") else ""))
+    if a:
+        L.append("⚠️ Итоги из сообщений СМИ; дату и доходность сверить с протоколом Минфина.")
     t, tl = tomorrow_lines(d, now)
     if tl:
         L.append(f"\n🗓 <b>Завтра, {t.day} {MONTHS[t.month - 1]}</b>")
@@ -143,6 +145,8 @@ def build(d, now):
     if a and a.get("placed"):
         L.append(f"\n📄 <b>Аукционы ОФЗ</b>: размещено {fnum(a['placed'], 1)} млрд ₽"
                  + (f" при спросе {fnum(a['demand'], 1)} млрд" if a.get("demand") else ""))
+    if a:
+        L.append("⚠️ Итоги из сообщений СМИ; дату и доходность сверить с протоколом Минфина.")
     t, tl = tomorrow_lines(d, now)
     if tl:
         L.append(f"\n🗓 <b>Завтра, {t.day} {MONTHS[t.month - 1]}</b>")

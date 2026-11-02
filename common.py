@@ -2,6 +2,7 @@
 Только стандартная библиотека (matplotlib нужен лишь charts.py / review.py)."""
 import html
 import json
+import math
 import os
 import re
 import sys
@@ -25,7 +26,9 @@ ISS = "https://iss.moex.com/iss/"
 
 # Даты заседаний ЦБ по ключевой ставке. Обновляй по календарю на cbr.ru.
 CBR_MEETINGS = [date(2026, 2, 13), date(2026, 3, 20), date(2026, 4, 24), date(2026, 6, 19), date(2026, 7, 24),
-                date(2026, 9, 11), date(2026, 10, 23), date(2026, 12, 18)]
+                date(2026, 9, 11), date(2026, 10, 23), date(2026, 12, 18),
+                date(2027, 2, 12), date(2027, 3, 19), date(2027, 4, 30), date(2027, 6, 11),
+                date(2027, 7, 30), date(2027, 9, 10), date(2027, 10, 22), date(2027, 12, 17)]
 
 # Код валюты ЦБ для страниц динамики курса
 CBR_VAL_ID = {"USD": "R01235", "EUR": "R01239", "CNY": "R01375"}
@@ -457,6 +460,69 @@ def moex_zcyc_back(d, max_back=8):
         if z and z["points"]:
             return z
     raise ValueError(f"G-curve на {d}: нет данных")
+
+
+def curve_analysis(history, today, complete=True):
+    """Six distinct MOEX observations, changes in bp; never substitute calendar days."""
+    observations = {}
+    for z in history or []:
+        try:
+            dt = date.fromisoformat(z["date"])
+            pts = {float(k): float(v) for k, v in z["points"].items()
+                   if v is not None and math.isfinite(float(v)) and 1 <= float(v) <= 40}
+            if dt <= today and pts:
+                observations[dt] = pts
+        except (KeyError, TypeError, ValueError):
+            continue
+    dates = sorted(observations, reverse=True)
+    out = {"date": dates[0].isoformat() if dates else None, "points": {}, "changes": {},
+           "slope_bp": None, "slope_changes": {}, "warnings": [], "fresh": False}
+    if not dates:
+        out["warnings"].append("Нет проверенных данных кривой ОФЗ")
+        return out
+    out["fresh"] = (today - dates[0]).days <= 4
+    out["points"] = observations[dates[0]]
+    def slope(pts):
+        return (pts[10] - pts[2]) * 100 if 10 in pts and 2 in pts else None
+    out["slope_bp"] = slope(out["points"])
+    if not out["fresh"]:
+        out["warnings"].append("Кривая ОФЗ устарела; динамика и интерпретация скрыты")
+    if not complete:
+        out["warnings"].append("История кривой загружена не полностью; динамика скрыта")
+    for n in (1, 5):
+        if len(dates) <= n:
+            out["warnings"].append(f"Недостаточно торговых дат для изменения за {n} т.д.")
+        elif out["fresh"] and complete:
+            base = observations[dates[n]]
+            out["changes"][n] = {k: (v - base[k]) * 100 for k, v in out["points"].items() if k in base}
+            out.setdefault("base_dates", {})[n] = dates[n].isoformat()
+            b = slope(base)
+            if b is not None and out["slope_bp"] is not None:
+                out["slope_changes"][n] = out["slope_bp"] - b
+    return out
+
+
+def moex_curve_analysis(today):
+    """Reuse ZCYC endpoint. Bound lookback; retain dates, fail closed on request errors."""
+    history, seen, complete = [], set(), True
+    target = today
+    for _ in range(32):
+        try:
+            z = moex_zcyc(target)
+        except Exception:  # source unavailable: not evidence of a non-trading day
+            complete = False
+            break
+        dt = date.fromisoformat(z["date"])
+        if dt > target:
+            complete = False
+            break
+        if dt not in seen:
+            history.append(z)
+            seen.add(dt)
+        if len(seen) >= 6:
+            break
+        target = dt - timedelta(days=1)
+    return curve_analysis(history, today, complete)
 
 
 def moex_imoex_constituents():

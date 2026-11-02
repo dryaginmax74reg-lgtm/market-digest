@@ -3,7 +3,7 @@
 Даты обновляй раз в год:
   - CBR_MEETINGS в common.py   (cbr.ru/dkp/cal_mp)
   - FOMC_DECISIONS             (federalreserve.gov, раздел FOMC calendars)
-  - RU_HOLIDAYS                (производственный календарь; биржа в эти дни не торгует)
+  - RU_HOLIDAYS                (государственные выходные; режим биржи проверяется отдельно)
 """
 import os
 import re
@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from common import CBR_MEETINGS, MONTHS, ddmm, e, fnum, fpp, header, market_view, news, news_lines, next_meeting
 
-# Решения ФРС (второй день заседания, 21:00 МСК)
+# Решения ФРС (второй день заседания; время зависит от DST, проверяется отдельно)
 FOMC_DECISIONS = [
     date(2026, 1, 28), date(2026, 3, 18), date(2026, 4, 29), date(2026, 6, 17), date(2026, 7, 29),
     date(2026, 9, 16), date(2026, 10, 28), date(2026, 12, 9),
@@ -53,38 +53,64 @@ def in_index(ticker, allow):
 
 def week_ahead(today, d, watch=None):
     """Блок «Неделя впереди» (понедельник или первый рабочий день недели)."""
-    end = today + timedelta(days=6)
-    items = []
-    for m in CBR_MEETINGS:
-        if today <= m <= end:
-            items.append((m, "🏦 Заседание ЦБ по ключевой ставке (решение в 13:30)"))
-    for m in FOMC_DECISIONS:
-        if today <= m <= end:
-            items.append((m, "🇺🇸 Решение ФРС по ставке (21:00 МСК)"))
-    x = today
-    while x <= end:
-        if x.weekday() == 2 and is_workday(x):
-            items.append((x, "📄 Аукционы ОФЗ Минфина (если объявлены)"))
-        if x.weekday() == 2:
-            items.append((x, "📊 Недельная инфляция Росстата (вечером)"))
-        if x.day in (1, 11, 21):
-            items.append((x, "💰 ЦБ: новая ставка по вкладам топ-10 банков"))
-        if x.day == 20 or (x == today and 20 < x.day <= 28):
-            items.append((x, "🧾 Налоговый период (до 28-го): экспортёры продают валюту"))
-        x += timedelta(days=1)
-    allow = set((d.get("imoex_list") or {}).keys())
-    for v in d.get("divs") or []:
-        r = v.get("registry")
-        if r and today.isoformat() <= r <= end.isoformat() and (in_index(v["ticker"], allow) or is_watched(v, watch)):
-            star = "⭐ " if is_watched(v, watch) else ""
-            items.append((date.fromisoformat(r), f"✂️ {star}Отсечка: {e(v['name'])}, {e(v['div'])} ₽ ({e(v['yld'])})"))
-    for x in sorted({h for h in RU_HOLIDAYS if today <= h <= end}):
-        items.append((x, "🎌 Нерабочий день, биржа закрыта"))
-    if not items:
-        return ""
-    items.sort(key=lambda t: t[0])
-    lines = [f"<b>{dstr(dt)}</b> · {txt}" for dt, txt in items]
-    return header("🗓", "НЕДЕЛЯ ВПЕРЕДИ", f"{today.day}–{end.day} {MONTHS[end.month - 1]}") + "\n" + "\n".join(lines)
+    rows, warnings = calendar_events(today, d, watch)
+    lines = [f"<b>{dstr(date.fromisoformat(x['date']))}</b> · {e(x['importance'])} · {e(x['title'])}"
+             + (" ⚠️ дата не подтверждена" if not x['verified'] else "") for x in rows]
+    lines.extend("⚠️ " + e(w) for w in warnings)
+    return header("🗓", "КАЛЕНДАРЬ НА 7 ДНЕЙ") + "\n" + "\n".join(lines or ["Подтверждённых событий нет"])
+
+
+CALENDAR_CHECKED = date(2026, 11, 2)
+CBR_CALENDAR = "https://cbr.ru/dkp/cal_mp/"
+FED_CALENDAR = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+
+
+def calendar_events(today, d, watch=None, days=7):
+    """One calendar for Telegram and dashboard. Recurrences are explicitly unverified."""
+    end = today + timedelta(days=days - 1)
+    rows, warnings = [], []
+    current = 0 <= (today - CALENDAR_CHECKED).days <= 90
+    def add(dt, kind, title, importance, verified, source):
+        if today <= dt <= end:
+            rows.append(dict(date=dt.isoformat(), type=kind, title=title, importance=importance,
+                             verified=verified, source=source, checked=CALENDAR_CHECKED.isoformat()))
+    for dt in CBR_MEETINGS:
+        add(dt, "cbr", "Решение ЦБ по ключевой ставке, ориентир 13:30 МСК", "высокая", current, CBR_CALENDAR)
+    for dt in FOMC_DECISIONS:
+        add(dt, "macro", "Решение FOMC; время уточнить в календаре ФРС", "высокая", current, FED_CALENDAR)
+    for dt in (date(2026, 11, 5), date(2026, 12, 30)):
+        add(dt, "macro", "Резюме обсуждения ключевой ставки ЦБ", "средняя", current, CBR_CALENDAR)
+    for i in range(days):
+        dt = today + timedelta(days=i)
+        if dt.weekday() == 2:
+            add(dt, "auc", "Возможные аукционы ОФЗ — проверить объявление Минфина", "средняя", False, "https://minfin.gov.ru/")
+            add(dt, "macro", "Ориентир недельной инфляции — проверить график Росстата", "высокая", False, "https://rosstat.gov.ru/")
+        if dt in RU_HOLIDAYS:
+            add(dt, "macro", "Государственный выходной; режим торгов уточнить на Мосбирже", "средняя", False, "https://www.moex.com/")
+    for x in d.get("divs") or []:
+        for key, title in (("buy_by", "Последний день покупки под дивиденд"), ("registry", "Дата реестра")):
+            try:
+                dt = date.fromisoformat(x.get(key, ""))
+            except (ValueError, TypeError):
+                continue
+            add(dt, "div", f"{title}: {x.get('name', x.get('ticker', ''))}", "средняя", False, "https://smart-lab.ru/dividends/")
+    placements = d.get("placements") or []
+    if isinstance(placements, dict):
+        placements = placements.get("items") or []
+    for x in placements:
+        try:
+            dt = date.fromisoformat(x.get("book", ""))
+        except (ValueError, TypeError):
+            continue
+        add(dt, "book", f"Книга заявок: {x.get('name', '')}", "средняя", False, "https://bonds-lab.ru/placements")
+    unique = {(x['date'], x['type'], x['title']): x for x in rows}
+    if not current:
+        warnings.append("Плановый календарь требует повторной проверки официальных дат")
+    if end > max(CBR_MEETINGS) or end > max(FOMC_DECISIONS):
+        warnings.append("Горизонт официального календаря исчерпан; возможны пропуски")
+    if any(not x['verified'] for x in rows):
+        warnings.append("Неподтверждённые даты — ориентиры, не основание для сделки; проверьте источник")
+    return sorted(unique.values(), key=lambda x: (x['date'], x['importance'] != 'высокая', x['title'])), warnings
 
 
 # ---------------------------------------------------------------- блоки по дням
@@ -171,12 +197,35 @@ def ofz_auction_results(today):
     items = [x for x in items if "ОФЗ" in x[1] and not re.search(r"проведет|проведёт|предложит|объявил\w* аукцион", x[1], re.IGNORECASE)]
     if not items:
         return None
-    best = None
-    for src, t, link in items:
-        pl, dm = parse_auction_title(t)
-        if pl and (best is None or (dm and not best[1])):
-            best = (pl, dm, t, link, src)
-    return {"news": items[:3], "placed": best[0] if best else None, "demand": best[1] if best else None}
+    records = [parse_auction_result(t, link, src) for src, t, link in items]
+    best = next((r for r in records if r["placed"] is not None and r["demand"] is not None),
+                next((r for r in records if r["placed"] is not None), {}))
+    return {"news": items[:3], "placed": best.get("placed"), "demand": best.get("demand"), "records": records}
+
+
+def parse_auction_result(title, link, source):
+    """Keep each headline separate: no summation across syndicated reports or issues."""
+    placed, demand = parse_auction_title(title)
+    issues = sorted(set(re.findall(r"ОФЗ(?:[-– ](?:ПД|ПК|ИН|АД))?\s*[-–]?\s*(\d{5})\b", title, re.I)))
+    def yield_value(pattern):
+        match = re.search(pattern + r"[^\d%]{0,30}(\d{1,2}(?:[,.]\d+)?)\s*%", title, re.I)
+        return float(match[1].replace(",", ".")) if match else None
+    cutoff = yield_value(r"доходност\w*\s+отсеч\w*")
+    average = yield_value(r"средневзвешенн\w*\s+доходност\w*")
+    dt = re.search(r"\b(\d{2}\.\d{2}\.\d{4})\b", title)
+    auction_date = None
+    if dt:
+        try:
+            day, month, year = map(int, dt[1].split('.'))
+            auction_date = date(year, month, day).isoformat()
+        except ValueError:
+            pass
+    return dict(issues=issues, date=auction_date, placed=placed, demand=demand,
+                demand_to_placed=demand / placed if placed and demand is not None else None,
+                cutoff_yield=cutoff, average_yield=average, market_premium_bp=None,
+                source=source, url=link, title=title,
+                warnings=["Данные из заголовка; дата и условия требуют сверки с протоколом Минфина",
+                          "Премия к вторичному рынку не рассчитана: нет сопоставимой котировки на момент аукциона"])
 
 
 def weekly_inflation():
@@ -192,9 +241,7 @@ def daily_blocks(today, d, watch=None):
     """Блоки, зависящие от дня. Возвращает список (в порядке показа)."""
     out = []
     wd = today.weekday()
-    first_workday_of_week = wd == 0 or (wd > 0 and all(not is_workday(today - timedelta(days=i)) for i in range(1, wd + 1)))
-    if first_workday_of_week:
-        out.append(week_ahead(today, d, watch))
+    out.append(week_ahead(today, d, watch))
     out.append(meeting_preview(today, d))
     if wd == 2:
         out.append(ofz_auctions())
