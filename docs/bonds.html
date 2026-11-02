@@ -2071,6 +2071,20 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
   const DEPMODE = () => UI.scen==='dep' || !!UI.cdep;
   let CSEL = [];             // варианты, отмеченные для сравнения
   let MANUAL = false;        // «собрать вручную»: пустой портфель с поиском бумаг
+  // Клиентская подача поверх действующих профилей — без новых вопросов и без изменения риск-лимитов.
+  // «Поиск премии» — название идеи, не обещание избыточной доходности.
+  const SOLUTIONS=[
+    {title:'Регулярный доход', note:'Купонные поступления по графику выплат', profile:'mod'},
+    {title:'Фиксация доходности', note:'Фиксированные купоны и приоритет качества', profile:'cons'},
+    {title:'Поиск рыночной премии', note:'Доходный профиль с контролем кредитного риска', profile:'inc'}
+  ];
+  function solutionsHtml(){
+    return '<div class="tsub">Инвестиционные решения <span>— без дополнительных настроек</span></div>'
+      + '<div class="ccs">'+SOLUTIONS.map(x=>'<div class="cc"><div class="cc-h">'+x.title+'</div>'
+        +'<div class="cc-m"><span>'+x.note+'</span><span>Основа: '+esc(profName(x.profile))+'</span></div>'
+        +'<button class="btn ghost" data-solution="'+x.profile+'">Показать портфель →</button></div>').join('')+'</div>'
+      +'<div class="sub" style="margin:0 0 14px">Периодичность купонов и рыночная премия не гарантируются. Состав и выплаты проверяются в расчёте.</div>';
+  }
   function cmpCardsHtml(){
     const list=[...CMP_MAIN, ...(UI.cmore?CMP_MORE:[])], need=UI.scen==='inc', T=UI.cinc, withDep=DEPMODE();
     const got=list.map(k=>[k,CMP.res[k]]).filter(([,v])=>v&&v.A&&!v.A.empty);
@@ -2125,6 +2139,7 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       ${UI.scen==='inc'?`<div class="card incbox"><div class="fld big"><label>Сколько клиент хочет получать на руки в месяц, ₽</label><input id="c_inc" value="${Math.round(UI.cinc).toLocaleString('ru-RU')}" inputmode="decimal"></div></div>`:''}
       ${UI.scen!=='dep'?`<div class="exs"><button class="xchip ${UI.cdep?'on':''}" data-act="cdep">${UI.cdep?'✓ ':''}Сравнить с вкладом${UI.cdep?' '+nf(depNow(),2)+'%':''}</button>${cmpInfo}</div>`:''}
       <button class="card manualc critc" data-act="crit"><div><b>Собрать по критериям клиента</b><span>валюты, доля ОФЗ, рейтинг, лимиты на эмитента и отрасль — портфель соберётся сам и должен обогнать вклад; любую бумагу потом можно заменить</span></div><em>›</em></button>
+      ${UI.scen==='sum'?solutionsHtml():''}
       <div id="cmpcards">${cmpCardsHtml()}</div>
       <button class="card manualc" data-act="manual"><div><b>Или собрать вручную</b><span>выбираете бумаги сами: поиск по эмитенту или ISIN, лучшие по оценке, подсказка «есть лучше»; доходность, налоги и сравнение с вкладом считаются сразу</span></div><em>→</em></button>`;
   }
@@ -3164,6 +3179,13 @@ body.sb .ptabs{box-shadow:0 -10px 0 4px var(--bg);top:calc(58px + var(--tg-safe-
       if(TAB!=='port'){ TAB='port'; store.set('b_tab2',TAB); }
       await rebuild(snap.pos.length?`Собран «${profName(k)}»`:null, snap); return; }
     if(ev.target.closest('.ccsel')) return;           // галочка «сравнить» на карточке — не открывать портфель
+    const sol=ev.target.closest('[data-solution]'); if(sol){
+      const k=sol.dataset.solution; if(!PROFILES[k]) return;
+      UI.cmore=true; saveUI(); render(); await cmpRun();
+      const v=CMP.res[k]; if(!v||!v.pos||!v.pos.length){ toast('Портфель пока недоступен для заданных параметров'); return; }
+      const card=document.querySelector('[data-cmpopen="'+k+'"]'); if(card) card.scrollIntoView({behavior:'smooth',block:'center'});
+      return;
+    }
     const cmo=ev.target.closest('[data-cmpopen]'); if(cmo){ MANUAL=false; const k=cmo.dataset.cmpopen, v=CMP.res[k]; if(!v||!v.pos||!v.pos.length) return;
       remember(); P.profile=k; P.params=JSON.parse(JSON.stringify(PROFILES[k])); P.cur={RUB:100,CNY:0,USD:0,EUR:0}; P.pos=v.pos.map(p=>({id:p.id,w:p.w})); P.warns=v.warns||[]; P.carry={on:false,ltv:100,pos:[],warns:[]};
       TRACK=null; XRSNAP=null; TAB='port'; PV='main'; store.set('b_tab2',TAB); savePort(); pushRecent(); hap('ok'); window.scrollTo({top:0}); await recompute(); return; }
