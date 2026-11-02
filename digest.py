@@ -583,8 +583,7 @@ def build_blocks(d, now):
     head = (f"📊 <b>Подробно · {WEEKDAYS[now.weekday()].lower()}, {now.day} {MONTHS[now.month - 1]}</b>\n"
             f"<i>🟢 рост · 🔴 снижение за день · YTD — с начала года</i>")
     blocks = [head]
-    if not card_ok(d):
-        blocks.append(build_moves(d, today))
+    blocks.append(build_moves(d, today))
     blocks += events.daily_blocks(today, d, d.get("watch"))
     blocks.append(build_watch(d, today))
     if d.get("bondsweek"):
@@ -711,8 +710,7 @@ def public_sections(d, now):
     pub = dict(d)
     pub["watch"] = None
     details = list(events.daily_blocks(today, pub, None))
-    if not card_ok(d):
-        details.insert(0, build_moves(pub, today))
+    details.insert(0, build_moves(pub, today))
     if d.get("bondsweek"):
         bw = dict(d["bondsweek"])
         details.append(bondsweek.block(bw, today))

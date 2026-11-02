@@ -438,6 +438,10 @@ def moex_mmix():
     return out
 
 
+class NoCurveData(ValueError):
+    """Valid MOEX response without observations for the requested date."""
+
+
 def moex_zcyc(on_date=None):
     """Кривая ОФЗ: {'date': iso, 'points': {срок: %}}. on_date - на дату (берётся ближайшая до неё)."""
     q = f"&date={on_date:%Y-%m-%d}" if on_date else ""
@@ -446,7 +450,7 @@ def moex_zcyc(on_date=None):
     if on_date:
         rows = [r for r in rows if r["tradedate"] <= on_date.isoformat()]
     if not rows:
-        raise ValueError("G-curve: нет данных")
+        raise NoCurveData("G-curve: нет данных")
     last = max((r["tradedate"], r.get("tradetime") or "") for r in rows)
     pts = {float(r["period"]): float(r["value"]) for r in rows
            if (r["tradedate"], r.get("tradetime") or "") == last}
@@ -509,6 +513,9 @@ def moex_curve_analysis(today):
     for _ in range(32):
         try:
             z = moex_zcyc(target)
+        except NoCurveData:
+            target -= timedelta(days=1)
+            continue
         except Exception:  # source unavailable: not evidence of a non-trading day
             complete = False
             break

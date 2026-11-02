@@ -72,6 +72,18 @@ class MarketIntelligence(unittest.TestCase):
         self.assertFalse(a['changes'])
         self.assertTrue(a['warnings'])
 
+    def test_loader_skips_empty_dates_but_not_network_errors(self):
+        snapshots = [common.NoCurveData('weekend'), common.NoCurveData('weekend')] + history()
+        with patch.object(common, 'moex_zcyc', side_effect=snapshots) as get:
+            result = common.moex_curve_analysis(date(2026, 11, 4))
+        self.assertIn(5, result['changes'])
+        self.assertEqual(get.call_args_list[1].args[0], date(2026, 11, 3))
+        with patch.object(common, 'moex_zcyc', side_effect=common.NoCurveData('empty')) as get:
+            result = common.moex_curve_analysis(date(2026, 11, 2))
+        self.assertEqual(get.call_count, 32)
+        self.assertFalse(result['changes'])
+        self.assertTrue(result['warnings'])
+
     def test_auction_records_not_merged(self):
         title = ('Минфин разместил ОФЗ 26238 на 96,4 млрд руб. при спросе 133,4 млрд руб. '
                  '28.10.2026 доходность отсечения 14,25%, средневзвешенная доходность 14,20%')
