@@ -1,0 +1,36 @@
+name: Offline checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, experiment/quiet-alerts-ofz-2026]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DRY_RUN: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python syntax
+        run: python -m compileall -q .
+      - name: Python regressions
+        run: |
+          python -m unittest discover -s tests -p test_quiet_alerts.py -v
+          for test in tests/test_bonds_meta.py tests/test_fundamentals.py tests/test_parity.py tests/test_placements.py; do
+            PYTHONPATH=. python "$test"
+          done
+      - name: JavaScript regressions
+        run: node --test tests/bondmath.test.js tests/bondscore.test.js
+      - name: Alerts demo without Telegram
+        run: python alerts.py --demo

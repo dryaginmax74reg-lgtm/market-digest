@@ -446,10 +446,15 @@ def rating_day(d, today):
 
 
 def _short_issuer(name):
-    import re as _re
-    n = _re.sub(r"^(Публичное|Акционерное|Общество)[^«\"]*", "", name or "").strip(" «»\"")
-    n = _re.sub(r"\s*\((ПАО|АО|ООО|МКПАО)\)\s*$", "", n)
-    return n[:40] or name
+    """Сохраняем смысловое название, не обрезая юридическую форму вместо имени."""
+    import re
+    name = (name or "").strip()
+    short = re.sub(r'^(?:Международная компания публичное акционерное общество|Общество с ограниченной ответственностью|Публичное акционерное общество|Акционерное общество|Открытое акционерное общество|Закрытое акционерное общество|МКПАО|МКАО|ООО|ПАО|АО|ОАО|ЗАО)\s+', '', name, flags=re.I).strip()
+    short = re.sub(r'\s*\((?:ПАО|АО|ООО|МКПАО|МКАО)\)\s*$', '', short).strip()
+    # Strip only enclosing quotes, retaining text outside internal quotes.
+    if len(short) > 1 and (short[0], short[-1]) in (("«", "»"), ('"', '"'), ("“", "”")):
+        short = short[1:-1].strip()
+    return short or name
 
 
 def build_ratings(d, today):
@@ -863,3 +868,4 @@ def deliver_card(path, cap, kb=None):
 
 if __name__ == "__main__":
     main()
+

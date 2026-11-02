@@ -16,6 +16,7 @@ import sys
 from datetime import datetime
 
 import events
+from digest import _short_issuer
 from common import (MONTHS, MSK, SHARE_MIN_TURNOVER, dividends_calendar, deliver, e, fnum, fpct, log, moex_cny_tom, moex_index,
                     next_meeting, pack, pages_url, parallel, pct, yahoo_quote)
 
@@ -86,7 +87,7 @@ def caption(d, now):
     L = [f"🌆 <b>Итоги дня · {now.day} {MONTHS[now.month - 1]}</b>"]
     rt = d.get("RATINGS") or {}
     if rt:
-        L.append("🧾 Рейтинги ↓: " + ", ".join(f"{e(g['name'][:30])} {e(g['from'])}→{e(g['to'])}" for g in list(rt.values())[:4]))
+        L.append("🧾 Рейтинги ↓: " + ", ".join(f"{e(_short_issuer(g['name']))} {e(g['from'])}→{e(g['to'])}" for g in list(rt.values())[:4]))
     a = d.get("AUCT")
     if a and a.get("placed"):
         L.append(f"📄 Аукционы ОФЗ: {fnum(a['placed'], 1)} млрд ₽" + (f" при спросе {fnum(a['demand'], 1)} млрд" if a.get("demand") else ""))
@@ -137,7 +138,7 @@ def build(d, now):
     rt = d.get("RATINGS") or {}
     if rt:
         L.append("\n🧾 <b>Рейтинги — понижения за день</b>: " + ", ".join(
-            f"{e(g['name'][:40])} {e(g['from'])}→{e(g['to'])}" for g in list(rt.values())[:6]))
+            f"{e(_short_issuer(g['name']))} {e(g['from'])}→{e(g['to'])}" for g in list(rt.values())[:6]))
     a = d.get("AUCT")
     if a and a.get("placed"):
         L.append(f"\n📄 <b>Аукционы ОФЗ</b>: размещено {fnum(a['placed'], 1)} млрд ₽"
