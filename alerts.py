@@ -12,6 +12,7 @@ python alerts.py --demo     демо-данные, печать в консол�
 import json
 import math
 import os
+from interpretation import explain
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -378,7 +379,7 @@ def main():
     for key, ch, line in moves(d):
         thr = MOVE_THRESHOLDS.get(key)
         if thr is not None and ch is not None and abs(ch) >= thr and fresh(key, ch, thr):
-            items.append((False, f"{'🟢' if ch > 0 else '🔴'} {e(line)}", False))
+            items.append((False, explain(f"{'🟢' if ch > 0 else '🔴'} {e(line)}", key, ch), False))
     cb = d.get("CBRT")
     if cb:
         for c, (v1, v0) in cb["rates"].items():
@@ -388,6 +389,7 @@ def main():
                 continue
             state["titles"].append(key)
             items.append((False, f"💱 Курс ЦБ на {e(cb['date'][:5])}: {c} {fnum(v1, 4 if c == 'CNY' else 2)} ₽ ({e(fpct(ch, 2))})", False))
+    items = [(u, explain(line, "CBRT") if line.startswith("💱") else line, wl) for u, line, wl in items]
     ofz_items = []
     for strength, sid, line, signals in ofz_candidates(d.get("BONDS")):
         pending = [(key, change, threshold) for key, change, threshold in signals
@@ -399,7 +401,7 @@ def main():
     for line, signals in ofz_items[:ASSET_LINES_MAX]:
         for key, change, threshold in signals:
             state["levels"][key] = abs(change)
-        items.append((False, line, False))
+        items.append((False, explain(line, "OFZ"), False))
     if len(ofz_items) > ASSET_LINES_MAX:
         items.append((False, f"… и ещё {len(ofz_items)-ASSET_LINES_MAX} выпусков ОФЗ", False))
     urgent = [(ln, wl) for u, ln, wl in items if u]

@@ -17,11 +17,12 @@ from datetime import date, datetime, timedelta
 import bondsweek
 import events
 import insights
+import interpretation
 
 from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
                     cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, coingecko_btc,
                     ddmm, deliver, market_view, dividends_calendar, e, fnum, fpct, fpp, header, last_on_or_before, log,
-                    moex_cny_tom, moex_imoex_constituents, moex_index, moex_index_hist, moex_mmix, moex_zcyc, moex_zcyc_back,
+                    moex_cny_tom, moex_imoex_constituents, moex_index, moex_index_hist, moex_mmix, moex_zcyc, moex_zcyc_back, moex_curve_analysis,
                     news, news_lines, next_meeting, pack, pages_url, parallel, pct, pcts, table, yahoo_quote)
 
 ZCYC_POINTS = (1, 2, 5, 10)
@@ -58,6 +59,7 @@ def collect(today):
         "mmix": (moex_mmix,),
         "rusfarcny0": (moex_index_hist, "RUSFARCNY", y0 - timedelta(days=14), y0),
         "zcyc": (moex_zcyc,),
+        "curve_analysis": (moex_curve_analysis, today),
         "zcyc0": (moex_zcyc_back, y0),
         "zcyc1": (moex_zcyc_back, prev_workday(today)),
         "RGBITR": (moex_index, "RGBITR"),
@@ -143,6 +145,10 @@ def demo_data():
         "dep": [("2025-12-21", 14.9), ("2026-09-21", 13.055), ("2026-10-01", 13.055)],
         "mmix": {"RUSFAR": 13.83, "RUSFARCNY": 0.43, "date": "2026-10-14"},
         "rusfarcny0": [("2025-12-29", 3.1, None, None)],
+        "curve_analysis": __import__("common").curve_analysis([
+            {"date": dt, "points": {1: 14.1+i*.03, 2: 14.3+i*.04, 5: 14.6+i*.05, 10: 14.9+i*.06}}
+            for i, dt in enumerate(("2026-10-14", "2026-10-13", "2026-10-12", "2026-10-09", "2026-10-08", "2026-10-07"))
+        ], date(2026, 10, 14)),
         "zcyc": {"date": "2026-10-14", "points": {0.5: 12.9, 1.0: 13.1, 2.0: 13.9, 3.0: 14.2, 5.0: 14.6, 10.0: 14.4}},
         "zcyc0": {"date": "2025-12-30", "points": {1.0: 13.14, 2.0: 13.92, 5.0: 14.58, 10.0: 14.44}},
         "zcyc1": {"date": "2026-10-13", "points": {0.5: 13.0, 1.0: 13.25, 2.0: 14.0, 3.0: 14.3, 5.0: 14.65, 10.0: 14.42}},
@@ -271,7 +277,15 @@ def build_moves(d, today):
     items = strong_moves(d, today)
     if not items:
         return ""
-    return header("⚡", "СИЛЬНЫЕ ДВИЖЕНИЯ") + "\n" + "\n".join(f"{i} {e(t)}" for i, t in items)
+    def meaning(text):
+        for prefix, kind in (("USD/", "USD"), ("EUR/", "EUR"), ("CNY/", "CNY"),
+                             ("ОФЗ", "OFZ"), ("Brent", "BRENT"), ("Золото", "GOLD"),
+                             ("BTC", "BTC"), ("Ключевая", "KEY")):
+            if text.startswith(prefix):
+                return kind
+        return "OTHER"
+    return header("⚡", "СИЛЬНЫЕ ДВИЖЕНИЯ") + "\n" + "\n".join(
+        interpretation.explain(f"{i} {e(t)}", meaning(t)) for i, t in items)
 
 
 def build_fx(d):
@@ -542,7 +556,19 @@ def build_auctions(d):
     sub = None
     if a.get("placed"):
         sub = f"размещено {fnum(a['placed'], 1)} млрд ₽" + (f" при спросе {fnum(a['demand'], 1)} млрд (×{fnum(a['demand'] / a['placed'], 1)})" if a.get("demand") else "")
-    return header("📄", "АУКЦИОНЫ ОФЗ: ИТОГИ", sub) + "\n" + "\n".join(news_lines(a["news"]))
+    details = []
+    for r in a.get("records") or []:
+        fields = ["ОФЗ " + ", ".join(r["issues"]) if r["issues"] else "Выпуск не указан",
+                  "дата: " + (r["date"] or "не подтверждена")]
+        for key, label in (("cutoff_yield", "доходность отсечения"), ("average_yield", "средневзвешенная доходность")):
+            if r[key] is not None:
+                fields.append(f"{label}: {fnum(r[key])}%")
+        if r["demand_to_placed"] is not None:
+            fields.append(f"спрос / размещение: ×{fnum(r['demand_to_placed'])} (не bid-to-cover)")
+        details.append(e(" · ".join(fields)))
+    details.append("⚠️ Заголовки СМИ; сверить с протоколом Минфина. Премия к рынку: н/д.")
+    details.append(interpretation.explain("Опубликованы сообщения об итогах аукциона.", "OFZ"))
+    return header("📄", "АУКЦИОНЫ ОФЗ: ИТОГИ", sub) + "\n" + "\n".join(news_lines(a["news"]) + details)
 
 
 def build_news(d):
@@ -557,13 +583,12 @@ def build_blocks(d, now):
     head = (f"📊 <b>Подробно · {WEEKDAYS[now.weekday()].lower()}, {now.day} {MONTHS[now.month - 1]}</b>\n"
             f"<i>🟢 рост · 🔴 снижение за день · YTD — с начала года</i>")
     blocks = [head]
-    if not card_ok(d):
-        blocks.append(build_moves(d, today))
+    blocks.append(build_moves(d, today))
     blocks += events.daily_blocks(today, d, d.get("watch"))
     blocks.append(build_watch(d, today))
     if d.get("bondsweek"):
         blocks.append(bondsweek.block(d["bondsweek"], today))
-    return blocks + [build_since(d), build_ratings(d, today), build_auctions(d), build_fx(d), build_rates(d, today), build_yields(d, today),
+    return blocks + [build_since(d), build_ratings(d, today), build_auctions(d), build_fx(d), build_rates(d, today), interpretation.curve_block(d.get("curve_analysis")), build_yields(d, today),
                      build_markets(d), build_events(d, today), build_news(d)]
 
 
@@ -669,28 +694,13 @@ def placements_soon(pl, today, days=14):
 
 def week_strip(d, today, days=7):
     """Полоса недели для дашборда: по дням — события с типом (cbr, div, book, auc, macro). Только публичное."""
-    from common import CBR_MEETINGS
-    out = []
-    pl = (placements_soon(d.get("placements"), today, days + 1) or {}).get("items") or []
-    for i in range(days):
-        dd = today + timedelta(days=i)
-        iso = dd.isoformat()
-        it = []
-        if dd in CBR_MEETINGS:
-            it.append({"t": "cbr", "x": "Заседание ЦБ по ключевой ставке, решение в 13:30"})
-        for x in d.get("divs") or []:
-            if x.get("buy_by") == iso:
-                it.append({"t": "div", "x": f"Последний день купить {x['name']} под дивиденд {x['div']} ₽ ({x.get('yld', '')})"})
-        for p in pl:
-            if p.get("book") == iso:
-                it.append({"t": "book", "x": f"Книга заявок: {p['name']}" + (f" · {p['coupon']}" if p.get("coupon") and "позднее" not in p["coupon"].lower() else "")})
-        if dd.weekday() == 2 and events.is_workday(dd):
-            it.append({"t": "auc", "x": "Аукционы ОФЗ Минфина (если объявлены)"})
-            it.append({"t": "macro", "x": "Недельная инфляция Росстата (вечером)"})
-        if dd.day in (1, 11, 21):
-            it.append({"t": "macro", "x": "ЦБ: новая ставка по вкладам топ-10 банков"})
-        out.append({"d": iso, "work": events.is_workday(dd), "items": it})
-    return out
+    rows, warnings = events.calendar_events(today, d, days=days)
+    return [{"d": (today + timedelta(days=i)).isoformat(),
+             "work": events.is_workday(today + timedelta(days=i)), "warnings": warnings,
+             "items": [{"t": x["type"], "x": x["importance"] + " · " + x["title"] + (" ⚠️ дата не подтверждена" if not x["verified"] else ""), "importance": x["importance"],
+                        "verified": x["verified"], "source": x["source"], "checked": x["checked"]}
+                       for x in rows if x["date"] == (today + timedelta(days=i)).isoformat()]}
+            for i in range(days)]
 
 
 def public_sections(d, now):
@@ -700,13 +710,12 @@ def public_sections(d, now):
     pub = dict(d)
     pub["watch"] = None
     details = list(events.daily_blocks(today, pub, None))
-    if not card_ok(d):
-        details.insert(0, build_moves(pub, today))
+    details.insert(0, build_moves(pub, today))
     if d.get("bondsweek"):
         bw = dict(d["bondsweek"])
         details.append(bondsweek.block(bw, today))
     details.insert(0, build_since(pub))
-    details += [build_ratings(pub, today), build_auctions(pub), build_fx(pub), build_rates(pub, today), build_yields(pub, today), build_markets(pub)]
+    details += [build_ratings(pub, today), build_auctions(pub), build_fx(pub), build_rates(pub, today), interpretation.curve_block(pub.get("curve_analysis")), build_yields(pub, today), build_markets(pub)]
     return {
         "date": today.isoformat(), "updated": now.strftime("%Y-%m-%d %H:%M"),
         "details": [b for b in details if b],
@@ -716,6 +725,8 @@ def public_sections(d, now):
         "answers": build_answers(pub),
         "week": week_strip(pub, today),
         "story": d.get("_story"),
+        "curve_analysis": d.get("curve_analysis"),
+        "auctions": d.get("auctions"),
     }
 
 
