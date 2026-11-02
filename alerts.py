@@ -4,10 +4,7 @@
 усилилось ещё на половину порога (например, IMOEX −1,5% -> алерт, −2,3% -> ещё алерт).
 Состояние за день хранится в alerts_state.json (workflow коммитит его в репозиторий).
 
-Плюс отдельные бумаги: все акции TQBR и все облигации Мосбиржи, если цена изменилась на ASSET_MOVE_PCT (5%)
-и больше к прошлому закрытию. Шум отсекается: нужен оборот за день (и число сделок у облигаций), а средневзвешенная
-цена дня должна сдвинуться в ту же сторону хотя бы на половину порога. В день отсечки дивидендов акция падает
-на размер дивиденда — это не алерт: гэп вычитается (дивиденды — календарь smart-lab).
+Отдельные выпуски: только ОФЗ, пороги цены 1% и доходности 0,3 п.п. с фильтром ликвидности.
 
 python alerts.py            боевой
 python alerts.py --demo     демо-данные, печать в консоль
@@ -71,7 +68,7 @@ def board_rows(market, board):
     """Бумаги режима торгов с ценой прошлого закрытия и данными дня: [dict]."""
     j = iss_json(f"engines/stock/markets/{market}/boards/{board}/securities.json?iss.meta=off"
                  "&iss.only=securities,marketdata&securities.columns=SECID,SHORTNAME,PREVPRICE"
-                 "&marketdata.columns=SECID,LAST,WAPRICE,VALTODAY,NUMTRADES")
+                 "&marketdata.columns=SECID,LAST,WAPRICE,VALTODAY,NUMTRADES,YIELD")
     sec = {r[0]: dict(zip(j["securities"]["columns"], r)) for r in j["securities"]["data"]}
     out = []
     for row in j["marketdata"]["data"]:
@@ -83,8 +80,7 @@ def board_rows(market, board):
 
 
 def bond_rows():
-    got = parallel({b: (board_rows, "bonds", b) for b in BOND_BOARDS})
-    rows = [r for b in BOND_BOARDS for r in (got.get(b) or [])]
+    rows = board_rows("bonds", "TQOB")
     if not rows:
         raise ValueError("облигации: Мосбиржа не ответила")
     return rows
@@ -133,11 +129,10 @@ def rating_moves(now, force=False):
 def collect():
     now = datetime.now(MSK)
     return parallel({
-        "CBRT": (cbr_tomorrow, now), "RATINGS": (rating_moves, now),
-        "IMOEX": (moex_index, "IMOEX"), "RGBITR": (moex_index, "RGBITR"), "RUCBTRNS": (moex_index, "RUCBTRNS"),
+        "CBRT": (cbr_tomorrow, now),
+        "RGBITR": (moex_index, "RGBITR"),
         "CNY": (moex_cny_tom,), "BRENT": (yahoo_quote, "BZ=F"), "GOLD": (yahoo_quote, "GC=F"),
-        "BTC": (coingecko_btc,), "KEYNEWS": (cbr_keyrate_news,),
-        "SHARES": (board_rows, "shares", "TQBR"), "BONDS": (bond_rows,), "DIVS": (dividends_calendar,),
+        "BTC": (coingecko_btc,), "BONDS": (bond_rows,),
     })
 
 
@@ -291,7 +286,7 @@ def demo_assets():
 def moves(d):
     """[(ключ, изменение_%, текст)]."""
     out = []
-    for sid, label in (("IMOEX", "IMOEX"), ("RGBITR", "ОФЗ (RGBI TR)"), ("RUCBTRNS", "Корп. облигации TR")):
+    for sid, label in (("RGBITR", "ОФЗ (RGBI TR)"),):
         r = d.get(sid)
         if r and r.get("chg") is not None:
             out.append((sid, r["chg"], f"{label} {fpct(r['chg'])} за день → {fnum(r['val'])}"))
@@ -328,59 +323,51 @@ def main():
         state["levels"][key] = round(abs(ch), 2)
         return True
 
-    # всё, что случилось: (срочно?, строка). Срочное — отдельным сообщением со звуком; всё — в живое сообщение дня.
-    from bondscore import rscore
-    watch = events.load_watchlist()
+    # Только макроактивы и все ликвидные выпуски ОФЗ.
     items = []
-    for key, ch, text in moves(d):
+    for key, ch, line in moves(d):
         thr = MOVE_THRESHOLDS.get(key)
-        if thr is None or ch is None or abs(ch) < thr:
-            continue
-        if fresh(key, ch, thr):
-            items.append((abs(ch) >= 2 * thr, f"{'🟢' if ch > 0 else '🔴'} {e(text)}", False))
-    if is_demo:
-        sh, bd, gaps = demo_assets()
-    else:
-        sh, bd = d.get("SHARES"), d.get("BONDS")
-        gaps = safe("DIVGAPS", div_gaps, d.get("DIVS"), now.date()) or {}
-    meta_b = (load_meta().get("b") or {})
-    for kind, got_all, thr in (("S", safe("SHARE_MOVES", share_moves, sh, gaps) or [], PCT["SHARE"]),
-                               ("B", safe("BOND_MOVES", bond_moves, bd, load_meta()) or [], PCT["BOND"])):
-        got = sorted([x for x in got_all if fresh(x[0], x[1], thr)], key=lambda x: -abs(x[1]))
-        for i, (key, ch, t) in enumerate(got):
-            if i >= ASSET_LINES_MAX:
-                items.append((False, f"… и ещё {len(got) - ASSET_LINES_MAX} {'акций' if kind == 'S' else 'облигаций'} ±{fnum(thr, 0)}%", False))
-                break
-            rat = ((meta_b.get(key[2:]) or [""])[0] or "") if kind == "B" else ""
-            wl = events.is_watched(t, watch)
-            urgent = wl or abs(ch) >= 2 * thr or (kind == "B" and ch < 0 and rat and rscore(rat) <= rscore("A-"))
-            items.append((urgent, f"{'🟢' if ch > 0 else '🔴'} {e(t)}", wl))
+        if thr is not None and ch is not None and abs(ch) >= thr and fresh(key, ch, thr):
+            items.append((False, f"{'🟢' if ch > 0 else '🔴'} {e(line)}", False))
     cb = d.get("CBRT")
     if cb:
         for c, (v1, v0) in cb["rates"].items():
             ch = pct(v1, v0) if v1 and v0 else None
-            if ch is None or abs(ch) < PCT["CBRT"] or ("CBRT:" + cb["date"] + c) in state["titles"]:
+            key = "CBRT:" + cb["date"] + c
+            if ch is None or abs(ch) < PCT["CBRT"] or key in state["titles"]:
                 continue
-            state["titles"].append("CBRT:" + cb["date"] + c)
-            items.append((abs(ch) >= 2 * PCT["CBRT"],
-                          f"{'🟢' if ch > 0 else '🔴'} Курс ЦБ на {e(cb['date'][:5])}: {c} {fnum(v1, 4 if c == 'CNY' else 2)} ₽ ({e(fpct(ch, 2))} к сегодняшнему)", False))
-    rt = d.get("RATINGS") or {}
-    for k, g in sorted(rt.items(), key=lambda kv: -rscore(kv[1]["to"])):
-        key = f"RT:{k}:{g['to']}"
-        if key in state["titles"]:
+            state["titles"].append(key)
+            items.append((False, f"💱 Курс ЦБ на {e(cb['date'][:5])}: {c} {fnum(v1, 4 if c == 'CNY' else 2)} ₽ ({e(fpct(ch, 2))})", False))
+    baseline = state.setdefault("ofz_yield_baseline", {})
+    ofz_items = []
+    for r in d.get("BONDS") or []:
+        if r.get("BOARD") != "TQOB":
             continue
-        state["titles"].append(key)
-        dflt = g["to"] == "D" or g["to"].startswith("C")
-        wl = events.is_watched(g["name"], watch)
-        items.append((dflt or wl or rscore(g["from"]) <= rscore("BBB-"),
-                      f"{'🔴' if dflt else '⬇️'} Рейтинг {e(g['name'][:60])}: {e(g['from'])} → {e(g['to'])}"
-                      + (f" · {g['n']} вып." if g["n"] > 1 else ""), wl))
-    for title, link in d.get("KEYNEWS") or []:
-        if title in state["titles"]:
+        sid = r.get("SECID")
+        if not sid or (r.get("VALTODAY") or 0) < BOND_MIN_TURNOVER or (r.get("NUMTRADES") or 0) < BOND_MIN_TRADES:
             continue
-        state["titles"].append(title)
-        items.append((True, f'🏦 <a href="{e(link)}">{e(title)}</a>', False))
-
+        y = _num(r.get("YIELD"))
+        if y is not None and 0 < y < 100:
+            baseline.setdefault(sid, y)
+        mv = _move(r, BOND_MIN_TURNOVER, BOND_MIN_TRADES)
+        ch, wch = mv if mv else (None, None)
+        price_ok = ch is not None and abs(ch) >= 1.0 and _confirmed(ch, wch, 0, 1.0)
+        dy = y - baseline[sid] if y is not None and sid in baseline else None
+        yield_ok = dy is not None and abs(dy) >= 0.3 and ch is not None and wch is not None and ch * wch > 0
+        if not price_ok and not yield_ok:
+            continue
+        strength = max(abs(ch or 0), abs(dy or 0) / 0.3)
+        if not fresh("OFZ:" + sid, strength, 1.0):
+            continue
+        detail = f"цена {fpct(ch, 2)} → {fnum(r['LAST'], 2)}% ном."
+        if y is not None:
+            detail += f" · доходность {fnum(y, 2)}%"
+            if dy is not None:
+                detail += f" ({dy:+.2f} п.п. с первого замера)"
+        ofz_items.append((False, f"{'📈' if ch > 0 else '📉'} <b>{e(r.get('SHORTNAME') or sid)}</b> · {detail}", False))
+    items += ofz_items[:ASSET_LINES_MAX]
+    if len(ofz_items) > ASSET_LINES_MAX:
+        items.append((False, f"… и ещё {len(ofz_items)-ASSET_LINES_MAX} выпусков ОФЗ", False))
     urgent = [(ln, wl) for u, ln, wl in items if u]
     if urgent:
         deliver(pack([f"🚨 <b>СРОЧНО · {now:%H:%M} МСК</b>\n" + "\n".join(("⭐ " if wl else "") + ln for ln, wl in urgent)]))
