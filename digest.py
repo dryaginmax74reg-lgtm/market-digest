@@ -446,10 +446,15 @@ def rating_day(d, today):
 
 
 def _short_issuer(name):
-    import re as _re
-    n = _re.sub(r"^(Публичное|Акционерное|Общество)[^«\"]*", "", name or "").strip(" «»\"")
-    n = _re.sub(r"\s*\((ПАО|АО|ООО|МКПАО)\)\s*$", "", n)
-    return n[:40] or name
+    """Сохраняем смысловое название, не обрезая юридическую форму вместо имени."""
+    import re
+    name = (name or "").strip()
+    quoted = re.search(r'[«"]([^»"]+)[»"]', name)
+    if quoted:
+        return quoted.group(1).strip()
+    short = re.sub(r'^(?:Общество с ограниченной ответственностью|Публичное акционерное общество|Акционерное общество|Открытое акционерное общество|Закрытое акционерное общество|ООО|ПАО|АО|ОАО|ЗАО)\\s+', '', name, flags=re.I).strip()
+    short = re.sub(r'\\s*\\((?:ПАО|АО|ООО|МКПАО)\\)\\s*$', '', short).strip()
+    return short or name
 
 
 def build_ratings(d, today):
