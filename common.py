@@ -13,6 +13,7 @@ import urllib.request
 import uuid
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
+from threading import RLock
 from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from zoneinfo import ZoneInfo
@@ -382,8 +383,8 @@ def last_on_or_before(series, iso):
 
 # ================================================================ Мосбиржа (ISS)
 
-def iss_json(path):
-    return json.loads(http_get(ISS + path))
+def iss_json(path, **request_options):
+    return json.loads(http_get(ISS + path, **request_options))
 
 
 def moex_index(secid):
@@ -442,19 +443,94 @@ class NoCurveData(ValueError):
     """Valid MOEX response without observations for the requested date."""
 
 
+_CURVE_LOCK = RLock()
+_CURVE_MEMORY = {}
+
+
+def read_json(path, default=None):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {} if default is None else default
+
+
+def atomic_json(path, value):
+    """Replace cached public data only after a successful complete write."""
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    temp = str(path) + ".tmp"
+    with open(temp, "w", encoding="utf-8") as f:
+        json.dump(value, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(temp, path)
+
+
+def _valid_curve(z, target):
+    try:
+        dt = date.fromisoformat(z["date"])
+        pts = {float(k): float(v) for k, v in z["points"].items()}
+        if dt > target or not pts or any(not math.isfinite(v) or not 1 <= v <= 40 for v in pts.values()):
+            return None
+        return {"date": dt.isoformat(), "points": pts}
+    except (TypeError, ValueError, KeyError, AttributeError):
+        return None
+
+
 def moex_zcyc(on_date=None):
-    """Кривая ОФЗ: {'date': iso, 'points': {срок: %}}. on_date - на дату (берётся ближайшая до неё)."""
-    q = f"&date={on_date:%Y-%m-%d}" if on_date else ""
-    blk = iss_json("engines/stock/zcyc.json?iss.meta=off&iss.only=yearyields" + q)["yearyields"]
-    rows = [dict(zip(blk["columns"], r)) for r in blk["data"]]
-    if on_date:
-        rows = [r for r in rows if r["tradedate"] <= on_date.isoformat()]
-    if not rows:
-        raise NoCurveData("G-curve: нет данных")
-    last = max((r["tradedate"], r.get("tradetime") or "") for r in rows)
-    pts = {float(r["period"]): float(r["value"]) for r in rows
-           if (r["tradedate"], r.get("tradetime") or "") == last}
-    return {"date": last[0], "points": pts}
+    """Current snapshot once per process; closed historical queries persist for seven days.
+
+    Intraday snapshots are never persisted as historical closes. Cache keys retain the
+    requested date as well as the actual observation date, including empty weekends.
+    """
+    today = datetime.now(MSK).date()
+    target = on_date or today
+    key = target.isoformat()
+    path = os.environ.get("CURVE_CACHE_PATH", os.path.join(os.path.dirname(__file__), "data", "curve_history.json"))
+    with _CURVE_LOCK:
+        memory_key = (path, key)
+        if memory_key in _CURVE_MEMORY:
+            result = _CURVE_MEMORY[memory_key]
+            if result is None:
+                raise NoCurveData("G-curve: нет данных")
+            return result
+        cache = read_json(path)
+        if not isinstance(cache, dict) or cache.get("schema") != 1 or not isinstance(cache.get("queries"), dict):
+            cache = {"schema": 1, "queries": {}}
+        entry = cache["queries"].get(key)
+        if target < today and isinstance(entry, dict):
+            try:
+                age = (today - date.fromisoformat(entry["checked"])).days
+            except (KeyError, TypeError, ValueError):
+                age = 999
+            if 0 <= age <= 7:
+                result = _valid_curve(entry.get("curve"), target)
+                if result or entry.get("empty") is True:
+                    _CURVE_MEMORY[memory_key] = result
+                    if result is None:
+                        raise NoCurveData("G-curve: нет данных")
+                    return result
+        q = f"&date={target:%Y-%m-%d}"
+        blk = iss_json("engines/stock/zcyc.json?iss.meta=off&iss.only=yearyields" + q, retries=1, timeout=8)["yearyields"]
+        rows = [dict(zip(blk["columns"], r)) for r in blk["data"]]
+        rows = [r for r in rows if r["tradedate"] <= key]
+        result = None
+        if rows:
+            last = max((r["tradedate"], r.get("tradetime") or "") for r in rows)
+            points = {r["period"]: r["value"] for r in rows
+                      if (r["tradedate"], r.get("tradetime") or "") == last and r.get("value") is not None}
+            result = _valid_curve({"date": last[0], "points": points}, target)
+            if result is None:
+                raise ValueError("G-curve: некорректные значения источника")
+        _CURVE_MEMORY[memory_key] = result
+        if target < today:
+            cache["queries"][key] = {"checked": today.isoformat(), "curve": result, "empty": result is None}
+            cache["queries"] = dict(sorted(cache["queries"].items())[-400:])
+            try:
+                atomic_json(path, cache)
+            except OSError as ex:
+                log(f"[warn] кэш кривой: {ex}")
+        if result is None:
+            raise NoCurveData("G-curve: нет данных")
+        return result
 
 
 def moex_zcyc_back(d, max_back=8):

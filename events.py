@@ -68,18 +68,27 @@ FED_CALENDAR = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
 def calendar_events(today, d, watch=None, days=7):
     """One calendar for Telegram and dashboard. Recurrences are explicitly unverified."""
     end = today + timedelta(days=days - 1)
-    rows, warnings = [], []
+    official = d.get("official_events") or {}
+    rows, warnings = [], list(official.get("warnings") or [])
+    sources = official.get("calendar_sources") or []
     current = 0 <= (today - CALENDAR_CHECKED).days <= 90
     def add(dt, kind, title, importance, verified, source):
         if today <= dt <= end:
             rows.append(dict(date=dt.isoformat(), type=kind, title=title, importance=importance,
                              verified=verified, source=source, checked=CALENDAR_CHECKED.isoformat()))
-    for dt in CBR_MEETINGS:
+    for dt in ([] if "cbr" in sources else CBR_MEETINGS):
         add(dt, "cbr", "Решение ЦБ по ключевой ставке, ориентир 13:30 МСК", "высокая", current, CBR_CALENDAR)
-    for dt in FOMC_DECISIONS:
+    for dt in ([] if "fed" in sources else FOMC_DECISIONS):
         add(dt, "macro", "Решение FOMC; время уточнить в календаре ФРС", "высокая", current, FED_CALENDAR)
-    for dt in (date(2026, 11, 5), date(2026, 12, 30)):
+    for dt in (() if "cbr" in sources else (date(2026, 11, 5), date(2026, 12, 30))):
         add(dt, "macro", "Резюме обсуждения ключевой ставки ЦБ", "средняя", current, CBR_CALENDAR)
+    for row in official.get("calendar") or []:
+        try:
+            dt = date.fromisoformat(row["date"])
+            if today <= dt <= end:
+                rows.append(dict(row, type="macro" if row["type"] in ("fomc", "cbr_summary") else row["type"]))
+        except (ValueError, KeyError, TypeError):
+            continue
     for i in range(days):
         dt = today + timedelta(days=i)
         if dt.weekday() == 2:
@@ -104,9 +113,11 @@ def calendar_events(today, d, watch=None, days=7):
             continue
         add(dt, "book", f"Книга заявок: {x.get('name', '')}", "средняя", False, "https://bonds-lab.ru/placements")
     unique = {(x['date'], x['type'], x['title']): x for x in rows}
-    if not current:
+    if not current and len(sources) < 2:
         warnings.append("Плановый календарь требует повторной проверки официальных дат")
-    if end > max(CBR_MEETINGS) or end > max(FOMC_DECISIONS):
+    cbr_dates = [date.fromisoformat(x['date']) for x in official.get('calendar') or [] if x.get('type') == 'cbr'] or CBR_MEETINGS
+    fed_dates = [date.fromisoformat(x['date']) for x in official.get('calendar') or [] if x.get('type') == 'fomc'] or FOMC_DECISIONS
+    if end > max(cbr_dates) or end > max(fed_dates):
         warnings.append("Горизонт официального календаря исчерпан; возможны пропуски")
     if any(not x['verified'] for x in rows):
         warnings.append("Неподтверждённые даты — ориентиры, не основание для сделки; проверьте источник")
@@ -220,12 +231,38 @@ def parse_auction_result(title, link, source):
             auction_date = date(year, month, day).isoformat()
         except ValueError:
             pass
+    if len(issues) > 1:
+        cutoff = average = None
+    missing = [label for label, value in (("дата", auction_date), ("выпуск", issues or None),
+                ("размещено", placed), ("спрос", demand), ("доходность отсечения", cutoff)) if value is None]
     return dict(issues=issues, date=auction_date, placed=placed, demand=demand,
+                verified=False, source_kind="media", missing_fields=missing,
                 demand_to_placed=demand / placed if placed and demand is not None else None,
                 cutoff_yield=cutoff, average_yield=average, market_premium_bp=None,
                 source=source, url=link, title=title,
                 warnings=["Данные из заголовка; дата и условия требуют сверки с протоколом Минфина",
                           "Премия к вторичному рынку не рассчитана: нет сопоставимой котировки на момент аукциона"])
+
+
+def combine_auction_results(media, official, today):
+    records = []
+    for row in official or []:
+        try:
+            age = (today - date.fromisoformat(row["date"])).days
+            if 0 <= age <= 3 and row.get("verified"):
+                records.append(row)
+        except (ValueError, TypeError, KeyError):
+            continue
+    confirmed = {(r["date"], tuple(r["issues"])) for r in records}
+    for row in (media or {}).get("records") or []:
+        if (row.get("date"), tuple(row.get("issues") or [])) not in confirmed:
+            records.append(row)
+    if not records:
+        return media
+    best = next((r for r in records if r.get("placed") is not None), {})
+    news_items = [(r.get("source", "Минфин"), r.get("title", "Итоги аукциона"), r["url"])
+                  for r in records if r.get("url")]
+    return dict(records=records, news=news_items[:3], placed=best.get("placed"), demand=best.get("demand"))
 
 
 def weekly_inflation():
