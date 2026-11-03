@@ -10,6 +10,7 @@
 Даты заседаний ЦБ и пороги «сильных движений» - в common.py.
 """
 import json
+import hashlib
 import os
 import sys
 from datetime import date, datetime, timedelta
@@ -18,6 +19,7 @@ import bondsweek
 import events
 import insights
 import interpretation
+import official_events
 
 from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
                     cbr_deposit_series, cbr_key_series, cbr_rates, cbr_ruonia_series, coingecko_btc,
@@ -76,6 +78,7 @@ def collect(today):
         "btc": (coingecko_btc,),
         "divs": (dividends_calendar,),
         "imoex_list": (moex_imoex_constituents,),
+        "official_events": (official_events.collect, today, os.path.join(os.path.dirname(__file__), "data", "calendar_sources.json")),
     }
     d = parallel(jobs)
     macro = news(int(os.environ.get("NEWS_LIMIT", "5")), MACRO_RE) or []
@@ -100,6 +103,14 @@ def collect(today):
     d["bmeta"], d["bstate"] = bondsweek._load(bondsweek.META), bondsweek._load(bondsweek.STATE)
     if today.weekday() == 3 or os.environ.get("AUCTIONS") == "1":
         d["auctions"] = events.ofz_auction_results(today)
+    official = d.get("official_events") or {}
+    if today.weekday() in (2, 3) or os.environ.get("AUCTIONS") == "1":
+        d["auctions"] = events.combine_auction_results(d.get("auctions"), official.get("auctions"), today)
+    # Reuse newly checked meeting dates in previews, cards and next_meeting too.
+    if "cbr" in official.get("calendar_sources", []):
+        decisions = [date.fromisoformat(r["date"]) for r in official["calendar"] if r.get("type") == "cbr"]
+        if decisions:
+            events.CBR_MEETINGS[:] = sorted(set(decisions))
     apply_sanity(d)
     return d
 
@@ -565,8 +576,11 @@ def build_auctions(d):
                 fields.append(f"{label}: {fnum(r[key])}%")
         if r["demand_to_placed"] is not None:
             fields.append(f"спрос / размещение: ×{fnum(r['demand_to_placed'])} (не bid-to-cover)")
+        fields.append("первоисточник" if r.get("verified") else "данные СМИ")
+        if r.get("missing_fields"):
+            fields.append("н/д: " + ", ".join(r["missing_fields"]))
         details.append(e(" · ".join(fields)))
-    details.append("⚠️ Заголовки СМИ; сверить с протоколом Минфина. Премия к рынку: н/д.")
+    details.append("⚠️ Неподтверждённые записи СМИ требуют сверки. Премия к рынку: н/д.")
     details.append(interpretation.explain("Опубликованы сообщения об итогах аукциона.", "OFZ"))
     return header("📄", "АУКЦИОНЫ ОФЗ: ИТОГИ", sub) + "\n" + "\n".join(news_lines(a["news"]) + details)
 
@@ -733,7 +747,9 @@ def public_sections(d, now):
 def write_public(d, now):
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "digest.json")
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(public_sections(d, now), f, ensure_ascii=False)
+        payload = public_sections(d, now)
+        payload["revision"] = hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:20]
+        json.dump(payload, f, ensure_ascii=False)
     return path
 
 

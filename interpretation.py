@@ -35,8 +35,20 @@ def signal_meaning(kind, change):
     return {"hypothesis": hypothesis, "advisor_action": action}
 
 
-def explain(fact_html, kind, change=0):
+def explain(fact_html, kind, change=0, compact=False):
     rule = signal_meaning(kind, change)
+    if compact:
+        short = {
+            "OFZ": ("Возможна переоценка ставок или ликвидности.", "Сверить дюрацию и ликвидность выпуска."),
+            "RGBITR": ("Возможен вклад цен и купонов.", "Проверить риск дюрации портфеля."),
+            "CNY": ("Может меняться валютный риск.", "Сверить валюту расходов и спред сделки."),
+            "CBRT": ("Официальный курс отличается от цены сделки.", "Сверить доступные котировки и валютную долю."),
+            "BRENT": ("Возможно влияние на экспортёров и рубль.", "Проверить долю нефтяного сектора."),
+            "GOLD": ("Рублёвый результат зависит и от курса.", "Сверить долю золота и издержки."),
+            "BTC": ("Возможна смена аппетита к риску.", "Проверить лимит риска клиента."),
+        }
+        hypothesis, action = short.get(kind, (rule["hypothesis"], rule["advisor_action"]))
+        rule = {"hypothesis": hypothesis, "advisor_action": action}
     return ("<b>Факт:</b> " + fact_html + "\n<b>Гипотеза:</b> " + e(rule["hypothesis"])
             + "\n<b>Советнику:</b> " + e(rule["advisor_action"]))
 

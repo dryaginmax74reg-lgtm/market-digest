@@ -16,6 +16,7 @@ import sys
 from datetime import datetime, timedelta
 
 import events
+import official_events
 from digest import _short_issuer
 from common import (MONTHS, MSK, SHARE_MIN_TURNOVER, dividends_calendar, deliver, e, fnum, fpct, log, moex_cny_tom, moex_index,
                     next_meeting, pack, pages_url, parallel, pct, yahoo_quote)
@@ -41,6 +42,7 @@ def collect(now):
         "IMOEX": (moex_index, "IMOEX"), "RGBITR": (moex_index, "RGBITR"), "RUCBTRNS": (moex_index, "RUCBTRNS"),
         "CNY": (moex_cny_tom,), "BRENT": (yahoo_quote, "BZ=F"), "GOLD": (yahoo_quote, "GC=F"),
         "CBRT": (alerts.cbr_tomorrow, late), "SHARES": (alerts.board_rows, "shares", "TQBR"),
+        "OFFICIAL": (official_events.collect, now.date(), os.path.join(HERE, "data", "calendar_sources.json")),
         "RATINGS": (alerts.rating_moves, now, True), "DIVS": (dividends_calendar,),
         "AUCT": (events.ofz_auction_results, now.date()) if now.weekday() == 2 else (lambda: None,),
     })
@@ -63,7 +65,7 @@ def demo():
 def tomorrow_lines(d, now):
     t = now.date() + timedelta(days=1)
     out = []
-    rows, warnings = events.calendar_events(now.date() + timedelta(days=1), {"divs": d.get("DIVS") or []})
+    rows, warnings = events.calendar_events(now.date() + timedelta(days=1), {"divs": d.get("DIVS") or [], "official_events": d.get("OFFICIAL") or {}})
     for x in rows:
         if x["date"] == t.isoformat() and x["type"] in ("cbr", "macro", "auc"):
             out.append(e(x["importance"] + " · " + x["title"]) + (" ⚠️ дата не подтверждена" if not x["verified"] else ""))

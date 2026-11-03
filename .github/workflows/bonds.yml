@@ -1,0 +1,35 @@
+name: Bond reference snapshot
+
+on:
+  schedule:
+    # 06:30 MSK: prepare reference data before the 07:40 digest.
+    - cron: "30 3 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repo-writer
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Refresh public bond reference
+        run: python bonds_meta.py --if-stale
+      - name: Save complete snapshot
+        run: |
+          git config user.name "market-digest-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/bonds_meta.json bonds_state.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Справочник облигаций"
+          git pull --rebase --autostash
+          git push

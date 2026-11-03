@@ -244,9 +244,28 @@ def load_state():
         return {}
 
 
+def snapshot_fresh(now, max_hours=18):
+    """Both files must form the same complete snapshot; reject future/corrupt caches."""
+    try:
+        with open(META, encoding="utf-8") as f:
+            meta = json.load(f)
+        st = load_state()
+        stamp = meta["updated"]
+        age = (now - datetime.fromisoformat(stamp).replace(tzinfo=MSK)).total_seconds()
+        return (stamp[:10] == now.date().isoformat() and 0 <= age <= max_hours * 3600 and st.get("updated") == stamp
+                and isinstance(meta.get("b"), dict) and bool(meta["b"])
+                and isinstance(st.get("ratings"), dict) and bool(st["ratings"])
+                and meta.get("rated", 0) >= MIN_RATED and bool(st.get("days")))
+    except (OSError, ValueError, TypeError, KeyError):
+        return False
+
+
 def main():
     check = "--check" in sys.argv
     now = datetime.now(MSK)
+    if "--if-stale" in sys.argv and not check and snapshot_fresh(now):
+        log("Справочник облигаций свежий (<18 часов); повторный сбор пропущен")
+        return
     st = load_state()
 
     em = emitters()
