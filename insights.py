@@ -6,6 +6,8 @@
   story             — данные для «Утро за 30 секунд» (Mini App, docs/digest.json)
   voice_text        — текст голосовой сводки примерно на минуту
 Все функции терпят отсутствие любых данных: чего нет — того нет в выводе."""
+import credit_events
+
 from datetime import timedelta
 
 from common import MONTHS, MOVE_THRESHOLDS, fnum, fpct, fpp, market_view, next_meeting, pct
@@ -138,17 +140,19 @@ def day_status(d, today, moves=(), since=()):
         reasons2.append("сегодня решение ЦБ по ставке")
     elif nm and (nm - today).days == 1:
         reasons1.append("завтра заседание ЦБ")
+    for row in credit_events.disclosures(d, today)[:1]:
+        reasons1.append(f"{row['source']} {row['date'][8:10]}.{row['date'][5:7]}: техдефолт {row['issue_name']}")
     rd = d.get("_rating_day") or []
     dflt = [x for x in rd if x[5]]
     down = [x for x in rd if x[6] and not x[5]]
     from bondscore import rscore
     big = [x for x in dflt if rscore(x[2]) <= rscore("BBB-")]      # дефолт бывшего инвестиционного рейтинга — событие рынка
     if big:
-        reasons2.append("дефолт: " + ", ".join(x[1][:24] for x in big[:2]))
+        reasons2.append("дефолтный рейтинг: " + ", ".join(f"{x[1]} {x[2]}→{x[3]}" for x in big[:2]))
     elif dflt:
-        reasons1.append("дефолт: " + ", ".join(x[1][:24] for x in dflt[:2]))
+        reasons1.append("дефолтный рейтинг: " + ", ".join(f"{x[1]} {x[2]}→{x[3]}" for x in dflt[:2]))
     if down:
-        reasons1.append("понижения рейтингов: " + ", ".join(x[1][:24] for x in down[:2]))
+        reasons1.append("понижение: " + ", ".join(f"{x[1]} {x[2]}→{x[3]}" for x in down[:2]))
     for _icon, t in moves:
         reasons1.append(t)
     for _short, full, imp in since:
@@ -275,7 +279,7 @@ def story(d, today, now, status, since, answers):
     nm = next_meeting(today)
     if nm and (nm - today).days <= 7:
         ev.insert(0, f"{nm.day} {MONTHS[nm.month - 1]} — заседание ЦБ по ставке")
-    rd = [f"{x[0]} {x[1][:40]}: {x[2]} → {x[3]}" for x in (d.get("_rating_day") or [])[:4]]
+    rd = [f"{x[0]} {credit_events.issuer_name(x[1])}: {x[2]} → {x[3]}" for x in (d.get("_rating_day") or [])[:4]]
     fxy = (d.get("bmeta") or {}).get("fxy") or {}
     return {"status": {"level": lvl, "word": word, "reasons": reasons},
             "date": today.isoformat(), "time": now.strftime("%H:%M"),
@@ -324,7 +328,7 @@ def voice_text(d, today, now, status, since):
     rd = d.get("_rating_day") or []
     down = [x for x in rd if x[6]]
     if down:
-        parts.append("Понижены рейтинги: " + ", ".join(x[1][:30] for x in down[:3]) + ".")
+        parts.append("Понижены рейтинги: " + ", ".join(credit_events.issuer_name(x[1]) for x in down[:3]) + ".")
     nm = next_meeting(today)
     if nm and 0 < (nm - today).days <= 3:
         parts.append(f"Заседание ЦБ через {(nm - today).days} {'день' if (nm - today).days == 1 else 'дня'}.")
