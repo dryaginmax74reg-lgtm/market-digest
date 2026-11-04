@@ -29,6 +29,7 @@ jobs:
           python -m unittest discover -s tests -p test_quiet_alerts.py -v
           python -m unittest discover -s tests -p test_market_intelligence.py -v
           python -m unittest discover -s tests -p test_optimization.py -v
+          python -m unittest discover -s tests -p test_credit_events.py -v
           for test in tests/test_bonds_meta.py tests/test_fundamentals.py tests/test_parity.py tests/test_placements.py; do
             PYTHONPATH=. python "$test"
           done

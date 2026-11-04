@@ -19,6 +19,7 @@ import bondsweek
 import events
 import insights
 import interpretation
+import credit_events
 import official_events
 
 from common import (MACRO_RE, MONEY_RE, MONTHS, MOVE_THRESHOLDS, MSK, WEEKDAYS, cbr_currencies,
@@ -448,50 +449,39 @@ def build_markets(d):
 
 
 def rating_day(d, today):
-    """Изменения сводного рейтинга облигаций за сутки (smart-lab; bonds_meta.py сравнивает с прошлым днём), по эмитентам.
-    [(знак, эмитент, было, стало, выпусков)] — сначала дефолты, потом понижения, потом повышения."""
-    from bondscore import rscore
-    ch = [c for c in ((d.get("bstate") or {}).get("rating_changes") or []) if c.get("date") == today.isoformat()]
-    if not ch:
-        return []
-    by = {}
-    for c in ch:
-        k = c.get("em") or c.get("issuer") or c.get("name") or c["secid"]
-        g = by.setdefault(k, {"name": c.get("issuer") or c.get("name") or c["secid"], "from": c["from"], "to": c["to"], "n": 0})
-        g["n"] += 1
-        if rscore(c["to"]) > rscore(g["to"]):        # худший итог по эмитенту
-            g["from"], g["to"] = c["from"], c["to"]
-    out = []
-    for g in by.values():
-        down = rscore(g["to"]) > rscore(g["from"])
-        dflt = g["to"] == "D" or g["to"].startswith("C")
-        out.append(("🔴" if dflt else "⬇️" if down else "⬆️", g["name"], g["from"], g["to"], g["n"], dflt, down))
-    out.sort(key=lambda x: (not x[5], not x[6], -rscore(x[3])))
-    return out
+    """Daily aggregate observations, distinct from a confirmed payment default."""
+    return credit_events.daily(d, today)
 
 
 def _short_issuer(name):
-    """Сохраняем смысловое название, не обрезая юридическую форму вместо имени."""
-    import re
-    name = (name or "").strip()
-    short = re.sub(r'^(?:Международная компания публичное акционерное общество|Общество с ограниченной ответственностью|Публичное акционерное общество|Акционерное общество|Открытое акционерное общество|Закрытое акционерное общество|МКПАО|МКАО|ООО|ПАО|АО|ОАО|ЗАО)\s+', '', name, flags=re.I).strip()
-    short = re.sub(r'\s*\((?:ПАО|АО|ООО|МКПАО|МКАО)\)\s*$', '', short).strip()
-    # Strip only enclosing quotes, retaining text outside internal quotes.
-    if len(short) > 1 and (short[0], short[-1]) in (("«", "»"), ('"', '"'), ("“", "”")):
-        short = short[1:-1].strip()
-    return short or name
+    return credit_events.issuer_name(name)
+
+
+def rating_blocks(d, today):
+    """Full issue list, with bounded HTML blocks for the text fallback."""
+    title = header("🧾", "КРЕДИТНЫЕ СОБЫТИЯ ЗА 7 ДНЕЙ")
+    blocks = [title + "\n" + line for line in credit_events.payment_lines(d,today)]
+    for g in credit_events.groups(d,today,days=7):
+        label = "Дефолтный рейтинг D" if g['default_rating'] else "Критический рейтинг" if g['critical'] else "Понижение" if g['down'] else "Повышение"
+        group = (f"<b>{e(g['name'])}: {e(g['old'])} → {e(g['new'])}</b> · {label}"
+                 + f" · выпусков: {len(g['issues'])} · выявлено {e(g['date'])}")
+        head = title + "\n" + group
+        chunk = head
+        for issue in g['issues']:
+            line = "\n▪️ " + credit_events.issue_link(issue)
+            if len(chunk + line) > 3500 and chunk != head:
+                blocks.append(chunk)
+                chunk = head
+            chunk += line
+        blocks.append(chunk)
+    if blocks:
+        blocks.append("<i>Рейтинги — сводные данные smart-lab. Дата выявления ботом может отличаться от даты решения агентства. "
+                      "Категории C/CC/CCC сами по себе не подтверждают неплатёж; сообщения о выплатах приведены отдельно со ссылкой на источник.</i>")
+    return blocks
 
 
 def build_ratings(d, today):
-    items = rating_day(d, today)
-    if not items:
-        return ""
-    lines = [f"{i} {e(_short_issuer(n))}: {e(a)} → {e(b)}" + (f" · {k} {'выпуск' if k == 1 else 'выпуска' if k < 5 else 'выпусков'}" if k > 1 else "")
-             for i, n, a, b, k, _df, _dn in items[:12]]
-    if len(items) > 12:
-        lines.append(f"… и ещё {len(items) - 12}")
-    nd = sum(1 for x in items if x[6]); nu = len(items) - nd
-    return header("🧾", "РЕЙТИНГИ ЗА СУТКИ", f"сводные, smart-lab · ↓ {nd} · ↑ {nu}") + "\n" + "\n".join(lines)
+    return "\n\n".join(rating_blocks(d,today))
 
 
 def build_watch(d, today):
@@ -600,9 +590,10 @@ def build_blocks(d, now):
     blocks.append(build_moves(d, today))
     blocks += events.daily_blocks(today, d, d.get("watch"))
     blocks.append(build_watch(d, today))
+    blocks.extend(rating_blocks(d, today))
     if d.get("bondsweek"):
         blocks.append(bondsweek.block(d["bondsweek"], today))
-    return blocks + [build_since(d), build_ratings(d, today), build_auctions(d), build_fx(d), build_rates(d, today), interpretation.curve_block(d.get("curve_analysis")), build_yields(d, today),
+    return blocks + [build_since(d), build_auctions(d), build_fx(d), build_rates(d, today), interpretation.curve_block(d.get("curve_analysis")), build_yields(d, today),
                      build_markets(d), build_events(d, today), build_news(d)]
 
 
@@ -616,6 +607,9 @@ def caption(d, now):
     st = d.get("_status")
     if st:
         lines.append(f"{['🟢', '🟡', '🔴'][st[0]]} <b>{st[1]}</b>" + (f" — {e(_lc(st[2][0]))}" if st[0] and st[2] else ""))
+    for row in credit_events.disclosures(d, now.date())[:1]:
+        lines.append("⚠️ <b>"+e(row['issuer'])+"</b>: сообщение о техдефолте по купону "
+                     +e(row['issue_name'])+" · "+e(row['isin'])+" · "+e(row['source'])+" "+e(row['date']))
     since = d.get("_since") or []
     if since:
         sh_ = [sh for sh, _f, _i in since if not sh.startswith("рейтинги")][:3]
@@ -729,8 +723,11 @@ def public_sections(d, now):
         bw = dict(d["bondsweek"])
         details.append(bondsweek.block(bw, today))
     details.insert(0, build_since(pub))
-    details += [build_ratings(pub, today), build_auctions(pub), build_fx(pub), build_rates(pub, today), interpretation.curve_block(pub.get("curve_analysis")), build_yields(pub, today), build_markets(pub)]
+    details.insert(0, build_ratings(pub, today))
+    details += [build_auctions(pub), build_fx(pub), build_rates(pub, today), interpretation.curve_block(pub.get("curve_analysis")), build_yields(pub, today), build_markets(pub)]
     return {
+        "credit_events": credit_events.groups(pub, today, days=7),
+        "credit_disclosures": credit_events.disclosures(pub, today),
         "date": today.isoformat(), "updated": now.strftime("%Y-%m-%d %H:%M"),
         "details": [b for b in details if b],
         "money": build_events(pub, today).replace(" · нажмите, чтобы раскрыть", ""),

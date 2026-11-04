@@ -99,7 +99,7 @@ def block(d, today):
         lines.append("")
         lines.append(f"<b>Рейтинги за неделю</b> <i>— сводные, smart-lab: ↓ {len(down)}, ↑ {len(up)}</i>")
         if dflt:
-            lines.append("🔴 Дефолт/преддефолт: " + ", ".join(f"{_link(c['secid'], c.get('name') or c['secid'])} {e(c['from'])}→{e(c['to'])}" for c in dflt[:6]))
+            lines.append("⚠️ Рейтинги C/CC/CCC/D: " + ", ".join(f"{_link(c['secid'], c.get('name') or c['secid'])} {e(c['from'])}→{e(c['to'])}" for c in dflt[:6]))
         rest = [c for c in down if c not in dflt]
         if rest:
             lines.append("⬇️ " + ", ".join(f"{_link(c['secid'], c.get('name') or c['secid'])} {e(c['from'])}→{e(c['to'])}" for c in rest[:8])

@@ -2,6 +2,7 @@
 бумажный фон, тёмно-синий — главное, бронза — тонкие акценты; текст — Onest, цифры и заголовки — Literata.
 Используется digest.py: render_card(data, series, now) -> путь к PNG."""
 import os
+import textwrap
 from datetime import timedelta
 
 from common import MONTHS, WEEKDAYS, fnum, fpct, fpp, market_view, next_meeting, pct
@@ -95,8 +96,8 @@ def render_card(d, series, now, moves=(), path=OUT):
         fig.text(fx(128), fy(197), word, fontsize=26, color=fg, fontweight=500, ha="left", va="center", family=serif)
         why = (reasons[0] if reasons else "")
         if why:
-            fig.text(fx(360), fy(198), why[:58] + ("…" if len(why) > 58 else ""), fontsize=15, color=INK2,
-                     ha="left", va="center", family=sans)
+            fig.text(fx(360), fy(198), "\n".join(textwrap.wrap(why, width=55, max_lines=2, placeholder="…")), fontsize=15, color=INK2,
+                     ha="left", va="center", family=sans, linespacing=1.15)
         y0 = 256
     hero_h = 222
     box(60, y0, W - 120, hero_h, NAVY)
