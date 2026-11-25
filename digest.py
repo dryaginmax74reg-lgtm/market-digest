@@ -601,9 +601,31 @@ def card_ok(d):
     return bool(d.get("_card"))
 
 
+def data_warnings(d, today):
+    """Report missing core exchange data and the age of the saved reference."""
+    warnings = []
+    missing = [label for key, label in (("IMOEX", "Мосбиржа"), ("RGBITR", "ОФЗ"),
+               ("RUCBTRNS", "корпоративные облигации"), ("zcyc", "кривая ОФЗ")) if not d.get(key)]
+    if missing:
+        warnings.append("Не получены данные: " + ", ".join(missing) + ".")
+    stamp = (d.get("bmeta") or {}).get("updated")
+    try:
+        snapshot_day = datetime.fromisoformat(stamp).date()
+    except (TypeError, ValueError):
+        snapshot_day = None
+    if snapshot_day is None:
+        warnings.append("Дата обновления справочника облигаций неизвестна.")
+    elif snapshot_day < prev_workday(today) or snapshot_day > today:
+        warnings.append("Справочник облигаций от " + stamp + "; рейтинги и обороты требуют обновления.")
+    return warnings
+
+
 def caption(d, now):
     """Подпись к карточке дня: светофор, что изменилось со вчера, сильные движения, повод для звонка, ваш список (только в чате)."""
     lines = [f"<b>Рынки · {now.day} {MONTHS[now.month - 1]}</b>"]
+    warnings = data_warnings(d, now.date())
+    if warnings:
+        lines.append("⚠️ <b>Данные неполные</b>. " + e(" ".join(warnings)))
     st = d.get("_status")
     if st:
         lines.append(f"{['🟢', '🟡', '🔴'][st[0]]} <b>{st[1]}</b>" + (f" — {e(_lc(st[2][0]))}" if st[0] and st[2] else ""))
@@ -632,6 +654,8 @@ def caption(d, now):
     if nm and nm == now.date():
         lines.append("🏦 Сегодня заседание ЦБ — флеш с решением около 13:35.")
     watch = watch_lines(d, now.date())
+    while len(_plain("\n".join(lines))) > 1000 and len(lines) > 2:
+        lines.pop()
     out = "\n".join(lines)
     if watch:
         extra = "\n⭐ <b>Ваш список</b>"
@@ -717,6 +741,7 @@ def public_sections(d, now):
     today = now.date()
     pub = dict(d)
     pub["watch"] = None
+    warnings = data_warnings(pub, today)
     details = list(events.daily_blocks(today, pub, None))
     details.insert(0, build_moves(pub, today))
     if d.get("bondsweek"):
@@ -725,7 +750,10 @@ def public_sections(d, now):
     details.insert(0, build_since(pub))
     details.insert(0, build_ratings(pub, today))
     details += [build_auctions(pub), build_fx(pub), build_rates(pub, today), interpretation.curve_block(pub.get("curve_analysis")), build_yields(pub, today), build_markets(pub)]
+    if warnings:
+        details.insert(0, "⚠️ <b>Данные неполные</b>\n" + e("\n".join(warnings)))
     return {
+        "data_warnings": warnings,
         "credit_events": credit_events.groups(pub, today, days=7),
         "credit_disclosures": credit_events.disclosures(pub, today),
         "date": today.isoformat(), "updated": now.strftime("%Y-%m-%d %H:%M"),
