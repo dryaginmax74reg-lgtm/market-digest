@@ -1,10 +1,12 @@
 """Общие функции: загрузка данных, форматирование, отправка в Telegram.
 Только стандартная библиотека (matplotlib нужен лишь charts.py / review.py)."""
 import html
+import http.client
 import json
 import math
 import os
 import re
+import ssl
 import sys
 import time
 import urllib.error
@@ -95,6 +97,19 @@ def fail(msg):
     sys.exit(1)
 
 
+class _MoexHTTPSHandler(urllib.request.HTTPSHandler):
+    """Use the official additional trust anchor only for the ISS host."""
+
+    def https_open(self, req):
+        if urllib.parse.urlsplit(req.full_url).hostname != "iss.moex.com":
+            return super().https_open(req)
+        context = ssl.create_default_context()
+        context.load_verify_locations(cafile=os.path.join(
+            os.path.dirname(__file__), "certs", "russian_trusted_root_ca.pem"))
+        return self.do_open(http.client.HTTPSConnection,
+                            req, context=context)
+
+
 def http_get(url, data=None, headers=None, retries=3, timeout=25):
     h = dict(UA)
     if headers:
@@ -103,7 +118,8 @@ def http_get(url, data=None, headers=None, retries=3, timeout=25):
     for i in range(retries):
         try:
             req = urllib.request.Request(url, data=data, headers=h)
-            with urllib.request.urlopen(req, timeout=timeout) as r:
+            opener = urllib.request.build_opener(_MoexHTTPSHandler())
+            with opener.open(req, timeout=timeout) as r:
                 return r.read()
         except urllib.error.HTTPError as e:
             if 400 <= e.code < 500 and e.code != 429:

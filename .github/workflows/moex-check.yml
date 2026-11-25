@@ -1,0 +1,31 @@
+name: MOEX connection check
+
+on:
+  pull_request:
+    paths:
+      - common.py
+      - 'certs/**'
+      - '.github/workflows/moex-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify TLS and read public ISS data
+        run: |
+          python - <<'PY'
+          import json
+          from common import ISS, http_get
+          data = json.loads(http_get(ISS + "securities.json?q=SU26238&iss.meta=off&iss.only=securities", timeout=20))
+          assert data["securities"]["data"], "ISS returned no securities"
+          print("Verified MOEX TLS and public securities response")
+          PY
